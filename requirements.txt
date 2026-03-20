@@ -1,0 +1,4 @@
+requests>=2.28.0
+# 可选：使用浏览器模式绕过验证码时安装
+# selenium>=4.0.0
+# webdriver-manager>=4.0.0

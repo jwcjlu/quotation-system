@@ -1,0 +1,23 @@
+server:
+  http:
+    addr: 0.0.0.0:18080
+    timeout: 30
+  grpc:
+    addr: 0.0.0.0:19090
+    timeout: 10
+
+data:
+  database:
+    driver: mysql
+    dsn: user:pass@tcp(127.0.0.1:3306)/bom_match?charset=utf8mb4
+  redis:
+    addr: 127.0.0.1:6379
+    read_timeout: 1
+    write_timeout: 1
+
+platform:
+  ickey:
+    search_url: "https://search.ickey.cn/"
+    timeout: 15
+    crawler_path: "python"
+    crawler_script: "ickey_crawler.py"

@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package api.bom.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "caichip/api/bom/v1;v1";
+
+// BOM 配单服务
+service BomService {
+  // 上传并解析 BOM
+  rpc UploadBOM(UploadBOMRequest) returns (UploadBOMReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom/upload"
+      body: "*"
+    };
+  }
+
+  // 多平台搜索报价
+  rpc SearchQuotes(SearchQuotesRequest) returns (SearchQuotesReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom/search"
+      body: "*"
+    };
+  }
+
+  // 自动配单
+  rpc AutoMatch(AutoMatchRequest) returns (AutoMatchReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom/match"
+      body: "*"
+    };
+  }
+
+  // 下载 BOM 模板
+  rpc DownloadTemplate(DownloadTemplateRequest) returns (DownloadTemplateReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/template"
+    };
+  }
+
+  // 获取 BOM 详情（含解析结果）
+  rpc GetBOM(GetBOMRequest) returns (GetBOMReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/{bom_id}"
+    };
+  }
+
+  // 获取配单结果
+  rpc GetMatchResult(GetMatchResultRequest) returns (GetMatchResultReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/{bom_id}/match"
+    };
+  }
+}
+
+// ========== UploadBOM ==========
+message UploadBOMRequest {
+  bytes file = 1;           // Excel 文件内容
+  string filename = 2;      // 文件名
+  string parse_mode = 3;   // 解析模式：szlcsc | ickey | auto | custom
+  map<string, string> column_mapping = 4;  // 自定义模式：{"model":"A","manufacturer":"B",...}
+}
+
+message UploadBOMReply {
+  string bom_id = 1;
+  repeated ParsedItem items = 2;
+  int32 total = 3;
+}
+
+message ParsedItem {
+  int32 index = 1;
+  string raw = 2;
+  string model = 3;
+  string manufacturer = 4;
+  string package = 5;
+  int32 quantity = 6;
+  string params = 7;
+}
+
+// ========== SearchQuotes ==========
+message SearchQuotesRequest {
+  string bom_id = 1;
+  repeated string platforms = 2;
+}
+
+message SearchQuotesReply {
+  repeated ItemQuotes item_quotes = 1;
+}
+
+message ItemQuotes {
+  string model = 1;
+  int32 quantity = 2;
+  repeated PlatformQuote quotes = 3;
+}
+
+message PlatformQuote {
+  string platform = 1;
+  string matched_model = 2;
+  string manufacturer = 3;
+  string description = 4;
+  int64 stock = 5;
+  string lead_time = 6;
+  int32 moq = 7;
+  int32 increment = 8;
+  string price_tiers = 9;
+  string hk_price = 10;
+  string mainland_price = 11;
+  double unit_price = 12;
+  double subtotal = 13;
+  string package = 14;      // 封装，用于型号/封装/厂牌匹配筛选
+}
+
+// ========== AutoMatch ==========
+message AutoMatchRequest {
+  string bom_id = 1;
+  string strategy = 2;  // price_first | stock_first | leadtime_first | comprehensive
+}
+
+message AutoMatchReply {
+  repeated MatchItem items = 1;
+  double total_amount = 2;
+}
+
+message MatchItem {
+  int32 index = 1;
+  string model = 2;
+  int32 quantity = 3;
+  string matched_model = 4;
+  string manufacturer = 5;   // 匹配到的厂牌
+  string platform = 6;
+  string lead_time = 7;
+  int64 stock = 8;
+  double unit_price = 9;
+  double subtotal = 10;
+  string match_status = 11;  // exact | pending | no_match
+  repeated PlatformQuote all_quotes = 12;  // 该物料在各平台的全部报价，供「显示更多」展开展示
+  string demand_manufacturer = 13;  // 需求厂牌（解析自 BOM）
+  string demand_package = 14;       // 需求封装（解析自 BOM）
+}
+
+// ========== GetBOM ==========
+message GetBOMRequest {
+  string bom_id = 1;
+}
+
+message GetBOMReply {
+  string bom_id = 1;
+  string created_at = 2;
+  repeated ParsedItem items = 3;
+}
+
+// ========== GetMatchResult ==========
+message GetMatchResultRequest {
+  string bom_id = 1;
+}
+
+message GetMatchResultReply {
+  repeated MatchItem items = 1;
+  double total_amount = 2;
+}
+
+// ========== DownloadTemplate ==========
+message DownloadTemplateRequest {}
+
+message DownloadTemplateReply {
+  bytes file = 1;
+  string filename = 2;
+}

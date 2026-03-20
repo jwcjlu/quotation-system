@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package api.bom.v1;
+
+option go_package = "caichip/api/bom/v1;v1";
+
+enum ErrorReason {
+  BOM_UNSPECIFIED = 0;
+  BOM_PARSE_FAILED = 1;       // 解析失败
+  BOM_NOT_FOUND = 2;          // BOM 不存在
+  BOM_SEARCH_FAILED = 3;      // 搜索失败
+  BOM_PLATFORM_UNAVAILABLE = 4; // 平台不可用
+}

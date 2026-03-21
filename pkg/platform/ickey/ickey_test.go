@@ -32,7 +32,7 @@ func TestParseFirstPriceFromTiers(t *testing.T) {
 }
 
 func TestToQuote(t *testing.T) {
-	c := NewClient("https://search.ickey.cn/", 15, "python", "ickey_crawler.py")
+	c := NewClient("https://search.ickey.cn/", 15, "python", "ickey_crawler.py", "")
 	r := &crawlerResult{
 		Seq:           1,
 		Model:         "SN74HC595PWR",
@@ -160,7 +160,7 @@ func TestSearchBatch_WithStub(t *testing.T) {
 
 // TestClientName 验证 Searcher 接口
 func TestClientName(t *testing.T) {
-	c := NewClient("", 0, "", "")
+	c := NewClient("", 0, "", "", "")
 	if c.Name() != "ickey" {
 		t.Errorf("Name() = %q, want ickey", c.Name())
 	}

@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"caichip/pkg/platform"
@@ -83,6 +84,7 @@ func (uc *SearchUseCase) SearchQuotes(ctx context.Context, bomID string, platfor
 	for _, bs := range batchSearchers {
 		m, err := bs.SearchBatch(reqs)
 		if err != nil {
+			fmt.Printf("SearchBatch err: %v", err)
 			continue
 		}
 		batchResults[bs.Name()] = m

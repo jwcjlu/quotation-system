@@ -14,7 +14,7 @@ import (
 var flagConf string
 
 func init() {
-	flag.StringVar(&flagConf, "conf", "configs/config.yaml", "config path, eg: -conf config.yaml")
+	flag.StringVar(&flagConf, "conf", "D:\\workspace\\caichip\\configs\\config.yaml", "config path, eg: -conf config.yaml")
 }
 
 func main() {

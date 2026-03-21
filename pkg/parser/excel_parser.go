@@ -73,6 +73,10 @@ func (p *ExcelParser) Parse(ctx context.Context, data []byte, mode ParseMode, ma
 		}
 	case ParseModeCustom:
 		colMap = p.parseCustomMapping(headerRow, mapping)
+		if colMap == nil {
+			// 自定义模式未提供列映射时，回退到自动识别
+			colMap = p.autoDetectColumns(headerRow)
+		}
 	default:
 		colMap = p.detectColumns(headerRow, szlcscHeaders)
 		if colMap == nil {
@@ -81,6 +85,9 @@ func (p *ExcelParser) Parse(ctx context.Context, data []byte, mode ParseMode, ma
 	}
 
 	if colMap == nil {
+		if mode == ParseModeCustom {
+			return nil, fmt.Errorf("cannot detect columns: 自定义模式需提供 column_mapping，或表格表头无法自动识别")
+		}
 		return nil, fmt.Errorf("cannot detect columns for mode %s", mode)
 	}
 
@@ -164,12 +171,12 @@ func (p *ExcelParser) parseCustomMapping(headerRow []string, mapping ColumnMappi
 
 func (p *ExcelParser) columnToIndex(col string, headerRow []string) int {
 	col = strings.TrimSpace(strings.ToUpper(col))
-	if len(col) == 1 {
+	/*if len(col) == 1 {
 		return int(col[0] - 'A')
 	}
 	if len(col) == 2 {
 		return (int(col[0]-'A')+1)*26 + int(col[1]-'A')
-	}
+	}*/
 	for i, h := range headerRow {
 		if strings.TrimSpace(strings.ToLower(h)) == strings.TrimSpace(strings.ToLower(col)) {
 			return i

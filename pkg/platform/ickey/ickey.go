@@ -1,9 +1,11 @@
 package ickey
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -41,17 +43,24 @@ type Client struct {
 }
 
 // NewClient 创建 Ickey 客户端
-func NewClient(searchURL string, timeout int, crawlerPath, crawlerScript string) *Client {
+func NewClient(searchURL string, timeout int, crawlerPath, crawlerScript, workDir string) *Client {
 	if crawlerPath == "" {
 		crawlerPath = "python"
 	}
 	if crawlerScript == "" {
 		crawlerScript = "ickey_crawler.py"
 	}
-	workDir := ""
-	if abs, err := filepath.Abs(crawlerScript); err == nil {
-		workDir = filepath.Dir(abs)
-		crawlerScript = filepath.Base(abs)
+	// 解析 workDir：空则尝试从 cwd、可执行文件同目录查找脚本
+	if workDir == "" {
+		workDir, crawlerScript = resolveCrawlerPath(crawlerScript)
+	} else {
+		// 校验配置路径是否存在，不存在则回退查找
+		full := filepath.Join(workDir, crawlerScript)
+		if _, err := os.Stat(full); err != nil {
+			if w, s := resolveCrawlerPath(crawlerScript); w != "" {
+				workDir, crawlerScript = w, s
+			}
+		}
 	}
 	return &Client{
 		searchURL:     searchURL,
@@ -60,6 +69,40 @@ func NewClient(searchURL string, timeout int, crawlerPath, crawlerScript string)
 		crawlerScript: crawlerScript,
 		workDir:       workDir,
 	}
+}
+
+// resolveCrawlerPath 查找 ickey_crawler.py 所在目录，返回 (workDir, scriptName)
+func resolveCrawlerPath(scriptName string) (workDir, script string) {
+	script = scriptName
+	if script == "" {
+		script = "ickey_crawler.py"
+	}
+	// 1. 当前工作目录
+	if cwd, _ := os.Getwd(); cwd != "" {
+		p := filepath.Join(cwd, script)
+		if _, err := os.Stat(p); err == nil {
+			return cwd, script
+		}
+	}
+	// 2. 可执行文件同目录
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		p := filepath.Join(dir, script)
+		if _, err := os.Stat(p); err == nil {
+			return dir, script
+		}
+		// 可执行文件在 bin/ 时，尝试上级目录
+		parent := filepath.Dir(dir)
+		p = filepath.Join(parent, script)
+		if _, err := os.Stat(p); err == nil {
+			return parent, script
+		}
+	}
+	// 3. 仅用 cwd 作为 fallback（脚本可能通过 PATH 找到）
+	if cwd, _ := os.Getwd(); cwd != "" {
+		return cwd, script
+	}
+	return "", script
 }
 
 // Name 实现 platform.Searcher
@@ -113,10 +156,19 @@ func (c *Client) SearchBatch(reqs []platform.SearchRequest) (map[string][]*platf
 	if c.workDir != "" {
 		cmd.Dir = c.workDir
 	}
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
 
-	body, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("ickey crawler: %w", err)
+	body, runErr := cmd.Output()
+	if runErr != nil {
+		// 爬虫异常退出时，从 stderr 获取错误详情
+		detail := strings.TrimSpace(stderrBuf.String())
+		if detail == "" {
+			detail = runErr.Error()
+		}
+		// 附带执行信息便于排查
+		cmdInfo := fmt.Sprintf("cmd=%s %s --model %s dir=%s", c.crawlerPath, scriptPath, modelArg, c.workDir)
+		return nil, fmt.Errorf("ickey crawler: %s [%s]", detail, cmdInfo)
 	}
 
 	var results []crawlerResult

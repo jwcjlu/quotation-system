@@ -48,4 +48,5 @@ type PlatformConf struct {
 	Timeout       int    `yaml:"timeout"`
 	CrawlerPath   string `yaml:"crawler_path"`
 	CrawlerScript string `yaml:"crawler_script"`
+	WorkDir       string `yaml:"work_dir"`
 }

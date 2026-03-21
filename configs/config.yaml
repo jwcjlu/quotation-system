@@ -18,6 +18,7 @@ data:
 platform:
   ickey:
     search_url: "https://search.ickey.cn/"
-    timeout: 15
+    timeout: 300
     crawler_path: "python"
     crawler_script: "ickey_crawler.py"
+    work_dir: "D:\\workspace\\caichip"

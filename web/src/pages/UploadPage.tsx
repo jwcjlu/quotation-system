@@ -1,15 +1,51 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import * as XLSX from 'xlsx'
 import { uploadBOM, downloadTemplate } from '../api'
 
 const PARSE_MODES = [
   { value: 'auto', label: '通用模式', desc: '自动识别表头' },
-  { value: 'szlcsc', label: '立创标准', desc: '立创商城 BOM 模板' },
-  { value: 'ickey', label: '云汉标准', desc: '云汉芯城 BOM 模板' },
   { value: 'custom', label: '自定义映射', desc: '手动指定列映射' },
+] as const
+
+const MAPPING_FIELDS = [
+  { key: 'model', label: '型号', required: true },
+  { key: 'manufacturer', label: '厂牌', required: false },
+  { key: 'package', label: '封装', required: false },
+  { key: 'quantity', label: '数量', required: false },
+  { key: 'params', label: '参数/备注', required: false },
 ] as const
 
 interface UploadPageProps {
   onSuccess: (bomId: string) => void
+}
+
+function readExcelHeaders(file: File): Promise<string[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result
+        if (!data || typeof data !== 'object') {
+          reject(new Error('无法读取文件'))
+          return
+        }
+        const wb = XLSX.read(data, { type: 'array' })
+        const firstSheet = wb.SheetNames[0]
+        if (!firstSheet) {
+          reject(new Error('无工作表'))
+          return
+        }
+        const ws = wb.Sheets[firstSheet]
+        const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 })
+        const headers = (rows[0] ?? []).map((h) => String(h ?? '').trim()).filter(Boolean)
+        resolve(headers)
+      } catch (err) {
+        reject(err)
+      }
+    }
+    reader.onerror = () => reject(new Error('读取失败'))
+    reader.readAsArrayBuffer(file)
+  })
 }
 
 export function UploadPage({ onSuccess }: UploadPageProps) {
@@ -18,6 +54,8 @@ export function UploadPage({ onSuccess }: UploadPageProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [headers, setHeaders] = useState<string[]>([])
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -38,17 +76,35 @@ export function UploadPage({ onSuccess }: UploadPageProps) {
     const f = e.target.files?.[0]
     if (f) setFile(f)
     setError(null)
+    setHeaders([])
+    setColumnMapping({})
   }
+
+  useEffect(() => {
+    if (parseMode === 'custom' && file) {
+      readExcelHeaders(file)
+        .then(setHeaders)
+        .catch(() => setHeaders([]))
+    } else {
+      setHeaders([])
+      setColumnMapping({})
+    }
+  }, [parseMode, file])
 
   const handleUpload = async () => {
     if (!file) {
       setError('请选择文件')
       return
     }
+    if (parseMode === 'custom' && !columnMapping.model) {
+      setError('自定义模式请至少配置「型号」列映射')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
-      const res = await uploadBOM(file, parseMode)
+      const mapping = parseMode === 'custom' && Object.keys(columnMapping).length > 0 ? columnMapping : undefined
+      const res = await uploadBOM(file, parseMode, mapping)
       onSuccess(res.bom_id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '上传失败')
@@ -126,6 +182,48 @@ export function UploadPage({ onSuccess }: UploadPageProps) {
               ))}
             </div>
           </div>
+
+          {parseMode === 'custom' && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <h3 className="font-medium text-slate-800 mb-3">列映射配置</h3>
+              {headers.length === 0 ? (
+                <p className="text-slate-500 text-sm">请先选择 Excel 文件，将读取表头供映射</p>
+              ) : (
+                <div className="space-y-3">
+                  {MAPPING_FIELDS.map(({ key, label, required }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <label className="w-24 text-sm text-slate-700">
+                        {label}
+                        {required && <span className="text-red-500">*</span>}
+                      </label>
+                      <select
+                        value={columnMapping[key] ?? ''}
+                        onChange={(e) =>
+                          setColumnMapping((prev) => {
+                            const v = e.target.value
+                            if (!v) {
+                              const next = { ...prev }
+                              delete next[key]
+                              return next
+                            }
+                            return { ...prev, [key]: v }
+                          })
+                        }
+                        className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="">— 不映射 —</option>
+                        {headers.map((h, i) => (
+                          <option key={i} value={h}>
+                            {h}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex flex-col gap-3">
             <button

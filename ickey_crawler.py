@@ -20,7 +20,6 @@ import re
 import sys
 import csv
 import time
-import tkinter as tk
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from DrissionPage import ChromiumPage, ChromiumOptions
@@ -132,15 +131,9 @@ def extract_price_gradients_from_row(row) -> dict:
 def get_clipboard_text():
     """
     使用tkinter读取系统剪贴板（备用方案，暂未使用）
+    注：需 import tkinter，无头环境可能不可用
     """
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        text = root.clipboard_get()
-        root.destroy()
-        return text.strip()
-    except:
-        return ""
+    return ""
 
 
 def _extract_package_from_block(block: str) -> str:

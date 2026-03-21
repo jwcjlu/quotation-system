@@ -12,7 +12,6 @@ import (
 	"caichip/internal/server"
 	"caichip/internal/service"
 	"caichip/pkg/platform/ickey"
-	"caichip/pkg/platform/szlcsc"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
@@ -38,29 +37,33 @@ func newSearchers(c *conf.Bootstrap) []biz.PlatformSearcher {
 		if c.Platform.Ickey != nil {
 			crawlerPath := c.Platform.Ickey.CrawlerPath
 			crawlerScript := c.Platform.Ickey.CrawlerScript
+			workDir := c.Platform.Ickey.WorkDir
 			if crawlerPath == "" {
 				crawlerPath = "python"
 			}
 			if crawlerScript == "" {
 				crawlerScript = "ickey_crawler.py"
 			}
+			if crawlerScript == "" {
+				crawlerScript = "ickey_crawler.py"
+			}
+			searchURL := c.Platform.Ickey.SearchURL
+			if searchURL == "" {
+				searchURL = "https://search.ickey.cn/"
+			}
 			list = append(list, ickey.NewClient(
-				c.Platform.Ickey.SearchURL,
+				searchURL,
 				c.Platform.Ickey.Timeout,
 				crawlerPath,
 				crawlerScript,
-			))
-		}
-		if c.Platform.Szlcsc != nil {
-			list = append(list, szlcsc.NewClient(
-				c.Platform.Szlcsc.SearchURL,
-				c.Platform.Szlcsc.Timeout,
+				workDir,
 			))
 		}
 	}
 	if len(list) == 0 {
-		list = append(list, ickey.NewClient("https://search.ickey.cn/", 15, "python", "ickey_crawler.py"))
-		list = append(list, szlcsc.NewClient("https://www.szlcsc.com/", 15))
+		list = append(list, ickey.NewClient("https://search.ickey.cn/", 300, "python",
+			"ickey_crawler.py", "D:\\workspace\\caichip"))
+
 	}
 	return list
 }

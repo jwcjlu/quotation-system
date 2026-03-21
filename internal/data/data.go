@@ -22,6 +22,7 @@ func NewSearchers(c *conf.Bootstrap) []interface{} {
 		if c.Platform.Ickey != nil {
 			crawlerPath := c.Platform.Ickey.CrawlerPath
 			crawlerScript := c.Platform.Ickey.CrawlerScript
+			workDir := c.Platform.Ickey.WorkDir
 			if crawlerPath == "" {
 				crawlerPath = "python"
 			}
@@ -33,6 +34,7 @@ func NewSearchers(c *conf.Bootstrap) []interface{} {
 				c.Platform.Ickey.Timeout,
 				crawlerPath,
 				crawlerScript,
+				workDir,
 			))
 		}
 		if c.Platform.Szlcsc != nil {
@@ -43,7 +45,7 @@ func NewSearchers(c *conf.Bootstrap) []interface{} {
 		}
 	}
 	if len(list) == 0 {
-		list = append(list, ickey.NewClient("https://search.ickey.cn/", 15, "python", "ickey_crawler.py"))
+		list = append(list, ickey.NewClient("https://search.ickey.cn/", 15, "python", "ickey_crawler.py", ""))
 		list = append(list, szlcsc.NewClient("https://www.szlcsc.com/", 15))
 	}
 	return list

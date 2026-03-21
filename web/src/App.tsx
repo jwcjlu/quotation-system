@@ -2,16 +2,21 @@ import { useState } from 'react'
 import { UploadPage } from './pages/UploadPage'
 import { MatchResultPage } from './pages/MatchResultPage'
 
+const LAST_BOM_KEY = 'bom_last_bom_id'
+
 type Page = 'upload' | 'result'
 
 function App() {
   const [page, setPage] = useState<Page>('upload')
-  const [bomId, setBomId] = useState<string | null>(null)
+  const [bomId, setBomId] = useState<string | null>(() => localStorage.getItem(LAST_BOM_KEY))
 
   const onUploadSuccess = (id: string) => {
     setBomId(id)
+    localStorage.setItem(LAST_BOM_KEY, id)
     setPage('result')
   }
+
+  const effectiveBomId = bomId || localStorage.getItem(LAST_BOM_KEY)
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -25,21 +30,27 @@ function App() {
             >
               上传 BOM
             </button>
-            {bomId && (
-              <button
-                onClick={() => setPage('result')}
-                className={`px-3 py-1 rounded ${page === 'result' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
-              >
-                配单结果
-              </button>
-            )}
+            <button
+              onClick={() => {
+                const id = bomId || localStorage.getItem(LAST_BOM_KEY)
+                if (id) {
+                  setBomId(id)
+                  setPage('result')
+                }
+              }}
+              className={`px-3 py-1 rounded ${page === 'result' ? 'bg-slate-600' : 'hover:bg-slate-700'} ${!effectiveBomId ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={!effectiveBomId ? '请先上传 BOM' : '查看最后一次匹配结果'}
+              disabled={!effectiveBomId}
+            >
+              匹配单
+            </button>
           </nav>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
         {page === 'upload' && <UploadPage onSuccess={onUploadSuccess} />}
-        {page === 'result' && bomId && <MatchResultPage bomId={bomId} />}
+        {page === 'result' && effectiveBomId && <MatchResultPage bomId={effectiveBomId} />}
       </main>
     </div>
   )

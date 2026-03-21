@@ -63,6 +63,27 @@ function DetailModal({ item, onClose }: { item: MatchItem; onClose: () => void }
           </h3>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-700">✕</button>
         </div>
+        {item.matched_model && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <h4 className="mb-2 font-medium text-slate-700">当前匹配</h4>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
+              <span className="text-slate-500">平台</span>
+              <span>{item.platform || '-'}</span>
+              <span className="text-slate-500">型号</span>
+              <span>{item.matched_model}</span>
+              <span className="text-slate-500">厂牌</span>
+              <span>{item.manufacturer || '-'}</span>
+              <span className="text-slate-500">封装</span>
+              <span>{item.demand_package || '-'}</span>
+              <span className="text-slate-500">库存</span>
+              <span>{item.stock ?? '-'}</span>
+              <span className="text-slate-500">货期</span>
+              <span>{item.lead_time || '-'}</span>
+              <span className="text-slate-500">单价</span>
+              <span>¥{item.unit_price?.toFixed(2) ?? '-'}</span>
+            </div>
+          </div>
+        )}
         <p className="mb-4 text-sm text-slate-600">
           各平台搜索到的全部报价，当前选中已高亮
         </p>
@@ -73,6 +94,7 @@ function DetailModal({ item, onClose }: { item: MatchItem; onClose: () => void }
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-100">
+                    <th className="py-2 px-3 text-left">平台</th>
                     <th className="py-2 px-3 text-left">型号</th>
                     <th className="py-2 px-3 text-left">厂牌</th>
                     <th className="py-2 px-3 text-left">封装</th>
@@ -149,26 +171,38 @@ function MatchRow({ item, statusFilter, onShowDetail }: { item: MatchItem; statu
       </tr>
       {expanded && hasQuotes && (
         <tr>
-          <td colSpan={12} className="bg-slate-50 p-0">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-100">
-                  <th className="py-2 px-3 text-left">平台</th>
-                  <th className="py-2 px-3 text-left">型号</th>
-                  <th className="py-2 px-3 text-left">厂牌</th>
-                  <th className="py-2 px-3 text-left">封装</th>
-                  <th className="py-2 px-3 text-left">库存</th>
-                  <th className="py-2 px-3 text-left">货期</th>
-                  <th className="py-2 px-3 text-left">价格梯度</th>
-                  <th className="py-2 px-3 text-left">单价</th>
-                </tr>
-              </thead>
-              <tbody>
-                {item.all_quotes!.map((q, i) => (
-                  <QuoteRow key={i} q={q} isSelected={q.platform === item.platform && q.matched_model === item.matched_model} />
-                ))}
-              </tbody>
-            </table>
+          <td colSpan={12} className="bg-slate-50 p-0 align-top">
+            <div className="py-2" style={{ paddingLeft: '47%' }}>
+              <table className="w-full min-w-[600px] text-sm">
+                <colgroup>
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '10%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '10%' }} />
+                </colgroup>
+                <thead>
+                  <tr className="bg-slate-100">
+                    <th className="py-2 px-3 text-left">平台</th>
+                    <th className="py-2 px-3 text-left">型号</th>
+                    <th className="py-2 px-3 text-left">厂牌</th>
+                    <th className="py-2 px-3 text-left">封装</th>
+                    <th className="py-2 px-3 text-left">库存</th>
+                    <th className="py-2 px-3 text-left">货期</th>
+                    <th className="py-2 px-3 text-left">价格梯度</th>
+                    <th className="py-2 px-3 text-left">单价</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {item.all_quotes!.map((q, i) => (
+                    <QuoteRow key={i} q={q} isSelected={q.platform === item.platform && q.matched_model === item.matched_model} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </td>
         </tr>
       )}
@@ -255,16 +289,19 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
       </div>
 
       <div className="flex justify-between items-center">
-        <div className="flex gap-2">
-          {STATUS_OPTIONS.map((s) => (
-            <button
-              key={s.value}
-              onClick={() => setStatusFilter(s.value)}
-              className={`px-3 py-1 rounded ${statusFilter === s.value ? 'bg-slate-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {STATUS_OPTIONS.map((s) => {
+            const count = s.value === 'all' ? items.length : items.filter((i) => i.match_status === s.value).length
+            return (
+              <button
+                key={s.value}
+                onClick={() => setStatusFilter(s.value)}
+                className={`px-3 py-1 rounded ${statusFilter === s.value ? 'bg-slate-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+              >
+                {s.label}({count})
+              </button>
+            )
+          })}
         </div>
         <div className="text-slate-600">
           合计: <span className="font-bold text-slate-800">¥{totalAmount.toFixed(2)}</span>
@@ -280,7 +317,21 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full">
+        <table className="w-full table-fixed" style={{ minWidth: 900 }}>
+          <colgroup>
+            <col style={{ width: '4%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '6%' }} />
+            <col style={{ width: '5%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '5%' }} />
+            <col style={{ width: '9%' }} />
+          </colgroup>
           <thead>
             <tr className="bg-slate-100">
               <th className="py-3 px-3 text-left">序号</th>

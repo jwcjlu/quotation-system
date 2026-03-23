@@ -1,7 +1,8 @@
 server:
   http:
     addr: 0.0.0.0:18080
-    timeout: 30
+    # Agent 长轮询建议 ≥120；若启用 agent.enabled，NewHTTPServer 会将过短超时抬升到 120s
+    timeout: 120
   grpc:
     addr: 0.0.0.0:19090
     timeout: 10
@@ -14,6 +15,18 @@ data:
     addr: 127.0.0.1:6379
     read_timeout: 1
     write_timeout: 1
+
+# 分布式采集 Agent API（见 docs/分布式采集Agent-API协议.md）
+agent:
+  enabled: true
+  api_keys:
+    - "change-me-in-production"
+  long_poll_max_sec: 55
+  default_task_heartbeat_sec: 10
+  offline_min_sec: 120
+  offline_heartbeat_multiplier: 6
+  # 开发调试用：POST /api/v1/agent/dev/enqueue 入队任务（生产务必 false）
+  dev_enqueue_enabled: true
 
 platform:
   ickey:

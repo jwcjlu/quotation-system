@@ -6,4 +6,5 @@ var ProviderSet = wire.NewSet(
 	NewBOMUseCase,
 	NewSearchUseCase,
 	NewMatchUseCase,
+	NewAgentHub,
 )

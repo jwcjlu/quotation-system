@@ -11,7 +11,8 @@ api:
 		--go_out=paths=source_relative:./api \
 		--go-http_out=paths=source_relative:./api \
 		--go-grpc_out=paths=source_relative:./api \
-		api/bom/v1/bom.proto
+		api/bom/v1/bom.proto \
+		api/agent/v1/agent.proto
 
 .PHONY: wire
 wire:

@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package api.agent.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "caichip/api/agent/v1;v1";
+
+// AgentService 分布式采集 Agent HTTP/JSON API（与 docs/分布式采集Agent-API协议.md 对齐）。
+service AgentService {
+  // 任务心跳（长轮询拉任务）
+  rpc TaskHeartbeat(TaskHeartbeatRequest) returns (TaskHeartbeatReply) {
+    option (google.api.http) = {
+      post: "/api/v1/agent/task/heartbeat"
+      body: "*"
+    };
+  }
+
+  // 脚本安装心跳
+  rpc ScriptSyncHeartbeat(ScriptSyncHeartbeatRequest) returns (ScriptSyncHeartbeatReply) {
+    option (google.api.http) = {
+      post: "/api/v1/agent/script-sync/heartbeat"
+      body: "*"
+    };
+  }
+
+  // 任务结果上报
+  rpc TaskResult(TaskResultRequest) returns (TaskResultReply) {
+    option (google.api.http) = {
+      post: "/api/v1/agent/task/result"
+      body: "*"
+    };
+  }
+}
+
+// ========== §2 任务心跳 ==========
+
+message TaskHeartbeatRequest {
+  string protocol_version = 1;
+  string agent_id = 2;
+  string queue = 3;
+  repeated string tags = 4;
+  repeated InstalledScript installed_scripts = 5;
+  string hostname = 6;
+  string reported_at = 7;
+  RuntimeInfo runtime = 8;
+  int32 long_poll_timeout_sec = 9;
+}
+
+message InstalledScript {
+  string script_id = 1;
+  string version = 2;
+  string env_status = 3;
+}
+
+message RuntimeInfo {
+  string python_version = 1;
+  string agent_version = 2;
+}
+
+message TaskHeartbeatReply {
+  string server_time = 1;
+  int32 long_poll_timeout_sec = 2;
+  repeated TaskObject tasks = 3;
+}
+
+message TaskObject {
+  string task_id = 1;
+  string script_id = 2;
+  string version = 3;
+  optional string entry_file = 4;
+  repeated string argv = 5;
+  google.protobuf.Struct params = 6;
+  int32 timeout_sec = 7;
+  string lease_id = 8;
+  string idempotency_key = 9;
+  string trace_id = 10;
+}
+
+// ========== §3 脚本安装心跳 ==========
+
+message ScriptSyncHeartbeatRequest {
+  string protocol_version = 1;
+  string agent_id = 2;
+  string queue = 3;
+  repeated string tags = 4;
+  repeated ScriptRow scripts = 5;
+  int32 long_poll_timeout_sec = 6;
+}
+
+message ScriptRow {
+  string script_id = 1;
+  string version = 2;
+  optional string package_sha256 = 3;
+  string env_status = 4;
+  string message = 5;
+  string updated_at = 6;
+  optional string installed_at = 7;
+}
+
+message ScriptSyncHeartbeatReply {
+  string server_time = 1;
+  int32 long_poll_timeout_sec = 2;
+  repeated SyncAction sync_actions = 3;
+}
+
+message SyncAction {
+  string action = 1;
+  string script_id = 2;
+  string version = 3;
+  string package_sha256 = 4;
+  DownloadSpec download = 5;
+  string reason = 6;
+}
+
+message DownloadSpec {
+  string method = 1;
+  string url = 2;
+  map<string, string> headers = 3;
+  string expires_at = 4;
+}
+
+// ========== §4 任务结果 ==========
+
+message TaskResultRequest {
+  string protocol_version = 1;
+  string agent_id = 2;
+  string task_id = 3;
+  string status = 4;
+  string started_at = 5;
+  string finished_at = 6;
+  optional int32 exit_code = 7;
+  string stdout_tail = 8;
+  string stderr_tail = 9;
+  google.protobuf.Struct result = 10;
+  google.protobuf.Value error = 11;
+  string idempotency_key = 12;
+  string lease_id = 13;
+  int32 attempt = 14;
+  string trace_id = 15;
+}
+
+message TaskResultReply {
+  bool accepted = 1;
+  string server_time = 2;
+}
+
+// 统一错误体（§1.4），用于文档与其它语言；HTTP 层仍可直接序列化同名 JSON。
+message ErrorBody {
+  ErrorDetail error = 1;
+}
+
+message ErrorDetail {
+  string code = 1;
+  string message = 2;
+}

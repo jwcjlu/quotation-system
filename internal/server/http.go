@@ -12,7 +12,7 @@ import (
 )
 
 // NewHTTPServer 创建 HTTP 服务
-func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, bomSvc *service.BomService) *http.Server {
+func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, bomSvc *service.BomService, agentSvc *service.AgentService) *http.Server {
 	addr := ":8000"
 	timeout := 30 * time.Second
 	if c != nil && c.Server != nil && c.Server.Http != nil {
@@ -21,12 +21,23 @@ func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, bomSvc *service.BomServ
 			timeout = time.Duration(c.Server.Http.Timeout) * time.Second
 		}
 	}
-	srv := http.NewServer(
+	// Agent 长轮询可能接近 55s+，若配置偏短则抬升下限，避免心跳被服务端提前断开（见 docs）
+	if timeout < 120*time.Second {
+		if c != nil && c.Agent != nil && c.Agent.Enabled {
+			timeout = 120 * time.Second
+		}
+	}
+	opts := []http.ServerOption{
 		http.Address(addr),
 		http.Timeout(timeout),
-	)
+	}
+	if agentSvc != nil && agentSvc.Enabled() {
+		opts = append(opts, http.Middleware(agentAPIKeyMiddleware(agentSvc)))
+	}
+	srv := http.NewServer(opts...)
 
 	pb.RegisterBomServiceHTTPServer(srv, bomSvc)
+	RegisterAgentHTTPServer(srv, agentSvc)
 
 	return srv
 }

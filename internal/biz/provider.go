@@ -4,7 +4,7 @@ import "github.com/google/wire"
 
 var ProviderSet = wire.NewSet(
 	NewBOMUseCase,
-	NewSearchUseCase,
+	NewBOMSessionUseCase,
 	NewMatchUseCase,
 	NewAgentHub,
 )

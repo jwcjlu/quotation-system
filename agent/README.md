@@ -24,7 +24,7 @@ pip install -r agent/requirements.txt
 ## 能力（当前版本）
 
 - 任务心跳：`POST /api/v1/agent/task/heartbeat`（长轮询）
-- 脚本安装心跳：`POST /api/v1/agent/script-sync/heartbeat`
+- 脚本安装心跳：`POST /api/v1/agent/script-sync/heartbeat`（脚本包分发以 **`script_id`** 为维，无 `platform_id`；见协议 §3）
 - 任务结果：`POST /api/v1/agent/task/result`
 - 扫描本地 `AGENT_DATA_DIR/<script_id>/<version>/version.txt` 上报 `installed_scripts`
 - 执行：本机 `script_id/version/` 下 `main.py` 或 `run.py`（或 `entry_file`），注入 `CAICHIP_TASK_PARAMS`

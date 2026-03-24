@@ -13,6 +13,9 @@ api:
 		--go-grpc_out=paths=source_relative:./api \
 		api/bom/v1/bom.proto \
 		api/agent/v1/agent.proto
+	protoc --proto_path=./api --proto_path=./third_party \
+		--go_out=paths=source_relative:./api \
+		api/conf/v1/conf.proto
 
 .PHONY: wire
 wire:

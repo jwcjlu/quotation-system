@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getMatchResult, autoMatch, searchQuotes, type MatchItem, type PlatformQuote } from '../api'
+import { getMatchResult, autoMatch, type MatchItem, type PlatformQuote } from '../api'
 
 interface MatchResultPageProps {
   bomId: string
@@ -239,16 +239,15 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
     load()
   }, [bomId])
 
-  const runSearchAndMatch = async () => {
+  const runMatchOnly = async () => {
     setRunning(true)
     setError(null)
     try {
-      await searchQuotes(bomId)
       const res = await autoMatch(bomId, strategy)
       setItems(res.items || [])
       setTotalAmount(res.total_amount || 0)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '搜索或配单失败')
+      setError(e instanceof Error ? e.message : '配单失败')
     } finally {
       setRunning(false)
     }
@@ -279,11 +278,11 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
             ))}
           </select>
           <button
-            onClick={runSearchAndMatch}
+            onClick={runMatchOnly}
             disabled={running}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            {running ? '搜索配单中...' : '重新搜索并配单'}
+            {running ? '配单中...' : '重新配单'}
           </button>
         </div>
       </div>
@@ -312,8 +311,10 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
         <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>
       )}
 
-      <div className="p-4 bg-amber-50 text-amber-800 rounded-lg text-sm">
-        价格/库存可能波动，以结算为准
+      <div className="p-4 bg-amber-50 text-amber-800 rounded-lg text-sm space-y-1">
+        <p>经典「多平台搜价」已停用；本页配单仅依据服务端已缓存的报价（通常为空），多数行为「无法匹配」属预期。</p>
+        <p>报价与搜索请走「货源会话」流程。</p>
+        <p>价格/库存可能波动，以结算为准。</p>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">

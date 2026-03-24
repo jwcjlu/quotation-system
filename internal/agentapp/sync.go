@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +23,15 @@ import (
 
 // applySyncActions 执行服务端下发的 sync_actions（download / delete），按 script_id 加锁串行。
 func (a *App) applySyncActions(ctx context.Context, actions []*v1.SyncAction) {
+	n := 0
+	for _, act := range actions {
+		if act != nil {
+			n++
+		}
+	}
+	if n > 0 {
+		a.log.Info("sync: applying actions", "count", n)
+	}
 	for _, act := range actions {
 		if act == nil {
 			continue
@@ -35,8 +45,10 @@ func (a *App) applySyncActions(ctx context.Context, actions []*v1.SyncAction) {
 			var err error
 			switch action {
 			case "download":
+				a.log.Info("sync: download", "script_id", sid, "version", act.GetVersion())
 				err = downloadAndInstallPackage(ctx, a.log, a.cfg, act)
 			case "delete":
+				a.log.Info("sync: delete", "script_id", sid, "version", act.GetVersion())
 				err = deleteScriptVersion(a.cfg.DataDir, act)
 			default:
 				a.log.Warn("sync: unknown action", "action", act.GetAction(), "script_id", sid)
@@ -196,7 +208,14 @@ func httpDownloadFile(ctx context.Context, cfg *Config, dl *v1.DownloadSpec, des
 	if method != http.MethodGet {
 		return fmt.Errorf("download: unsupported method %q", method)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, dl.GetUrl(), nil)
+	urlStr := strings.TrimSpace(dl.GetUrl())
+	if u, err := url.Parse(urlStr); err == nil && !u.IsAbs() && strings.TrimSpace(cfg.BaseURL) != "" {
+		base, err := url.Parse(strings.TrimRight(cfg.BaseURL, "/") + "/")
+		if err == nil {
+			urlStr = base.ResolveReference(u).String()
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, method, urlStr, nil)
 	if err != nil {
 		return fmt.Errorf("download request: %w", err)
 	}

@@ -2,6 +2,8 @@
 
 本文档约定 **caichip 服务端** 与 **Agent** 之间的 **REST + JSON** 接口（与 [分布式采集Agent需求与架构](./分布式采集Agent需求与架构.md) 中的 **REST 长轮询**、**双接口心跳**、**API Key** 一致）。路径前缀示例为 `/api/v1/agent`，**以实现与 OpenAPI 定稿为准**。
 
+脚本包管理端上传、主站下载路径及 `ScriptSyncHeartbeat` / `DownloadSpec` 的补充约定见 [Agent脚本包分发-PRD与接口](./Agent脚本包分发-PRD与接口.md)。
+
 ---
 
 ## 1. 通用约定
@@ -102,7 +104,15 @@ HTTP 状态码与业务错误：
     "python_version": "3.11.2",
     "agent_version": "1.0.0"
   },
-  "long_poll_timeout_sec": 50
+  "long_poll_timeout_sec": 50,
+  "running_tasks": [
+    {
+      "task_id": "550e8400-e29b-41d4-a716-446655440000",
+      "lease_id": "01JQABCDEF",
+      "script_id": "hqchip_crawler",
+      "started_at": "2026-03-22T10:00:01.000Z"
+    }
+  ]
 }
 ```
 
@@ -119,10 +129,15 @@ HTTP 状态码与业务错误：
 | `reported_at` | string | 否 | RFC3339 UTC，Agent 本地生成。 |
 | `runtime` | object | 否 | 运行时信息。 |
 | `long_poll_timeout_sec` | int | 否 | 希望服务端 **最长挂起秒数**，建议小于客户端 HTTP 超时；服务端可裁剪到上限（如 55）。 |
+| **`running_tasks`** | **array** | **是** | **方案 A**：每次任务心跳须携带 **当前在本机正在执行** 的任务快照（**无执行中时为 `[]`**）。服务端据此 **避免长轮询重复派发**（同一 `task_id` 仍视为占用），并与 **同一 `script_id` 串行** 对齐：若某 `script_id` 已在 `running_tasks` 中，则不再向该 Agent 派发同脚本的其他待执行任务。 |
+| `running_tasks[].task_id` | string | 条件 | 执行中任务 ID；与本次派发 `tasks[].task_id` 一致。 |
+| `running_tasks[].lease_id` | string | 建议 | 当前执行所依据的租约；便于对账与排查。 |
+| `running_tasks[].script_id` | string | 建议 | 与任务脚本包 ID 一致；**用于串行语义**（与 `task_id` 二选一至少应能保证脚本维度可识别，推荐两者均填）。 |
+| `running_tasks[].started_at` | string | 否 | RFC3339，Agent 本地记录的开始时间。 |
 
 **语义说明（与需求文档 §4.6「能力位」一致）**：**能力位即已就绪脚本的 `script_id`**——以 **`installed_scripts` 中 `env_status=ready` 的 `script_id` + `version`** 作为调度依据；**不再** 单独使用与 `script_id` 无关的 `capabilities` 数组。若需表达主机环境（如是否有浏览器），请使用 **`tags`**（如 `has_browser=true`）。
 
-**执行中仍发心跳（与需求文档 §4.2、§6.1 一致）**：Agent **正在执行任务时仍须按周期** 发起任务心跳（与任务子进程 **异步**），避免因长时间占用导致在 **`T_offline_sec`** 内无成功心跳、被误判离线（默认 120s，与心跳间隔关系见需求 **§6.1**）。
+**执行中仍发心跳（与需求文档 §4.2、§6.1 一致）**：Agent **正在执行任务时仍须按周期** 发起任务心跳（与任务子进程 **异步**），避免因长时间占用导致在 **`T_offline_sec`** 内无成功心跳、被误判离线（默认 120s，与心跳间隔关系见需求 **§6.1**）。此类心跳 **必须** 在 `running_tasks` 中反映当前仍未结束的任务，以便服务端长轮询 **不重复派发**。
 
 ### 2.2 响应（成功 200）
 
@@ -181,6 +196,8 @@ HTTP 状态码与业务错误：
 
 **与 §2 的关系**：本节请求体中的 **`scripts`** 为 **权威完整列表**（含 `package_sha256`、`installed_at` 等）。**任务心跳（§2）** 中的 **`installed_scripts`** 为 **同源快照**（字段可更轻），用于 **10s 级** 调度；服务端以 **脚本安装心跳** 为准做校准，发现与任务心跳不一致时以 **§3** 为准或触发对账。
 
+**脚本包分发**：与 [Agent脚本包分发-PRD与接口](./Agent脚本包分发-PRD与接口.md) §1.1 一致——**`platform_id` 已与 `script_id` 合一**，不再出现在 `ScriptSyncHeartbeatRequest` 中（`api/agent/v1/agent.proto` 对 `platform_id` **reserved**）；服务端在 `script_store.enabled` 时根据 **库中全部已发布包** 与 `scripts[]` 比对并组 `sync_actions`。
+
 ### 3.1 请求
 
 `POST /api/v1/agent/script-sync/heartbeat`
@@ -219,7 +236,12 @@ HTTP 状态码与业务错误：
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
+| `protocol_version` | string | 否 | 见 §1.3。 |
+| `agent_id` | string | 是 | 见 §1.3。 |
+| `queue` | string | 否 | 同 §2.1。 |
+| `tags` | string[] | 否 | 同 §2.1。 |
 | `scripts` | array | 是 | 本 Agent 已知的脚本包列表（含失败态）。 |
+| `long_poll_timeout_sec` | int | 否 | 同 §2.1。 |
 | `scripts[].script_id` | string | 是 | |
 | `scripts[].version` | string | 是 | 与 `version.txt` 一致；**允许** 可选 `v`/`V` 前缀，与服务端、心跳比对时 **规范化**（见需求文档 §2、§6.5）。 |
 | `scripts[].package_sha256` | string \| null | 否 | 本地 ZIP 或解压目录校验用；未知可为 `null`。 |
@@ -411,6 +433,8 @@ Authorization: Bearer <api_key>
 | 0.7 | 2026-03-22 | §2.2：`timeout_sec` 可选，默认 300s；Agent 超时杀进程并上报 `timeout`（对齐需求 §8.5） |
 | 0.8 | 2026-03-22 | 任务 `version`=本地包；超时进程组；执行中心跳；需求引用改为 §6；重派见需求 §6.4 |
 | 0.9 | 2026-03-22 | §2.2/§4.1 `lease_id`；§4.2 重派 409；§6 `T_offline`；对齐需求 §6.1、§6.4、§6.6 |
+| 1.0 | 2026-03-24 | §3.1：`ScriptSyncHeartbeatRequest` 曾增加 `platform_id`（后废弃） |
+| 1.1 | 2026-03-24 | §3：脚本包分发改为 **仅 `script_id` 维**；请求体 **无** `platform_id`（与 PRD「platform_id 即 script_id」、proto `reserved` 一致） |
 
 ---
 

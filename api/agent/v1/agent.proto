@@ -46,6 +46,17 @@ message TaskHeartbeatRequest {
   string reported_at = 7;
   RuntimeInfo runtime = 8;
   int32 long_poll_timeout_sec = 9;
+  // 当前在本 Agent 上正在执行的任务（方案 A：必填语义由服务端强约束调度；Agent 无执行中时可传空数组）
+  repeated RunningTask running_tasks = 10;
+}
+
+// RunningTask Agent 上报的进行中任务，用于避免长轮询重复派发、并与 script_id 串行语义对齐。
+message RunningTask {
+  string task_id = 1;
+  string lease_id = 2;
+  string script_id = 3;
+  // RFC3339Nano，可选
+  string started_at = 4;
 }
 
 message InstalledScript {
@@ -87,6 +98,9 @@ message ScriptSyncHeartbeatRequest {
   repeated string tags = 4;
   repeated ScriptRow scripts = 5;
   int32 long_poll_timeout_sec = 6;
+  // 历史字段 platform_id 已废弃：脚本包分发与静态路径仅以 script_id 为维（与 PRD「platform_id 即 script_id」一致）。
+  reserved 7;
+  reserved "platform_id";
 }
 
 message ScriptRow {
@@ -131,7 +145,7 @@ message TaskResultRequest {
   string started_at = 5;
   string finished_at = 6;
   optional int32 exit_code = 7;
-  string stdout_tail = 8;
+  string stdout = 8;
   string stderr_tail = 9;
   google.protobuf.Struct result = 10;
   google.protobuf.Value error = 11;

@@ -14,6 +14,12 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+type runningEntry struct {
+	leaseID   string
+	scriptID  string
+	startedAt time.Time
+}
+
 // App Agent 主循环：任务心跳（长轮询）与脚本同步心跳；任务按 script_id 串行、全局并行度受限。
 type App struct {
 	cfg    *Config
@@ -23,6 +29,9 @@ type App struct {
 	sem         chan struct{}
 	scriptMu    sync.Mutex
 	scriptLocks map[string]*sync.Mutex
+
+	runMu   sync.RWMutex
+	running map[string]runningEntry // task_id -> 进行中快照（供心跳 running_tasks）
 }
 
 // NewApp 构造 Agent（HTTP 使用 Kratos + proto 生成客户端）。
@@ -68,6 +77,7 @@ func (a *App) Run(ctx context.Context) error {
 		"agent_id", a.cfg.AgentID,
 		"base", a.cfg.BaseURL,
 		"data_dir", a.cfg.DataDir,
+		"log_dir", a.cfg.LogDir,
 	)
 	<-ctx.Done()
 	wg.Wait()
@@ -94,6 +104,7 @@ func (a *App) loopTaskHeartbeat(ctx context.Context) {
 			Tags:               a.cfg.Tags,
 			InstalledScripts:   scripts,
 			LongPollTimeoutSec: int32(a.cfg.LongPollSec),
+			RunningTasks:       a.snapshotRunningTasks(),
 		}
 		resp, err := a.client.TaskHeartbeat(ctx, req)
 		if err != nil {
@@ -109,6 +120,8 @@ func (a *App) loopTaskHeartbeat(ctx context.Context) {
 			go func() {
 				a.sem <- struct{}{}
 				defer func() { <-a.sem }()
+				a.addRunningTask(task)
+				defer a.removeRunningTask(task.GetTaskId())
 				a.runOneTask(task)
 			}()
 		}
@@ -158,11 +171,19 @@ func (a *App) loopScriptSync(ctx context.Context) {
 
 func (a *App) runOneTask(task *v1.TaskObject) {
 	scriptID := task.GetScriptId()
+	taskID := task.GetTaskId()
 	mu := a.lockForScript(scriptID)
 	mu.Lock()
 	defer mu.Unlock()
 
-	status, code, so, se := RunTask(a.cfg.DataDir, task, a.cfg.PythonExecutable)
+	status, code, so, se := RunTask(a.cfg.DataDir, task, a.cfg.PythonExecutable, a.log)
+
+	a.log.Info("task done",
+		"task_id", taskID,
+		"script_id", scriptID,
+		"status", status,
+		"exit_code", code,
+	)
 
 	resMap := map[string]interface{}{
 		"script_id": scriptID,
@@ -184,7 +205,7 @@ func (a *App) runOneTask(task *v1.TaskObject) {
 		Status:          status,
 		LeaseId:         task.GetLeaseId(),
 		Attempt:         1,
-		StdoutTail:      so,
+		Stdout:          so,
 		StderrTail:      se,
 		Result:          resultStruct,
 	}
@@ -197,6 +218,49 @@ func (a *App) runOneTask(task *v1.TaskObject) {
 		}
 		a.log.Error("task result", "err", err)
 	}
+}
+
+func (a *App) addRunningTask(task *v1.TaskObject) {
+	if task == nil || task.GetTaskId() == "" {
+		return
+	}
+	a.runMu.Lock()
+	defer a.runMu.Unlock()
+	if a.running == nil {
+		a.running = make(map[string]runningEntry)
+	}
+	a.running[task.GetTaskId()] = runningEntry{
+		leaseID:   task.GetLeaseId(),
+		scriptID:  task.GetScriptId(),
+		startedAt: time.Now(),
+	}
+}
+
+func (a *App) removeRunningTask(taskID string) {
+	if taskID == "" {
+		return
+	}
+	a.runMu.Lock()
+	defer a.runMu.Unlock()
+	delete(a.running, taskID)
+}
+
+func (a *App) snapshotRunningTasks() []*v1.RunningTask {
+	a.runMu.RLock()
+	defer a.runMu.RUnlock()
+	if len(a.running) == 0 {
+		return nil
+	}
+	out := make([]*v1.RunningTask, 0, len(a.running))
+	for tid, e := range a.running {
+		out = append(out, &v1.RunningTask{
+			TaskId:    tid,
+			LeaseId:   e.leaseID,
+			ScriptId:  e.scriptID,
+			StartedAt: e.startedAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+	return out
 }
 
 func (a *App) sleepOrDone(ctx context.Context, d time.Duration) {

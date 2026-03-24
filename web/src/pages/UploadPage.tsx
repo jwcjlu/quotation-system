@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import * as XLSX from 'xlsx'
-import { uploadBOM, downloadTemplate } from '../api'
+import { createSession, uploadBOM, downloadTemplate, PLATFORM_IDS } from '../api'
 
 const PARSE_MODES = [
   { value: 'auto', label: '通用模式', desc: '自动识别表头' },
@@ -16,6 +16,8 @@ const MAPPING_FIELDS = [
 ] as const
 
 interface UploadPageProps {
+  /** classic：仅 /api/v1/bom/upload；session：先 POST /bom-sessions 再带 session_id 上传 */
+  flow: 'classic' | 'session'
   onSuccess: (bomId: string) => void
 }
 
@@ -48,7 +50,9 @@ function readExcelHeaders(file: File): Promise<string[]> {
   })
 }
 
-export function UploadPage({ onSuccess }: UploadPageProps) {
+export function UploadPage({ flow, onSuccess }: UploadPageProps) {
+  const [sessionTitle, setSessionTitle] = useState('')
+  const [sessionPlatforms, setSessionPlatforms] = useState<string[]>([...PLATFORM_IDS])
   const [file, setFile] = useState<File | null>(null)
   const [parseMode, setParseMode] = useState<string>('auto')
   const [loading, setLoading] = useState(false)
@@ -91,6 +95,12 @@ export function UploadPage({ onSuccess }: UploadPageProps) {
     }
   }, [parseMode, file])
 
+  const toggleSessionPlatform = (id: string) => {
+    setSessionPlatforms((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
   const handleUpload = async () => {
     if (!file) {
       setError('请选择文件')
@@ -100,12 +110,25 @@ export function UploadPage({ onSuccess }: UploadPageProps) {
       setError('自定义模式请至少配置「型号」列映射')
       return
     }
+    if (flow === 'session' && sessionPlatforms.length === 0) {
+      setError('请至少勾选一个货源平台')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
       const mapping = parseMode === 'custom' && Object.keys(columnMapping).length > 0 ? columnMapping : undefined
-      const res = await uploadBOM(file, parseMode, mapping)
-      onSuccess(res.bom_id)
+      if (flow === 'session') {
+        const sess = await createSession({
+          title: sessionTitle.trim(),
+          platform_ids: sessionPlatforms,
+        })
+        const res = await uploadBOM(file, parseMode, mapping, { sessionId: sess.session_id })
+        onSuccess(res.bom_id)
+      } else {
+        const res = await uploadBOM(file, parseMode, mapping)
+        onSuccess(res.bom_id)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '上传失败')
     } finally {
@@ -130,9 +153,45 @@ export function UploadPage({ onSuccess }: UploadPageProps) {
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-slate-800">BOM 单导入</h2>
-        <p className="text-slate-600 mt-1">支持 Excel 格式，选择解析模式后上传</p>
+        <h2 className="text-2xl font-bold text-slate-800">
+          {flow === 'session' ? '货源会话 · BOM 上传' : 'BOM 单导入'}
+        </h2>
+        <p className="text-slate-600 mt-1">
+          {flow === 'session'
+            ? '将创建会话并写入 bom_session_line，随后可在「会话看板」轮询就绪与行数据'
+            : '支持 Excel 格式，选择解析模式后上传'}
+        </p>
       </div>
+
+      {flow === 'session' && (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">会话标题（可选）</label>
+            <input
+              type="text"
+              value={sessionTitle}
+              onChange={(e) => setSessionTitle(e.target.value)}
+              placeholder="例如：客户 A 询价单"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <span className="block text-sm font-medium text-slate-700 mb-2">初始勾选平台（POST /bom-sessions）</span>
+            <div className="flex flex-wrap gap-3">
+              {PLATFORM_IDS.map((id) => (
+                <label key={id} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sessionPlatforms.includes(id)}
+                    onChange={() => toggleSessionPlatform(id)}
+                  />
+                  {id}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-8">
         <div>

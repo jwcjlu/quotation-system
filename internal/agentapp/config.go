@@ -2,7 +2,9 @@ package agentapp
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +20,8 @@ type Config struct {
 	Queue            string
 	Tags             []string
 	DataDir          string
+	LogDir           string // 默认 DataDir/logs；可用 AGENT_LOG_DIR 覆盖
+	LogLevel         slog.Level
 	LongPollSec      int
 	HTTPTimeout      time.Duration
 	ScriptSyncSec    time.Duration
@@ -63,6 +67,21 @@ func LoadConfig() (*Config, error) {
 		wd, _ := os.Getwd()
 		dataDir = wd + string(os.PathSeparator) + "agent_data"
 	}
+	dataDir = filepath.Clean(dataDir)
+	if abs, err := filepath.Abs(dataDir); err == nil {
+		dataDir = abs
+	}
+
+	logDir := strings.TrimSpace(os.Getenv("AGENT_LOG_DIR"))
+	if logDir == "" {
+		logDir = filepath.Join(dataDir, "logs")
+	} else {
+		logDir = filepath.Clean(logDir)
+		if abs, err := filepath.Abs(logDir); err == nil {
+			logDir = abs
+		}
+	}
+	logLevel := parseLogLevel(os.Getenv("AGENT_LOG_LEVEL"))
 
 	lp := getenvInt("AGENT_LONG_POLL_SEC", 10)
 	httpSec := getenvInt("AGENT_HTTP_TIMEOUT_SEC", 120)
@@ -92,6 +111,8 @@ func LoadConfig() (*Config, error) {
 		Queue:             queue,
 		Tags:              tags,
 		DataDir:           dataDir,
+		LogDir:            logDir,
+		LogLevel:          logLevel,
 		LongPollSec:       lp,
 		HTTPTimeout:       time.Duration(httpSec) * time.Second,
 		ScriptSyncSec:     time.Duration(syncSec) * time.Second,
@@ -115,6 +136,19 @@ func getenvBoolDefault(key string, def bool) bool {
 		return true
 	default:
 		return def
+	}
+}
+
+func parseLogLevel(s string) slog.Level {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
+	case "DEBUG":
+		return slog.LevelDebug
+	case "WARN", "WARNING":
+		return slog.LevelWarn
+	case "ERROR":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
 	}
 }
 

@@ -47,6 +47,14 @@ from urllib.parse import quote
 
 from DrissionPage import ChromiumPage, ChromiumOptions
 
+try:
+    from crawler_cli import emit_json_stderr_error, emit_json_stdout
+except ImportError:
+    _root = os.path.dirname(os.path.abspath(__file__))
+    if _root not in sys.path:
+        sys.path.insert(0, _root)
+    from crawler_cli import emit_json_stderr_error, emit_json_stdout
+
 # 登录页（SPA，需等待 JS 渲染出表单）
 DEFAULT_LOGIN_URL = "https://www.icgoo.net/login"
 # 加载 Cookie 时优先用空白页，避免多一次打开 icgoo 首页触发易盾（失败再回退首页）
@@ -475,7 +483,7 @@ def cells_to_item(seq: int, cells: list[str], query_model: str) -> dict | None:
         "seq": seq,
         "model": model,
         "manufacturer": manufacturer,
-        "package": package if package != "N/A" else "",
+        "package": package if package and package != "N/A" else "N/A",
         "desc": "N/A",
         "stock": stock_s,
         "moq": "N/A",
@@ -660,7 +668,13 @@ def run_search_batch(
 def main() -> None:
     parser = argparse.ArgumentParser(description="ICGOO 元器件搜索爬虫（JSON 输出与 ickey_crawler 对齐）")
     parser.add_argument("--model", "-m", type=str, help="搜索型号，逗号分隔多个")
-    parser.add_argument("--parse-workers", "-w", type=int, default=4, help="预留，当前未使用")
+    parser.add_argument(
+        "--parse-workers",
+        "-w",
+        type=int,
+        default=8,
+        help="预留，与 ickey 对齐（当前未使用）",
+    )
     parser.add_argument(
         "--user",
         type=str,
@@ -748,18 +762,9 @@ def main() -> None:
                 force_login=args.force_login,
                 request_delay_sec=max(0.0, args.request_delay),
             )
-            out = json.dumps(results, ensure_ascii=False, indent=0)
-            try:
-                sys.stdout.reconfigure(encoding="utf-8")
-            except AttributeError:
-                pass
-            sys.stdout.buffer.write((out + "\n").encode("utf-8"))
+            emit_json_stdout(results)
         except Exception as e:
-            err = json.dumps({"error": str(e), "results": []}, ensure_ascii=False)
-            try:
-                sys.stderr.buffer.write((err + "\n").encode("utf-8"))
-            except Exception:
-                sys.stderr.write(err + "\n")
+            emit_json_stderr_error(str(e))
             sys.exit(1)
         return
 

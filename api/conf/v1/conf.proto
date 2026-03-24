@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+package api.conf.v1;
+
+// 与 internal/conf/conf.go + configs/config.yaml 字段语义对齐（用于序列化/文档/跨语言约定，不等同于运行时 Wire 注入结构）。
+option go_package = "caichip/api/conf/v1;v1";
+
+message Bootstrap {
+  Server server = 1;
+  Data data = 2;
+  Platform platform = 3;
+  Agent agent = 4;
+  ScriptStore script_store = 5;
+  ScriptAdmin script_admin = 6;
+  BomSearchCallback bom_search_callback = 7;
+}
+
+message Server {
+  ServerHTTP http = 1;
+  ServerGRPC grpc = 2;
+}
+
+message ServerHTTP {
+  string addr = 1;
+  int32 timeout = 2; // seconds
+}
+
+message ServerGRPC {
+  string addr = 1;
+  int32 timeout = 2; // seconds
+}
+
+message Data {
+  DataDatabase database = 1;
+  DataRedis redis = 2;
+}
+
+message DataDatabase {
+  string driver = 1;
+  string dsn = 2;
+}
+
+message DataRedis {
+  string addr = 1;
+  int32 read_timeout = 2;  // seconds
+  int32 write_timeout = 3; // seconds
+}
+
+// Agent 分布式采集 Agent HTTP API（见 docs/分布式采集Agent需求与架构.md）
+message Agent {
+  bool enabled = 1;
+  repeated string api_keys = 2;
+  int32 long_poll_max_sec = 3;            // 服务端单次挂起上限，默认 55
+  int32 default_task_heartbeat_sec = 4;   // 用于 T_offline，默认 10
+  int32 offline_min_sec = 5;              // 默认 120
+  int32 offline_heartbeat_multiplier = 6; // 默认 6，T_offline=max(min, k*interval)
+  bool dev_enqueue_enabled = 7;           // 仅开发：POST /api/v1/agent/dev/enqueue 入队任务
+  string dispatch_store = 8;
+  int32 dispatch_lease_extra_sec = 9;
+}
+
+// ScriptStore 脚本制品落盘与对外 URL（见 docs/Agent脚本包分发-PRD与接口.md §7）
+message ScriptStore {
+  bool enabled = 1;               // 为 true 时 ScriptSyncHeartbeat 可按已发布 script_id 返回 sync_actions
+  string root = 2;                // 本地目录，如 /var/lib/caichip/agent-scripts
+  string url_prefix = 3;          // 主站路径前缀，如 /static/agent-scripts
+  string public_base_url = 4;     // 生成绝对下载 URL；空则仅返回相对路径（以 / 开头）
+  int32 max_upload_mb = 5;        // multipart 上限，默认 64
+}
+
+// ScriptAdmin 管理端上传/发布接口鉴权（独立于 agent.api_keys）
+message ScriptAdmin {
+  repeated string api_keys = 1;
+}
+
+message BomSearchCallback {
+  repeated string api_keys = 1;
+}
+
+message Platform {
+  PlatformConf ickey = 1;
+  PlatformConf szlcsc = 2;
+  PlatformConf icgoo = 3;
+}
+
+message PlatformConf {
+  string search_url = 1;
+  int32 timeout = 2;
+  string crawler_path = 3;
+  string crawler_script = 4;
+  string work_dir = 5;
+}

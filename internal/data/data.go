@@ -1,52 +1,40 @@
 package data
 
 import (
+	"strings"
+
 	"caichip/internal/conf"
-	"caichip/pkg/platform/ickey"
-	"caichip/pkg/platform/szlcsc"
+
+	"gorm.io/gorm"
 )
 
-// Data .
+// Data 承载可选数据库连接及驱动名（用于 SQL 方言）。
 type Data struct {
+	DB *gorm.DB
+	// mysqlSkipLocked：MySQL/MariaDB 是否支持 FOR UPDATE SKIP LOCKED（启动时 SELECT VERSION() 探测）。
+	mysqlSkipLocked bool
+	dbDriver        string
 }
 
-// NewData .
-func NewData(c *conf.Bootstrap) (*Data, error) {
-	return &Data{}, nil
-}
-
-// NewSearchers 创建平台搜索客户端列表
-func NewSearchers(c *conf.Bootstrap) []interface{} {
-	var list []interface{}
-	if c.Platform != nil {
-		if c.Platform.Ickey != nil {
-			crawlerPath := c.Platform.Ickey.CrawlerPath
-			crawlerScript := c.Platform.Ickey.CrawlerScript
-			workDir := c.Platform.Ickey.WorkDir
-			if crawlerPath == "" {
-				crawlerPath = "python"
-			}
-			if crawlerScript == "" {
-				crawlerScript = "ickey_crawler.py"
-			}
-			list = append(list, ickey.NewClient(
-				c.Platform.Ickey.SearchURL,
-				c.Platform.Ickey.Timeout,
-				crawlerPath,
-				crawlerScript,
-				workDir,
-			))
-		}
-		if c.Platform.Szlcsc != nil {
-			list = append(list, szlcsc.NewClient(
-				c.Platform.Szlcsc.SearchURL,
-				c.Platform.Szlcsc.Timeout,
-			))
-		}
+// NewData 打开数据库（DSN 为空时 DB 为 nil，cleanup 为空操作）。
+func NewData(c *conf.Bootstrap) (*Data, func(), error) {
+	if c == nil {
+		return &Data{}, func() {}, nil
 	}
-	if len(list) == 0 {
-		list = append(list, ickey.NewClient("https://search.ickey.cn/", 15, "python", "ickey_crawler.py", ""))
-		list = append(list, szlcsc.NewClient("https://www.szlcsc.com/", 15))
+	db, cleanup, err := NewDB(c.Data)
+	if err != nil {
+		return nil, nil, err
 	}
-	return list
+	driver := ""
+	if c.Data != nil && c.Data.Database != nil {
+		driver = strings.TrimSpace(strings.ToLower(c.Data.Database.Driver))
+	}
+	if driver == "" {
+		driver = "mysql"
+	}
+	mysqlSL := false
+	if db != nil {
+		mysqlSL = detectMySQLSkipLocked(db)
+	}
+	return &Data{DB: db, dbDriver: driver, mysqlSkipLocked: mysqlSL}, cleanup, nil
 }

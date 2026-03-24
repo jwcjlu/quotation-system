@@ -1,48 +1,11 @@
-const API_BASE = '/api/v1/bom'
+/**
+ * 经典 BOM 流程：/api/v1/bom/*
+ * 与 docs/BOM货源搜索-接口清单.md 中「无会话」旧路径一致。
+ */
+import { fetchJson } from './http'
+import type { MatchItem, ParsedItem, PlatformQuote } from './types'
 
-export interface ParsedItem {
-  index: number
-  raw: string
-  model: string
-  manufacturer: string
-  package: string
-  quantity: number
-  params: string
-}
-
-export interface PlatformQuote {
-  platform: string
-  matched_model: string
-  manufacturer: string
-  package: string
-  description: string
-  stock: number
-  lead_time: string
-  moq: number
-  increment: number
-  price_tiers: string
-  hk_price: string
-  mainland_price: string
-  unit_price: number
-  subtotal: number
-}
-
-export interface MatchItem {
-  index: number
-  model: string
-  quantity: number
-  matched_model: string
-  manufacturer: string
-  platform: string
-  lead_time: string
-  stock: number
-  unit_price: number
-  subtotal: number
-  match_status: string
-  all_quotes: PlatformQuote[]
-  demand_manufacturer: string  // 需求厂牌
-  demand_package: string      // 需求封装
-}
+const BASE = '/api/v1/bom'
 
 function normQuote(q: Record<string, unknown>): PlatformQuote {
   return {
@@ -84,10 +47,9 @@ function normMatchItem(m: Record<string, unknown>): MatchItem {
 }
 
 export async function downloadTemplate(): Promise<Blob> {
-  const res = await fetch(`${API_BASE}/template`)
-  if (!res.ok) throw new Error('下载模板失败')
-  const json = await res.json()
+  const json = await fetchJson<{ file?: string; filename?: string }>(`${BASE}/template`)
   const b64 = json.file
+  if (!b64) throw new Error('模板数据为空')
   const bin = atob(b64)
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
@@ -96,8 +58,9 @@ export async function downloadTemplate(): Promise<Blob> {
 
 export async function uploadBOM(
   file: File,
-  parseMode: string = 'auto',
-  columnMapping?: Record<string, string>
+  parseMode: string,
+  columnMapping: Record<string, string> | undefined,
+  opts?: { sessionId?: string }
 ): Promise<{ bom_id: string; items: ParsedItem[]; total: number }> {
   const buf = await file.arrayBuffer()
   const bytes = new Uint8Array(buf)
@@ -105,52 +68,41 @@ export async function uploadBOM(
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
   const b64 = btoa(binary)
 
-  const body: Record<string, unknown> = { file: b64, filename: file.name, parse_mode: parseMode }
+  const body: Record<string, unknown> = {
+    file: b64,
+    filename: file.name,
+    parse_mode: parseMode,
+  }
   if (columnMapping && Object.keys(columnMapping).length > 0) body.column_mapping = columnMapping
+  if (opts?.sessionId) body.session_id = opts.sessionId
 
-  const res = await fetch(`${API_BASE}/upload`, {
+  const json = await fetchJson<Record<string, unknown>>(`${BASE}/upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.message || '上传失败')
-  }
-  const json = await res.json()
   return {
-    bom_id: json.bom_id ?? json.bomId,
-    items: json.items ?? [],
-    total: json.total ?? 0,
+    bom_id: (json.bom_id ?? json.bomId) as string,
+    items: (json.items ?? []) as ParsedItem[],
+    total: Number(json.total ?? 0),
   }
 }
 
-export async function searchQuotes(bomId: string, platforms?: string[]): Promise<{ item_quotes: { model: string; quantity: number; quotes: PlatformQuote[] }[] }> {
-  const res = await fetch(`${API_BASE}/search`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bom_id: bomId, platforms: platforms || [] }),
-  })
-  if (!res.ok) throw new Error('搜索失败')
-  return res.json()
-}
-
-export async function autoMatch(bomId: string, strategy: string = 'price_first'): Promise<{ items: MatchItem[]; total_amount: number }> {
-  const res = await fetch(`${API_BASE}/match`, {
+export async function autoMatch(
+  bomId: string,
+  strategy: string = 'price_first'
+): Promise<{ items: MatchItem[]; total_amount: number }> {
+  const json = await fetchJson<Record<string, unknown>>(`${BASE}/match`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bom_id: bomId, strategy }),
   })
-  if (!res.ok) throw new Error('配单失败')
-  const json = await res.json()
-  const items = (json.items ?? []).map((m: Record<string, unknown>) => normMatchItem(m))
+  const items = ((json.items ?? []) as Record<string, unknown>[]).map(normMatchItem)
   return { items, total_amount: Number(json.total_amount ?? json.totalAmount ?? 0) }
 }
 
 export async function getMatchResult(bomId: string): Promise<{ items: MatchItem[]; total_amount: number }> {
-  const res = await fetch(`${API_BASE}/${bomId}/match`)
-  if (!res.ok) throw new Error('获取配单结果失败')
-  const json = await res.json()
-  const items = (json.items ?? []).map((m: Record<string, unknown>) => normMatchItem(m))
+  const json = await fetchJson<Record<string, unknown>>(`${BASE}/${encodeURIComponent(bomId)}/match`)
+  const items = ((json.items ?? []) as Record<string, unknown>[]).map(normMatchItem)
   return { items, total_amount: Number(json.total_amount ?? json.totalAmount ?? 0) }
 }

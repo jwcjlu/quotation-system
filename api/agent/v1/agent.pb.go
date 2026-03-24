@@ -34,8 +34,10 @@ type TaskHeartbeatRequest struct {
 	ReportedAt         string                 `protobuf:"bytes,7,opt,name=reported_at,json=reportedAt,proto3" json:"reported_at,omitempty"`
 	Runtime            *RuntimeInfo           `protobuf:"bytes,8,opt,name=runtime,proto3" json:"runtime,omitempty"`
 	LongPollTimeoutSec int32                  `protobuf:"varint,9,opt,name=long_poll_timeout_sec,json=longPollTimeoutSec,proto3" json:"long_poll_timeout_sec,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// 当前在本 Agent 上正在执行的任务（方案 A：必填语义由服务端强约束调度；Agent 无执行中时可传空数组）
+	RunningTasks  []*RunningTask `protobuf:"bytes,10,rep,name=running_tasks,json=runningTasks,proto3" json:"running_tasks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TaskHeartbeatRequest) Reset() {
@@ -131,6 +133,83 @@ func (x *TaskHeartbeatRequest) GetLongPollTimeoutSec() int32 {
 	return 0
 }
 
+func (x *TaskHeartbeatRequest) GetRunningTasks() []*RunningTask {
+	if x != nil {
+		return x.RunningTasks
+	}
+	return nil
+}
+
+// RunningTask Agent 上报的进行中任务，用于避免长轮询重复派发、并与 script_id 串行语义对齐。
+type RunningTask struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	TaskId   string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	LeaseId  string                 `protobuf:"bytes,2,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
+	ScriptId string                 `protobuf:"bytes,3,opt,name=script_id,json=scriptId,proto3" json:"script_id,omitempty"`
+	// RFC3339Nano，可选
+	StartedAt     string `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunningTask) Reset() {
+	*x = RunningTask{}
+	mi := &file_agent_v1_agent_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunningTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunningTask) ProtoMessage() {}
+
+func (x *RunningTask) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunningTask.ProtoReflect.Descriptor instead.
+func (*RunningTask) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RunningTask) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *RunningTask) GetLeaseId() string {
+	if x != nil {
+		return x.LeaseId
+	}
+	return ""
+}
+
+func (x *RunningTask) GetScriptId() string {
+	if x != nil {
+		return x.ScriptId
+	}
+	return ""
+}
+
+func (x *RunningTask) GetStartedAt() string {
+	if x != nil {
+		return x.StartedAt
+	}
+	return ""
+}
+
 type InstalledScript struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ScriptId      string                 `protobuf:"bytes,1,opt,name=script_id,json=scriptId,proto3" json:"script_id,omitempty"`
@@ -142,7 +221,7 @@ type InstalledScript struct {
 
 func (x *InstalledScript) Reset() {
 	*x = InstalledScript{}
-	mi := &file_agent_v1_agent_proto_msgTypes[1]
+	mi := &file_agent_v1_agent_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -154,7 +233,7 @@ func (x *InstalledScript) String() string {
 func (*InstalledScript) ProtoMessage() {}
 
 func (x *InstalledScript) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[1]
+	mi := &file_agent_v1_agent_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -167,7 +246,7 @@ func (x *InstalledScript) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstalledScript.ProtoReflect.Descriptor instead.
 func (*InstalledScript) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{1}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *InstalledScript) GetScriptId() string {
@@ -201,7 +280,7 @@ type RuntimeInfo struct {
 
 func (x *RuntimeInfo) Reset() {
 	*x = RuntimeInfo{}
-	mi := &file_agent_v1_agent_proto_msgTypes[2]
+	mi := &file_agent_v1_agent_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -213,7 +292,7 @@ func (x *RuntimeInfo) String() string {
 func (*RuntimeInfo) ProtoMessage() {}
 
 func (x *RuntimeInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[2]
+	mi := &file_agent_v1_agent_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -226,7 +305,7 @@ func (x *RuntimeInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeInfo.ProtoReflect.Descriptor instead.
 func (*RuntimeInfo) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{2}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RuntimeInfo) GetPythonVersion() string {
@@ -254,7 +333,7 @@ type TaskHeartbeatReply struct {
 
 func (x *TaskHeartbeatReply) Reset() {
 	*x = TaskHeartbeatReply{}
-	mi := &file_agent_v1_agent_proto_msgTypes[3]
+	mi := &file_agent_v1_agent_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -266,7 +345,7 @@ func (x *TaskHeartbeatReply) String() string {
 func (*TaskHeartbeatReply) ProtoMessage() {}
 
 func (x *TaskHeartbeatReply) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[3]
+	mi := &file_agent_v1_agent_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -279,7 +358,7 @@ func (x *TaskHeartbeatReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskHeartbeatReply.ProtoReflect.Descriptor instead.
 func (*TaskHeartbeatReply) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{3}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TaskHeartbeatReply) GetServerTime() string {
@@ -321,7 +400,7 @@ type TaskObject struct {
 
 func (x *TaskObject) Reset() {
 	*x = TaskObject{}
-	mi := &file_agent_v1_agent_proto_msgTypes[4]
+	mi := &file_agent_v1_agent_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -333,7 +412,7 @@ func (x *TaskObject) String() string {
 func (*TaskObject) ProtoMessage() {}
 
 func (x *TaskObject) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[4]
+	mi := &file_agent_v1_agent_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -346,7 +425,7 @@ func (x *TaskObject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskObject.ProtoReflect.Descriptor instead.
 func (*TaskObject) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{4}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TaskObject) GetTaskId() string {
@@ -433,7 +512,7 @@ type ScriptSyncHeartbeatRequest struct {
 
 func (x *ScriptSyncHeartbeatRequest) Reset() {
 	*x = ScriptSyncHeartbeatRequest{}
-	mi := &file_agent_v1_agent_proto_msgTypes[5]
+	mi := &file_agent_v1_agent_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +524,7 @@ func (x *ScriptSyncHeartbeatRequest) String() string {
 func (*ScriptSyncHeartbeatRequest) ProtoMessage() {}
 
 func (x *ScriptSyncHeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[5]
+	mi := &file_agent_v1_agent_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,7 +537,7 @@ func (x *ScriptSyncHeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScriptSyncHeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*ScriptSyncHeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{5}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ScriptSyncHeartbeatRequest) GetProtocolVersion() string {
@@ -518,7 +597,7 @@ type ScriptRow struct {
 
 func (x *ScriptRow) Reset() {
 	*x = ScriptRow{}
-	mi := &file_agent_v1_agent_proto_msgTypes[6]
+	mi := &file_agent_v1_agent_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -530,7 +609,7 @@ func (x *ScriptRow) String() string {
 func (*ScriptRow) ProtoMessage() {}
 
 func (x *ScriptRow) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[6]
+	mi := &file_agent_v1_agent_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -543,7 +622,7 @@ func (x *ScriptRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScriptRow.ProtoReflect.Descriptor instead.
 func (*ScriptRow) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{6}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ScriptRow) GetScriptId() string {
@@ -606,7 +685,7 @@ type ScriptSyncHeartbeatReply struct {
 
 func (x *ScriptSyncHeartbeatReply) Reset() {
 	*x = ScriptSyncHeartbeatReply{}
-	mi := &file_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_agent_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -618,7 +697,7 @@ func (x *ScriptSyncHeartbeatReply) String() string {
 func (*ScriptSyncHeartbeatReply) ProtoMessage() {}
 
 func (x *ScriptSyncHeartbeatReply) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[7]
+	mi := &file_agent_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -631,7 +710,7 @@ func (x *ScriptSyncHeartbeatReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScriptSyncHeartbeatReply.ProtoReflect.Descriptor instead.
 func (*ScriptSyncHeartbeatReply) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ScriptSyncHeartbeatReply) GetServerTime() string {
@@ -669,7 +748,7 @@ type SyncAction struct {
 
 func (x *SyncAction) Reset() {
 	*x = SyncAction{}
-	mi := &file_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_agent_v1_agent_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -681,7 +760,7 @@ func (x *SyncAction) String() string {
 func (*SyncAction) ProtoMessage() {}
 
 func (x *SyncAction) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_agent_v1_agent_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -694,7 +773,7 @@ func (x *SyncAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncAction.ProtoReflect.Descriptor instead.
 func (*SyncAction) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{8}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SyncAction) GetAction() string {
@@ -751,7 +830,7 @@ type DownloadSpec struct {
 
 func (x *DownloadSpec) Reset() {
 	*x = DownloadSpec{}
-	mi := &file_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_agent_v1_agent_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -763,7 +842,7 @@ func (x *DownloadSpec) String() string {
 func (*DownloadSpec) ProtoMessage() {}
 
 func (x *DownloadSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_agent_v1_agent_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -776,7 +855,7 @@ func (x *DownloadSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadSpec.ProtoReflect.Descriptor instead.
 func (*DownloadSpec) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{9}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DownloadSpec) GetMethod() string {
@@ -816,7 +895,7 @@ type TaskResultRequest struct {
 	StartedAt       string                 `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	FinishedAt      string                 `protobuf:"bytes,6,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
 	ExitCode        *int32                 `protobuf:"varint,7,opt,name=exit_code,json=exitCode,proto3,oneof" json:"exit_code,omitempty"`
-	StdoutTail      string                 `protobuf:"bytes,8,opt,name=stdout_tail,json=stdoutTail,proto3" json:"stdout_tail,omitempty"`
+	Stdout          string                 `protobuf:"bytes,8,opt,name=stdout,proto3" json:"stdout,omitempty"`
 	StderrTail      string                 `protobuf:"bytes,9,opt,name=stderr_tail,json=stderrTail,proto3" json:"stderr_tail,omitempty"`
 	Result          *structpb.Struct       `protobuf:"bytes,10,opt,name=result,proto3" json:"result,omitempty"`
 	Error           *structpb.Value        `protobuf:"bytes,11,opt,name=error,proto3" json:"error,omitempty"`
@@ -830,7 +909,7 @@ type TaskResultRequest struct {
 
 func (x *TaskResultRequest) Reset() {
 	*x = TaskResultRequest{}
-	mi := &file_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_agent_v1_agent_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +921,7 @@ func (x *TaskResultRequest) String() string {
 func (*TaskResultRequest) ProtoMessage() {}
 
 func (x *TaskResultRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_agent_v1_agent_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +934,7 @@ func (x *TaskResultRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskResultRequest.ProtoReflect.Descriptor instead.
 func (*TaskResultRequest) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{10}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *TaskResultRequest) GetProtocolVersion() string {
@@ -907,9 +986,9 @@ func (x *TaskResultRequest) GetExitCode() int32 {
 	return 0
 }
 
-func (x *TaskResultRequest) GetStdoutTail() string {
+func (x *TaskResultRequest) GetStdout() string {
 	if x != nil {
-		return x.StdoutTail
+		return x.Stdout
 	}
 	return ""
 }
@@ -973,7 +1052,7 @@ type TaskResultReply struct {
 
 func (x *TaskResultReply) Reset() {
 	*x = TaskResultReply{}
-	mi := &file_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_agent_v1_agent_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -985,7 +1064,7 @@ func (x *TaskResultReply) String() string {
 func (*TaskResultReply) ProtoMessage() {}
 
 func (x *TaskResultReply) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_agent_v1_agent_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -998,7 +1077,7 @@ func (x *TaskResultReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskResultReply.ProtoReflect.Descriptor instead.
 func (*TaskResultReply) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{11}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *TaskResultReply) GetAccepted() bool {
@@ -1025,7 +1104,7 @@ type ErrorBody struct {
 
 func (x *ErrorBody) Reset() {
 	*x = ErrorBody{}
-	mi := &file_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_agent_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1037,7 +1116,7 @@ func (x *ErrorBody) String() string {
 func (*ErrorBody) ProtoMessage() {}
 
 func (x *ErrorBody) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[12]
+	mi := &file_agent_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1050,7 +1129,7 @@ func (x *ErrorBody) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorBody.ProtoReflect.Descriptor instead.
 func (*ErrorBody) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{12}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ErrorBody) GetError() *ErrorDetail {
@@ -1070,7 +1149,7 @@ type ErrorDetail struct {
 
 func (x *ErrorDetail) Reset() {
 	*x = ErrorDetail{}
-	mi := &file_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_agent_v1_agent_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1082,7 +1161,7 @@ func (x *ErrorDetail) String() string {
 func (*ErrorDetail) ProtoMessage() {}
 
 func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_agent_v1_agent_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1095,7 +1174,7 @@ func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
 func (*ErrorDetail) Descriptor() ([]byte, []int) {
-	return file_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ErrorDetail) GetCode() string {
@@ -1116,7 +1195,7 @@ var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x14agent/v1/agent.proto\x12\fapi.agent.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xf7\x02\n" +
+	"\x14agent/v1/agent.proto\x12\fapi.agent.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xb7\x03\n" +
 	"\x14TaskHeartbeatRequest\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x14\n" +
@@ -1127,7 +1206,15 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\vreported_at\x18\a \x01(\tR\n" +
 	"reportedAt\x123\n" +
 	"\aruntime\x18\b \x01(\v2\x19.api.agent.v1.RuntimeInfoR\aruntime\x121\n" +
-	"\x15long_poll_timeout_sec\x18\t \x01(\x05R\x12longPollTimeoutSec\"g\n" +
+	"\x15long_poll_timeout_sec\x18\t \x01(\x05R\x12longPollTimeoutSec\x12>\n" +
+	"\rrunning_tasks\x18\n" +
+	" \x03(\v2\x19.api.agent.v1.RunningTaskR\frunningTasks\"}\n" +
+	"\vRunningTask\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x19\n" +
+	"\blease_id\x18\x02 \x01(\tR\aleaseId\x12\x1b\n" +
+	"\tscript_id\x18\x03 \x01(\tR\bscriptId\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x04 \x01(\tR\tstartedAt\"g\n" +
 	"\x0fInstalledScript\x12\x1b\n" +
 	"\tscript_id\x18\x01 \x01(\tR\bscriptId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1d\n" +
@@ -1156,14 +1243,14 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\t \x01(\tR\x0eidempotencyKey\x12\x19\n" +
 	"\btrace_id\x18\n" +
 	" \x01(\tR\atraceIdB\r\n" +
-	"\v_entry_file\"\xf2\x01\n" +
+	"\v_entry_file\"\x85\x02\n" +
 	"\x1aScriptSyncHeartbeatRequest\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x14\n" +
 	"\x05queue\x18\x03 \x01(\tR\x05queue\x12\x12\n" +
 	"\x04tags\x18\x04 \x03(\tR\x04tags\x121\n" +
 	"\ascripts\x18\x05 \x03(\v2\x17.api.agent.v1.ScriptRowR\ascripts\x121\n" +
-	"\x15long_poll_timeout_sec\x18\x06 \x01(\x05R\x12longPollTimeoutSec\"\x92\x02\n" +
+	"\x15long_poll_timeout_sec\x18\x06 \x01(\x05R\x12longPollTimeoutSecJ\x04\b\a\x10\bR\vplatform_id\"\x92\x02\n" +
 	"\tScriptRow\x12\x1b\n" +
 	"\tscript_id\x18\x01 \x01(\tR\bscriptId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12*\n" +
@@ -1197,7 +1284,7 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"expires_at\x18\x04 \x01(\tR\texpiresAt\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x94\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8b\x04\n" +
 	"\x11TaskResultRequest\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x17\n" +
@@ -1207,9 +1294,8 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"started_at\x18\x05 \x01(\tR\tstartedAt\x12\x1f\n" +
 	"\vfinished_at\x18\x06 \x01(\tR\n" +
 	"finishedAt\x12 \n" +
-	"\texit_code\x18\a \x01(\x05H\x00R\bexitCode\x88\x01\x01\x12\x1f\n" +
-	"\vstdout_tail\x18\b \x01(\tR\n" +
-	"stdoutTail\x12\x1f\n" +
+	"\texit_code\x18\a \x01(\x05H\x00R\bexitCode\x88\x01\x01\x12\x16\n" +
+	"\x06stdout\x18\b \x01(\tR\x06stdout\x12\x1f\n" +
 	"\vstderr_tail\x18\t \x01(\tR\n" +
 	"stderrTail\x12/\n" +
 	"\x06result\x18\n" +
@@ -1248,49 +1334,51 @@ func file_agent_v1_agent_proto_rawDescGZIP() []byte {
 	return file_agent_v1_agent_proto_rawDescData
 }
 
-var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_agent_v1_agent_proto_goTypes = []any{
 	(*TaskHeartbeatRequest)(nil),       // 0: api.agent.v1.TaskHeartbeatRequest
-	(*InstalledScript)(nil),            // 1: api.agent.v1.InstalledScript
-	(*RuntimeInfo)(nil),                // 2: api.agent.v1.RuntimeInfo
-	(*TaskHeartbeatReply)(nil),         // 3: api.agent.v1.TaskHeartbeatReply
-	(*TaskObject)(nil),                 // 4: api.agent.v1.TaskObject
-	(*ScriptSyncHeartbeatRequest)(nil), // 5: api.agent.v1.ScriptSyncHeartbeatRequest
-	(*ScriptRow)(nil),                  // 6: api.agent.v1.ScriptRow
-	(*ScriptSyncHeartbeatReply)(nil),   // 7: api.agent.v1.ScriptSyncHeartbeatReply
-	(*SyncAction)(nil),                 // 8: api.agent.v1.SyncAction
-	(*DownloadSpec)(nil),               // 9: api.agent.v1.DownloadSpec
-	(*TaskResultRequest)(nil),          // 10: api.agent.v1.TaskResultRequest
-	(*TaskResultReply)(nil),            // 11: api.agent.v1.TaskResultReply
-	(*ErrorBody)(nil),                  // 12: api.agent.v1.ErrorBody
-	(*ErrorDetail)(nil),                // 13: api.agent.v1.ErrorDetail
-	nil,                                // 14: api.agent.v1.DownloadSpec.HeadersEntry
-	(*structpb.Struct)(nil),            // 15: google.protobuf.Struct
-	(*structpb.Value)(nil),             // 16: google.protobuf.Value
+	(*RunningTask)(nil),                // 1: api.agent.v1.RunningTask
+	(*InstalledScript)(nil),            // 2: api.agent.v1.InstalledScript
+	(*RuntimeInfo)(nil),                // 3: api.agent.v1.RuntimeInfo
+	(*TaskHeartbeatReply)(nil),         // 4: api.agent.v1.TaskHeartbeatReply
+	(*TaskObject)(nil),                 // 5: api.agent.v1.TaskObject
+	(*ScriptSyncHeartbeatRequest)(nil), // 6: api.agent.v1.ScriptSyncHeartbeatRequest
+	(*ScriptRow)(nil),                  // 7: api.agent.v1.ScriptRow
+	(*ScriptSyncHeartbeatReply)(nil),   // 8: api.agent.v1.ScriptSyncHeartbeatReply
+	(*SyncAction)(nil),                 // 9: api.agent.v1.SyncAction
+	(*DownloadSpec)(nil),               // 10: api.agent.v1.DownloadSpec
+	(*TaskResultRequest)(nil),          // 11: api.agent.v1.TaskResultRequest
+	(*TaskResultReply)(nil),            // 12: api.agent.v1.TaskResultReply
+	(*ErrorBody)(nil),                  // 13: api.agent.v1.ErrorBody
+	(*ErrorDetail)(nil),                // 14: api.agent.v1.ErrorDetail
+	nil,                                // 15: api.agent.v1.DownloadSpec.HeadersEntry
+	(*structpb.Struct)(nil),            // 16: google.protobuf.Struct
+	(*structpb.Value)(nil),             // 17: google.protobuf.Value
 }
 var file_agent_v1_agent_proto_depIdxs = []int32{
-	1,  // 0: api.agent.v1.TaskHeartbeatRequest.installed_scripts:type_name -> api.agent.v1.InstalledScript
-	2,  // 1: api.agent.v1.TaskHeartbeatRequest.runtime:type_name -> api.agent.v1.RuntimeInfo
-	4,  // 2: api.agent.v1.TaskHeartbeatReply.tasks:type_name -> api.agent.v1.TaskObject
-	15, // 3: api.agent.v1.TaskObject.params:type_name -> google.protobuf.Struct
-	6,  // 4: api.agent.v1.ScriptSyncHeartbeatRequest.scripts:type_name -> api.agent.v1.ScriptRow
-	8,  // 5: api.agent.v1.ScriptSyncHeartbeatReply.sync_actions:type_name -> api.agent.v1.SyncAction
-	9,  // 6: api.agent.v1.SyncAction.download:type_name -> api.agent.v1.DownloadSpec
-	14, // 7: api.agent.v1.DownloadSpec.headers:type_name -> api.agent.v1.DownloadSpec.HeadersEntry
-	15, // 8: api.agent.v1.TaskResultRequest.result:type_name -> google.protobuf.Struct
-	16, // 9: api.agent.v1.TaskResultRequest.error:type_name -> google.protobuf.Value
-	13, // 10: api.agent.v1.ErrorBody.error:type_name -> api.agent.v1.ErrorDetail
-	0,  // 11: api.agent.v1.AgentService.TaskHeartbeat:input_type -> api.agent.v1.TaskHeartbeatRequest
-	5,  // 12: api.agent.v1.AgentService.ScriptSyncHeartbeat:input_type -> api.agent.v1.ScriptSyncHeartbeatRequest
-	10, // 13: api.agent.v1.AgentService.TaskResult:input_type -> api.agent.v1.TaskResultRequest
-	3,  // 14: api.agent.v1.AgentService.TaskHeartbeat:output_type -> api.agent.v1.TaskHeartbeatReply
-	7,  // 15: api.agent.v1.AgentService.ScriptSyncHeartbeat:output_type -> api.agent.v1.ScriptSyncHeartbeatReply
-	11, // 16: api.agent.v1.AgentService.TaskResult:output_type -> api.agent.v1.TaskResultReply
-	14, // [14:17] is the sub-list for method output_type
-	11, // [11:14] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	2,  // 0: api.agent.v1.TaskHeartbeatRequest.installed_scripts:type_name -> api.agent.v1.InstalledScript
+	3,  // 1: api.agent.v1.TaskHeartbeatRequest.runtime:type_name -> api.agent.v1.RuntimeInfo
+	1,  // 2: api.agent.v1.TaskHeartbeatRequest.running_tasks:type_name -> api.agent.v1.RunningTask
+	5,  // 3: api.agent.v1.TaskHeartbeatReply.tasks:type_name -> api.agent.v1.TaskObject
+	16, // 4: api.agent.v1.TaskObject.params:type_name -> google.protobuf.Struct
+	7,  // 5: api.agent.v1.ScriptSyncHeartbeatRequest.scripts:type_name -> api.agent.v1.ScriptRow
+	9,  // 6: api.agent.v1.ScriptSyncHeartbeatReply.sync_actions:type_name -> api.agent.v1.SyncAction
+	10, // 7: api.agent.v1.SyncAction.download:type_name -> api.agent.v1.DownloadSpec
+	15, // 8: api.agent.v1.DownloadSpec.headers:type_name -> api.agent.v1.DownloadSpec.HeadersEntry
+	16, // 9: api.agent.v1.TaskResultRequest.result:type_name -> google.protobuf.Struct
+	17, // 10: api.agent.v1.TaskResultRequest.error:type_name -> google.protobuf.Value
+	14, // 11: api.agent.v1.ErrorBody.error:type_name -> api.agent.v1.ErrorDetail
+	0,  // 12: api.agent.v1.AgentService.TaskHeartbeat:input_type -> api.agent.v1.TaskHeartbeatRequest
+	6,  // 13: api.agent.v1.AgentService.ScriptSyncHeartbeat:input_type -> api.agent.v1.ScriptSyncHeartbeatRequest
+	11, // 14: api.agent.v1.AgentService.TaskResult:input_type -> api.agent.v1.TaskResultRequest
+	4,  // 15: api.agent.v1.AgentService.TaskHeartbeat:output_type -> api.agent.v1.TaskHeartbeatReply
+	8,  // 16: api.agent.v1.AgentService.ScriptSyncHeartbeat:output_type -> api.agent.v1.ScriptSyncHeartbeatReply
+	12, // 17: api.agent.v1.AgentService.TaskResult:output_type -> api.agent.v1.TaskResultReply
+	15, // [15:18] is the sub-list for method output_type
+	12, // [12:15] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_agent_v1_agent_proto_init() }
@@ -1298,16 +1386,16 @@ func file_agent_v1_agent_proto_init() {
 	if File_agent_v1_agent_proto != nil {
 		return
 	}
-	file_agent_v1_agent_proto_msgTypes[4].OneofWrappers = []any{}
-	file_agent_v1_agent_proto_msgTypes[6].OneofWrappers = []any{}
-	file_agent_v1_agent_proto_msgTypes[10].OneofWrappers = []any{}
+	file_agent_v1_agent_proto_msgTypes[5].OneofWrappers = []any{}
+	file_agent_v1_agent_proto_msgTypes[7].OneofWrappers = []any{}
+	file_agent_v1_agent_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_v1_agent_proto_rawDesc), len(file_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

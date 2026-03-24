@@ -1,0 +1,5 @@
+# ickey_crawler.py 运行时依赖（标准库 argparse/json/os/re 等无需列出）
+# 安装: pip install -r ickey_crawler_requirements.txt
+# 另需本机已安装 Chrome/Chromium（DrissionPage 控制浏览器，非 pip 包）
+
+DrissionPage>=4.0.0

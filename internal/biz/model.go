@@ -29,36 +29,36 @@ type ItemQuotes struct {
 
 // Quote 平台报价
 type Quote struct {
-	Platform      string
-	MatchedModel  string
-	Manufacturer  string
-	Package       string // 封装，用于型号/封装/厂牌匹配筛选
-	Description   string
-	Stock         int64
-	LeadTime      string
-	MOQ           int32
-	Increment     int32
-	PriceTiers    string
-	HKPrice       string
-	MainlandPrice string
-	UnitPrice     float64
-	Subtotal      float64
+	Platform      string  `json:"platform"`
+	MatchedModel  string  `json:"matched_model"`
+	Manufacturer  string  `json:"manufacturer"`
+	Package       string  `json:"package"` // 封装，用于型号/封装/厂牌匹配筛选
+	Description   string  `json:"description"`
+	Stock         int64   `json:"stock"`
+	LeadTime      string  `json:"lead_time"`
+	MOQ           int32   `json:"moq"`
+	Increment     int32   `json:"increment"`
+	PriceTiers    string  `json:"price_tiers"`
+	HKPrice       string  `json:"hk_price"`
+	MainlandPrice string  `json:"mainland_price"`
+	UnitPrice     float64 `json:"unit_price"`
+	Subtotal      float64 `json:"subtotal"`
 }
 
 // MatchItem 配单结果项
 type MatchItem struct {
-	Index              int
-	Model              string
-	Quantity           int
-	MatchedModel       string
-	Manufacturer       string
-	Platform           string
-	LeadTime           string
-	Stock              int64
-	UnitPrice          float64
-	Subtotal           float64
-	MatchStatus        string
-	AllQuotes          []*Quote
-	DemandManufacturer string // 需求厂牌（解析自 BOM）
-	DemandPackage      string // 需求封装（解析自 BOM）
+	Index              int      `json:"index"`
+	Model              string   `json:"model"`
+	Quantity           int      `json:"quantity"`
+	MatchedModel       string   `json:"matched_model"`
+	Manufacturer       string   `json:"manufacturer"`
+	Platform           string   `json:"platform"`
+	LeadTime           string   `json:"lead_time"`
+	Stock              int64    `json:"stock"`
+	UnitPrice          float64  `json:"unit_price"`
+	Subtotal           float64  `json:"subtotal"`
+	MatchStatus        string   `json:"match_status"`
+	AllQuotes          []*Quote `json:"all_quotes"`
+	DemandManufacturer string   `json:"demand_manufacturer"` // 需求厂牌（解析自 BOM）
+	DemandPackage      string   `json:"demand_package"`      // 需求封装（解析自 BOM）
 }

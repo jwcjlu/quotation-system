@@ -9,8 +9,9 @@ server:
 
 data:
   database:
+    # BOM 会话 / bom_session_line：先在本库执行 docs/schema/bom_mysql.sql
     driver: mysql
-    dsn: user:pass@tcp(127.0.0.1:3306)/bom_match?charset=utf8mb4
+    dsn: viu_root:myviu_4359@tcp(172.26.50.161:23306)/bom_match?charset=utf8mb4
   redis:
     addr: 127.0.0.1:6379
     read_timeout: 1

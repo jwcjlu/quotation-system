@@ -7,10 +7,9 @@ import (
 	"caichip/internal/biz"
 )
 
-// searchRepo 搜索与配单结果存储
+// searchRepo 搜索与配单结果存储（经典多平台实时搜价已下线，报价仅来自 SaveQuotes 写入的缓存）
 type searchRepo struct {
-	bomRepo  biz.BOMRepo
-	searchUC *biz.SearchUseCase
+	bomRepo biz.BOMRepo
 
 	mu          sync.RWMutex
 	quotesCache map[string][]*biz.ItemQuotes
@@ -18,34 +17,25 @@ type searchRepo struct {
 }
 
 // NewSearchRepo 创建搜索仓储
-func NewSearchRepo(bomRepo biz.BOMRepo, searchUC *biz.SearchUseCase) biz.SearchRepo {
+func NewSearchRepo(bomRepo biz.BOMRepo) biz.SearchRepo {
 	return &searchRepo{
 		bomRepo:     bomRepo,
-		searchUC:    searchUC,
 		quotesCache: make(map[string][]*biz.ItemQuotes),
 		matchCache:  make(map[string][]*biz.MatchItem),
 	}
 }
 
 func (r *searchRepo) GetQuotesByBOM(ctx context.Context, bomID string) ([]*biz.ItemQuotes, error) {
+	_ = ctx
 	r.mu.RLock()
+	defer r.mu.RUnlock()
 	cached := r.quotesCache[bomID]
-	r.mu.RUnlock()
-
-	if cached != nil {
-		return cached, nil
+	if cached == nil {
+		return nil, nil
 	}
-
-	results, err := r.searchUC.SearchQuotes(ctx, bomID, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	r.mu.Lock()
-	r.quotesCache[bomID] = results
-	r.mu.Unlock()
-
-	return results, nil
+	out := make([]*biz.ItemQuotes, len(cached))
+	copy(out, cached)
+	return out, nil
 }
 
 func (r *searchRepo) SaveQuotes(ctx context.Context, bomID string, quotes []*biz.ItemQuotes) error {

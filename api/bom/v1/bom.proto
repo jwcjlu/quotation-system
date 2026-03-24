@@ -52,6 +52,76 @@ service BomService {
       get: "/api/v1/bom/{bom_id}/match"
     };
   }
+
+  // ---------- BOM 会话（货源搜索 / 轮询就绪，见 docs/BOM货源搜索-接口清单.md）----------
+
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions"
+      body: "*"
+    };
+  }
+
+  rpc GetSession(GetSessionRequest) returns (GetSessionReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-sessions/{session_id}"
+    };
+  }
+
+  rpc PutPlatforms(PutPlatformsRequest) returns (PutPlatformsReply) {
+    option (google.api.http) = {
+      put: "/api/v1/bom-sessions/{session_id}/platforms"
+      body: "*"
+    };
+  }
+
+  rpc GetReadiness(GetReadinessRequest) returns (GetReadinessReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-sessions/{session_id}/readiness"
+    };
+  }
+
+  rpc GetBOMLines(GetBOMLinesRequest) returns (GetBOMLinesReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-sessions/{session_id}/lines"
+    };
+  }
+
+  rpc RetrySearchTasks(RetrySearchTasksRequest) returns (RetrySearchTasksReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions/{session_id}/search-tasks/retry"
+      body: "*"
+    };
+  }
+
+  // Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
+  rpc SubmitBomSearchResult(SubmitBomSearchResultRequest) returns (SubmitBomSearchResultReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions/{session_id}/search-results"
+      body: "*"
+    };
+  }
+
+  // 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
+  rpc ExportSession(ExportSessionRequest) returns (ExportSessionReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-sessions/{session_id}/export"
+    };
+  }
+
+  // 配单历史列表
+  rpc ListMatchHistory(ListMatchHistoryRequest) returns (ListMatchHistoryReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-match-history"
+    };
+  }
+
+  // 配单历史详情（快照）
+  rpc GetMatchHistory(GetMatchHistoryRequest) returns (GetMatchHistoryReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-match-history/{match_result_id}"
+    };
+  }
 }
 
 // ========== UploadBOM ==========
@@ -60,6 +130,8 @@ message UploadBOMRequest {
   string filename = 2;      // 文件名
   string parse_mode = 3;   // 解析模式：szlcsc | ickey | auto | custom
   map<string, string> column_mapping = 4;  // 自定义模式：{"model":"A","manufacturer":"B",...}
+  // 若填写，则解析结果写入 bom_session_line，且返回的 bom_id 等于该 session_id（与 CreateSession 一致）
+  string session_id = 5;
 }
 
 message UploadBOMReply {
@@ -166,4 +238,156 @@ message DownloadTemplateRequest {}
 message DownloadTemplateReply {
   bytes file = 1;
   string filename = 2;
+}
+
+// ---------- Session ----------
+message CreateSessionRequest {
+  string title = 1;
+  repeated string platform_ids = 2;
+}
+
+message CreateSessionReply {
+  string session_id = 1;
+  string biz_date = 2;             // YYYY-MM-DD
+  int32 selection_revision = 3;
+}
+
+message GetSessionRequest {
+  string session_id = 1;
+}
+
+message GetSessionReply {
+  string session_id = 1;
+  string title = 2;
+  string status = 3;
+  string biz_date = 4;
+  int32 selection_revision = 5;
+  repeated string platform_ids = 6;
+}
+
+message PutPlatformsRequest {
+  string session_id = 1;
+  repeated string platform_ids = 2;
+  int32 expected_revision = 3;
+}
+
+message PutPlatformsReply {
+  int32 selection_revision = 1;
+}
+
+message GetReadinessRequest {
+  string session_id = 1;
+}
+
+message GetReadinessReply {
+  string session_id = 1;
+  string biz_date = 2;
+  int32 selection_revision = 3;
+  string phase = 4;
+  bool can_enter_match = 5;
+  string block_reason = 6;
+}
+
+message GetBOMLinesRequest {
+  string session_id = 1;
+}
+
+message BOMLineRow {
+  string line_id = 1;
+  int32 line_no = 2;
+  string mpn = 3;
+  string mfr = 4;
+  string package = 5;
+  double qty = 6;
+  string match_status = 7;
+  repeated PlatformGap platform_gaps = 8;
+}
+
+message PlatformGap {
+  string platform_id = 1;
+  string phase = 2;
+  string reason_code = 3;
+  string message = 4;
+  int32 auto_attempt = 5;
+  int32 manual_attempt = 6;
+}
+
+message GetBOMLinesReply {
+  repeated BOMLineRow lines = 1;
+}
+
+message RetrySearchTasksRequest {
+  string session_id = 1;
+  repeated RetrySearchItem items = 2;
+}
+
+message RetrySearchItem {
+  string mpn = 1;
+  string platform_id = 2;
+}
+
+message RetrySearchTasksReply {
+  int32 accepted = 1;
+}
+
+message SubmitBomSearchResultRequest {
+  string session_id = 1;
+  string mpn_norm = 2;
+  string platform_id = 3;
+  string caichip_task_id = 4;
+  // succeeded_quotes | succeeded_no_mpn | failed
+  string status = 5;
+  string error_message = 6;
+  string quotes_json = 7;
+  string no_mpn_detail_json = 8;
+}
+
+message SubmitBomSearchResultReply {
+  bool accepted = 1;
+  string server_time = 2;
+}
+
+// ---------- Export & history（接口清单 §7）----------
+message ExportSessionRequest {
+  string session_id = 1;
+  // xlsx | csv，缺省 xlsx
+  string format = 2;
+}
+
+message ExportSessionReply {
+  bytes file = 1;
+  string filename = 2;
+}
+
+message ListMatchHistoryRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message MatchHistoryItem {
+  int64 match_result_id = 1;
+  string session_id = 2;
+  int32 version = 3;
+  string strategy = 4;
+  string created_at = 5;
+  double total_amount = 6;
+}
+
+message ListMatchHistoryReply {
+  repeated MatchHistoryItem items = 1;
+  int32 total = 2;
+}
+
+message GetMatchHistoryRequest {
+  int64 match_result_id = 1;
+}
+
+message GetMatchHistoryReply {
+  int64 match_result_id = 1;
+  string session_id = 2;
+  int32 version = 3;
+  string strategy = 4;
+  string created_at = 5;
+  double total_amount = 6;
+  repeated MatchItem items = 7;
 }

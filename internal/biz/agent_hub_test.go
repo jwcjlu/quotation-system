@@ -29,7 +29,7 @@ func TestAgentHub_offlineReassign(t *testing.T) {
 		TaskMessage: TaskMessage{TaskID: "t1", ScriptID: "demo", Version: "1.0.0", Attempt: 1},
 		Queue:       "default",
 	})
-	tasks := h.PullTasksForAgent(agent, 4)
+	tasks := h.PullTasksForAgent(agent, nil, 4)
 	if len(tasks) != 1 || tasks[0].LeaseID == "" {
 		t.Fatalf("expected 1 task with lease, got %+v", tasks)
 	}
@@ -44,7 +44,7 @@ func TestAgentHub_offlineReassign(t *testing.T) {
 	h.UpdateAgentMeta(agent, "default", nil, []InstalledScript{
 		{ScriptID: "demo", Version: "1.0.0", EnvStatus: "ready"},
 	})
-	tasks2 := h.PullTasksForAgent(agent, 4)
+	tasks2 := h.PullTasksForAgent(agent, nil, 4)
 	if len(tasks2) != 1 {
 		t.Fatalf("expected task re-queued after offline, got %d", len(tasks2))
 	}
@@ -64,7 +64,7 @@ func TestAgentHub_leaseMismatch(t *testing.T) {
 		TaskMessage: TaskMessage{TaskID: "t2", ScriptID: "demo", Version: "1.0.0", Attempt: 1},
 		Queue:       "default",
 	})
-	tasks := h.PullTasksForAgent(agent, 4)
+	tasks := h.PullTasksForAgent(agent, nil, 4)
 	err := h.SubmitTaskResult(&TaskResultIn{
 		TaskID:  "t2",
 		AgentID: agent,
@@ -93,8 +93,50 @@ func TestAgentHub_WaitForLongPoll(t *testing.T) {
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	out := h.WaitForLongPoll(ctx, agent, 500*time.Millisecond, 30*time.Millisecond)
+	out := h.WaitForLongPoll(ctx, agent, nil, 500*time.Millisecond, 30*time.Millisecond)
 	if len(out) != 1 {
 		t.Fatalf("expected 1 task, got %d", len(out))
+	}
+}
+
+func TestAgentHub_runningTasksSkipsBusyScriptOrTaskID(t *testing.T) {
+	h := testHub()
+	agent := "aabbccddeeff"
+	h.TouchTaskHeartbeat(agent)
+	h.UpdateAgentMeta(agent, "default", nil, []InstalledScript{
+		{ScriptID: "demo", Version: "1.0.0", EnvStatus: "ready"},
+	})
+	h.EnqueueTask(&QueuedTask{
+		TaskMessage: TaskMessage{TaskID: "busy-t1", ScriptID: "demo", Version: "1.0.0", Attempt: 1},
+		Queue:       "default",
+	})
+	h.EnqueueTask(&QueuedTask{
+		TaskMessage: TaskMessage{TaskID: "busy-t2", ScriptID: "demo", Version: "1.0.0", Attempt: 1},
+		Queue:       "default",
+	})
+	first := h.PullTasksForAgent(agent, nil, 1)
+	if len(first) != 1 || first[0].TaskID != "busy-t1" {
+		t.Fatalf("expected first task busy-t1, got %+v", first)
+	}
+	second := h.PullTasksForAgent(agent, []RunningTaskReport{{TaskID: "busy-t1", ScriptID: "demo"}}, 1)
+	if len(second) != 0 {
+		t.Fatalf("expected no second task while script busy, got %+v", second)
+	}
+}
+
+func TestAgentHub_runningTasksSkipsMatchingTaskID(t *testing.T) {
+	h := testHub()
+	agent := "aabbccddeeff"
+	h.TouchTaskHeartbeat(agent)
+	h.UpdateAgentMeta(agent, "default", nil, []InstalledScript{
+		{ScriptID: "demo", Version: "1.0.0", EnvStatus: "ready"},
+	})
+	h.EnqueueTask(&QueuedTask{
+		TaskMessage: TaskMessage{TaskID: "only-pending", ScriptID: "demo", Version: "1.0.0", Attempt: 1},
+		Queue:       "default",
+	})
+	out := h.PullTasksForAgent(agent, []RunningTaskReport{{TaskID: "only-pending"}}, 4)
+	if len(out) != 0 {
+		t.Fatalf("expected no pull when task_id in running set, got %+v", out)
 	}
 }

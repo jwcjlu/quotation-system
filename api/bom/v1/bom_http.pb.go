@@ -20,23 +20,47 @@ var _ = binding.EncodeURL
 const _ = http.SupportPackageIsVersion1
 
 const OperationBomServiceAutoMatch = "/api.bom.v1.BomService/AutoMatch"
+const OperationBomServiceCreateSession = "/api.bom.v1.BomService/CreateSession"
 const OperationBomServiceDownloadTemplate = "/api.bom.v1.BomService/DownloadTemplate"
+const OperationBomServiceExportSession = "/api.bom.v1.BomService/ExportSession"
 const OperationBomServiceGetBOM = "/api.bom.v1.BomService/GetBOM"
+const OperationBomServiceGetBOMLines = "/api.bom.v1.BomService/GetBOMLines"
+const OperationBomServiceGetMatchHistory = "/api.bom.v1.BomService/GetMatchHistory"
 const OperationBomServiceGetMatchResult = "/api.bom.v1.BomService/GetMatchResult"
+const OperationBomServiceGetReadiness = "/api.bom.v1.BomService/GetReadiness"
+const OperationBomServiceGetSession = "/api.bom.v1.BomService/GetSession"
+const OperationBomServiceListMatchHistory = "/api.bom.v1.BomService/ListMatchHistory"
+const OperationBomServicePutPlatforms = "/api.bom.v1.BomService/PutPlatforms"
+const OperationBomServiceRetrySearchTasks = "/api.bom.v1.BomService/RetrySearchTasks"
 const OperationBomServiceSearchQuotes = "/api.bom.v1.BomService/SearchQuotes"
+const OperationBomServiceSubmitBomSearchResult = "/api.bom.v1.BomService/SubmitBomSearchResult"
 const OperationBomServiceUploadBOM = "/api.bom.v1.BomService/UploadBOM"
 
 type BomServiceHTTPServer interface {
 	// AutoMatch 自动配单
 	AutoMatch(context.Context, *AutoMatchRequest) (*AutoMatchReply, error)
+	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error)
 	// DownloadTemplate 下载 BOM 模板
 	DownloadTemplate(context.Context, *DownloadTemplateRequest) (*DownloadTemplateReply, error)
+	// ExportSession 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
+	ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error)
 	// GetBOM 获取 BOM 详情（含解析结果）
 	GetBOM(context.Context, *GetBOMRequest) (*GetBOMReply, error)
+	GetBOMLines(context.Context, *GetBOMLinesRequest) (*GetBOMLinesReply, error)
+	// GetMatchHistory 配单历史详情（快照）
+	GetMatchHistory(context.Context, *GetMatchHistoryRequest) (*GetMatchHistoryReply, error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error)
+	GetReadiness(context.Context, *GetReadinessRequest) (*GetReadinessReply, error)
+	GetSession(context.Context, *GetSessionRequest) (*GetSessionReply, error)
+	// ListMatchHistory 配单历史列表
+	ListMatchHistory(context.Context, *ListMatchHistoryRequest) (*ListMatchHistoryReply, error)
+	PutPlatforms(context.Context, *PutPlatformsRequest) (*PutPlatformsReply, error)
+	RetrySearchTasks(context.Context, *RetrySearchTasksRequest) (*RetrySearchTasksReply, error)
 	// SearchQuotes 多平台搜索报价
 	SearchQuotes(context.Context, *SearchQuotesRequest) (*SearchQuotesReply, error)
+	// SubmitBomSearchResult Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
+	SubmitBomSearchResult(context.Context, *SubmitBomSearchResultRequest) (*SubmitBomSearchResultReply, error)
 	// UploadBOM 上传并解析 BOM
 	UploadBOM(context.Context, *UploadBOMRequest) (*UploadBOMReply, error)
 }
@@ -49,6 +73,16 @@ func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r.GET("/api/v1/bom/template", _BomService_DownloadTemplate0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}", _BomService_GetBOM0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match", _BomService_GetMatchResult0_HTTP_Handler(srv))
+	r.POST("/api/v1/bom-sessions", _BomService_CreateSession0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom-sessions/{session_id}", _BomService_GetSession0_HTTP_Handler(srv))
+	r.PUT("/api/v1/bom-sessions/{session_id}/platforms", _BomService_PutPlatforms0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom-sessions/{session_id}/readiness", _BomService_GetReadiness0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom-sessions/{session_id}/lines", _BomService_GetBOMLines0_HTTP_Handler(srv))
+	r.POST("/api/v1/bom-sessions/{session_id}/search-tasks/retry", _BomService_RetrySearchTasks0_HTTP_Handler(srv))
+	r.POST("/api/v1/bom-sessions/{session_id}/search-results", _BomService_SubmitBomSearchResult0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom-sessions/{session_id}/export", _BomService_ExportSession0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom-match-history", _BomService_ListMatchHistory0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom-match-history/{match_result_id}", _BomService_GetMatchHistory0_HTTP_Handler(srv))
 }
 
 func _BomService_UploadBOM0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
@@ -180,17 +214,257 @@ func _BomService_GetMatchResult0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx
 	}
 }
 
+func _BomService_CreateSession0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in CreateSessionRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceCreateSession)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.CreateSession(ctx, req.(*CreateSessionRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*CreateSessionReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_GetSession0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetSessionRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceGetSession)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetSession(ctx, req.(*GetSessionRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetSessionReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_PutPlatforms0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in PutPlatformsRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServicePutPlatforms)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.PutPlatforms(ctx, req.(*PutPlatformsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*PutPlatformsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_GetReadiness0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetReadinessRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceGetReadiness)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetReadiness(ctx, req.(*GetReadinessRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetReadinessReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_GetBOMLines0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetBOMLinesRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceGetBOMLines)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetBOMLines(ctx, req.(*GetBOMLinesRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetBOMLinesReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_RetrySearchTasks0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in RetrySearchTasksRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceRetrySearchTasks)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.RetrySearchTasks(ctx, req.(*RetrySearchTasksRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*RetrySearchTasksReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_SubmitBomSearchResult0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in SubmitBomSearchResultRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceSubmitBomSearchResult)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.SubmitBomSearchResult(ctx, req.(*SubmitBomSearchResultRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*SubmitBomSearchResultReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_ExportSession0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ExportSessionRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceExportSession)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ExportSession(ctx, req.(*ExportSessionRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ExportSessionReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_ListMatchHistory0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ListMatchHistoryRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceListMatchHistory)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListMatchHistory(ctx, req.(*ListMatchHistoryRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListMatchHistoryReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_GetMatchHistory0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetMatchHistoryRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceGetMatchHistory)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetMatchHistory(ctx, req.(*GetMatchHistoryRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetMatchHistoryReply)
+		return ctx.Result(200, reply)
+	}
+}
+
 type BomServiceHTTPClient interface {
 	// AutoMatch 自动配单
 	AutoMatch(ctx context.Context, req *AutoMatchRequest, opts ...http.CallOption) (rsp *AutoMatchReply, err error)
+	CreateSession(ctx context.Context, req *CreateSessionRequest, opts ...http.CallOption) (rsp *CreateSessionReply, err error)
 	// DownloadTemplate 下载 BOM 模板
 	DownloadTemplate(ctx context.Context, req *DownloadTemplateRequest, opts ...http.CallOption) (rsp *DownloadTemplateReply, err error)
+	// ExportSession 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
+	ExportSession(ctx context.Context, req *ExportSessionRequest, opts ...http.CallOption) (rsp *ExportSessionReply, err error)
 	// GetBOM 获取 BOM 详情（含解析结果）
 	GetBOM(ctx context.Context, req *GetBOMRequest, opts ...http.CallOption) (rsp *GetBOMReply, err error)
+	GetBOMLines(ctx context.Context, req *GetBOMLinesRequest, opts ...http.CallOption) (rsp *GetBOMLinesReply, err error)
+	// GetMatchHistory 配单历史详情（快照）
+	GetMatchHistory(ctx context.Context, req *GetMatchHistoryRequest, opts ...http.CallOption) (rsp *GetMatchHistoryReply, err error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(ctx context.Context, req *GetMatchResultRequest, opts ...http.CallOption) (rsp *GetMatchResultReply, err error)
+	GetReadiness(ctx context.Context, req *GetReadinessRequest, opts ...http.CallOption) (rsp *GetReadinessReply, err error)
+	GetSession(ctx context.Context, req *GetSessionRequest, opts ...http.CallOption) (rsp *GetSessionReply, err error)
+	// ListMatchHistory 配单历史列表
+	ListMatchHistory(ctx context.Context, req *ListMatchHistoryRequest, opts ...http.CallOption) (rsp *ListMatchHistoryReply, err error)
+	PutPlatforms(ctx context.Context, req *PutPlatformsRequest, opts ...http.CallOption) (rsp *PutPlatformsReply, err error)
+	RetrySearchTasks(ctx context.Context, req *RetrySearchTasksRequest, opts ...http.CallOption) (rsp *RetrySearchTasksReply, err error)
 	// SearchQuotes 多平台搜索报价
 	SearchQuotes(ctx context.Context, req *SearchQuotesRequest, opts ...http.CallOption) (rsp *SearchQuotesReply, err error)
+	// SubmitBomSearchResult Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
+	SubmitBomSearchResult(ctx context.Context, req *SubmitBomSearchResultRequest, opts ...http.CallOption) (rsp *SubmitBomSearchResultReply, err error)
 	// UploadBOM 上传并解析 BOM
 	UploadBOM(ctx context.Context, req *UploadBOMRequest, opts ...http.CallOption) (rsp *UploadBOMReply, err error)
 }
@@ -217,12 +491,39 @@ func (c *BomServiceHTTPClientImpl) AutoMatch(ctx context.Context, in *AutoMatchR
 	return &out, nil
 }
 
+func (c *BomServiceHTTPClientImpl) CreateSession(ctx context.Context, in *CreateSessionRequest, opts ...http.CallOption) (*CreateSessionReply, error) {
+	var out CreateSessionReply
+	pattern := "/api/v1/bom-sessions"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationBomServiceCreateSession))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // DownloadTemplate 下载 BOM 模板
 func (c *BomServiceHTTPClientImpl) DownloadTemplate(ctx context.Context, in *DownloadTemplateRequest, opts ...http.CallOption) (*DownloadTemplateReply, error) {
 	var out DownloadTemplateReply
 	pattern := "/api/v1/bom/template"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationBomServiceDownloadTemplate))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ExportSession 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
+func (c *BomServiceHTTPClientImpl) ExportSession(ctx context.Context, in *ExportSessionRequest, opts ...http.CallOption) (*ExportSessionReply, error) {
+	var out ExportSessionReply
+	pattern := "/api/v1/bom-sessions/{session_id}/export"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceExportSession))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {
@@ -245,6 +546,33 @@ func (c *BomServiceHTTPClientImpl) GetBOM(ctx context.Context, in *GetBOMRequest
 	return &out, nil
 }
 
+func (c *BomServiceHTTPClientImpl) GetBOMLines(ctx context.Context, in *GetBOMLinesRequest, opts ...http.CallOption) (*GetBOMLinesReply, error) {
+	var out GetBOMLinesReply
+	pattern := "/api/v1/bom-sessions/{session_id}/lines"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceGetBOMLines))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetMatchHistory 配单历史详情（快照）
+func (c *BomServiceHTTPClientImpl) GetMatchHistory(ctx context.Context, in *GetMatchHistoryRequest, opts ...http.CallOption) (*GetMatchHistoryReply, error) {
+	var out GetMatchHistoryReply
+	pattern := "/api/v1/bom-match-history/{match_result_id}"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceGetMatchHistory))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // GetMatchResult 获取配单结果
 func (c *BomServiceHTTPClientImpl) GetMatchResult(ctx context.Context, in *GetMatchResultRequest, opts ...http.CallOption) (*GetMatchResultReply, error) {
 	var out GetMatchResultReply
@@ -259,12 +587,92 @@ func (c *BomServiceHTTPClientImpl) GetMatchResult(ctx context.Context, in *GetMa
 	return &out, nil
 }
 
+func (c *BomServiceHTTPClientImpl) GetReadiness(ctx context.Context, in *GetReadinessRequest, opts ...http.CallOption) (*GetReadinessReply, error) {
+	var out GetReadinessReply
+	pattern := "/api/v1/bom-sessions/{session_id}/readiness"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceGetReadiness))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *BomServiceHTTPClientImpl) GetSession(ctx context.Context, in *GetSessionRequest, opts ...http.CallOption) (*GetSessionReply, error) {
+	var out GetSessionReply
+	pattern := "/api/v1/bom-sessions/{session_id}"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceGetSession))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListMatchHistory 配单历史列表
+func (c *BomServiceHTTPClientImpl) ListMatchHistory(ctx context.Context, in *ListMatchHistoryRequest, opts ...http.CallOption) (*ListMatchHistoryReply, error) {
+	var out ListMatchHistoryReply
+	pattern := "/api/v1/bom-match-history"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceListMatchHistory))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *BomServiceHTTPClientImpl) PutPlatforms(ctx context.Context, in *PutPlatformsRequest, opts ...http.CallOption) (*PutPlatformsReply, error) {
+	var out PutPlatformsReply
+	pattern := "/api/v1/bom-sessions/{session_id}/platforms"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationBomServicePutPlatforms))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "PUT", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *BomServiceHTTPClientImpl) RetrySearchTasks(ctx context.Context, in *RetrySearchTasksRequest, opts ...http.CallOption) (*RetrySearchTasksReply, error) {
+	var out RetrySearchTasksReply
+	pattern := "/api/v1/bom-sessions/{session_id}/search-tasks/retry"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationBomServiceRetrySearchTasks))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // SearchQuotes 多平台搜索报价
 func (c *BomServiceHTTPClientImpl) SearchQuotes(ctx context.Context, in *SearchQuotesRequest, opts ...http.CallOption) (*SearchQuotesReply, error) {
 	var out SearchQuotesReply
 	pattern := "/api/v1/bom/search"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationBomServiceSearchQuotes))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// SubmitBomSearchResult Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
+func (c *BomServiceHTTPClientImpl) SubmitBomSearchResult(ctx context.Context, in *SubmitBomSearchResultRequest, opts ...http.CallOption) (*SubmitBomSearchResultReply, error) {
+	var out SubmitBomSearchResultReply
+	pattern := "/api/v1/bom-sessions/{session_id}/search-results"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationBomServiceSubmitBomSearchResult))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {

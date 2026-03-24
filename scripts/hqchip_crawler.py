@@ -25,20 +25,56 @@ import time
 from email import policy
 from email.parser import BytesParser
 from typing import Any
+from urllib.parse import quote
 
 from DrissionPage import ChromiumPage, ChromiumOptions
 
+try:
+    from crawler_cli import emit_json_stderr_error, emit_json_stdout
+except ImportError:
+    _root = os.path.dirname(os.path.abspath(__file__))
+    if _root not in sys.path:
+        sys.path.insert(0, _root)
+    from crawler_cli import emit_json_stderr_error, emit_json_stdout
 
-def setup_browser() -> ChromiumPage:
+
+def setup_browser(headless: bool = False) -> ChromiumPage:
     co = ChromiumOptions()
     co.auto_port()
+    co.headless(headless)
+    if headless:
+        co.set_argument("--headless=new")
     co.set_argument("--remote-allow-origins=*")
     co.set_user_agent(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
     co.set_argument("--window-size=1400,900")
+    co.set_argument("--blink-settings=imagesEnabled=false")
     return ChromiumPage(co)
+
+
+def hqchip_search_url(model: str) -> str:
+    return f"https://www.hqchip.com/search/{quote(model, safe='')}.html"
+
+
+def _hqchip_raw_to_unified(item: dict[str, Any], seq: int, query_model: str) -> dict[str, Any]:
+    """与 ickey_crawler 输出字段一致。"""
+    pt = (item.get("价格梯度") or "").strip() or "N/A"
+    return {
+        "seq": seq,
+        "model": item.get("型号") or "N/A",
+        "manufacturer": item.get("品牌") or "N/A",
+        "package": (item.get("封装") or "N/A").strip() or "N/A",
+        "desc": (item.get("描述") or "N/A")[:100],
+        "stock": item.get("库存") or "N/A",
+        "moq": "N/A",
+        "price_tiers": pt,
+        "hk_price": "N/A",
+        "mainland_price": pt,
+        "lead_time": "N/A",
+        "query_model": query_model,
+    }
 
 
 def _attr(el, name: str, default: str = "") -> str:
@@ -224,8 +260,19 @@ def parse_hqchip_row_fields(row) -> dict[str, Any] | None:
     }
 
 
-def fetch_hqchip_products(url: str) -> list[dict]:
-    page = setup_browser()
+def fetch_hqchip_products(
+    url: str,
+    quiet: bool = False,
+    page: ChromiumPage | None = None,
+    headless: bool = True,
+) -> list[dict]:
+    """
+    返回华秋原始字段字典列表（非 unified）。
+    page 传入则复用浏览器（多型号串流）；否则自建并在结束时关闭。
+    """
+    own = page is None
+    if own:
+        page = setup_browser(headless=headless)
     try:
         page.get(url)
         try:
@@ -264,14 +311,56 @@ def fetch_hqchip_products(url: str) -> list[dict]:
                     seen.add(key)
                 products.append(item)
             except Exception as e:
-                print(f"解析行失败: {e}", file=sys.stderr)
+                if not quiet:
+                    print(f"解析行失败: {e}", file=sys.stderr)
                 continue
         return products
+    finally:
+        if own:
+            try:
+                page.quit()
+            except Exception:
+                pass
+
+
+def run_search(
+    keyword: str,
+    headless: bool = True,
+    quiet: bool = False,
+    query_model: str | None = None,
+) -> list[dict]:
+    url = hqchip_search_url(keyword)
+    raw = fetch_hqchip_products(url, quiet=quiet, page=None, headless=headless)
+    qm = query_model if query_model is not None else keyword
+    return [_hqchip_raw_to_unified(r, i + 1, qm) for i, r in enumerate(raw)]
+
+
+def run_search_batch(
+    models: list[str],
+    headless: bool = True,
+    quiet: bool = False,
+    parse_workers: int = 8,
+) -> list[dict]:
+    _ = parse_workers
+    if not models:
+        return []
+    if len(models) == 1:
+        return run_search(models[0], headless=headless, quiet=quiet, query_model=models[0])
+
+    all_results: list[dict] = []
+    page = setup_browser(headless=headless)
+    try:
+        for model in models:
+            url = hqchip_search_url(model)
+            raw = fetch_hqchip_products(url, quiet=quiet, page=page, headless=headless)
+            for i, r in enumerate(raw):
+                all_results.append(_hqchip_raw_to_unified(r, i + 1, model))
     finally:
         try:
             page.quit()
         except Exception:
             pass
+    return all_results
 
 
 # ----- BeautifulSoup（离线验证） -----
@@ -400,6 +489,19 @@ def validate_mhtml(path: str) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="华秋商城搜索页爬虫")
     parser.add_argument(
+        "--model",
+        "-m",
+        type=str,
+        help="搜索型号，逗号分隔；输出与 ickey_crawler 一致的 JSON 到 stdout",
+    )
+    parser.add_argument(
+        "--parse-workers",
+        "-w",
+        type=int,
+        default=8,
+        help="预留，与 ickey 对齐",
+    )
+    parser.add_argument(
         "--validate-mhtml",
         metavar="PATH",
         help="离线验证：从 Chrome 保存的 .mhtml 解析（不启动浏览器）",
@@ -410,6 +512,23 @@ def main() -> None:
         help="搜索页 URL",
     )
     args = parser.parse_args()
+
+    if args.model:
+        try:
+            models = [m.strip() for m in args.model.split(",") if m.strip()]
+            if not models:
+                raise ValueError("--model 不能为空")
+            results = run_search_batch(
+                models,
+                headless=True,
+                quiet=True,
+                parse_workers=args.parse_workers,
+            )
+            emit_json_stdout(results)
+        except Exception as e:
+            emit_json_stderr_error(str(e))
+            sys.exit(1)
+        return
 
     if args.validate_mhtml:
         p = os.path.abspath(args.validate_mhtml)
@@ -427,7 +546,7 @@ def main() -> None:
             print(f"  样例{i}: {it.get('型号')} | {it.get('供应商')} | 库存 {it.get('库存')}")
         raise SystemExit(0)
 
-    data = fetch_hqchip_products(args.url)
+    data = fetch_hqchip_products(args.url, quiet=False, page=None, headless=False)
     print(f"共 {len(data)} 条")
     for it in data[:10]:
         print(json.dumps(it, ensure_ascii=False))

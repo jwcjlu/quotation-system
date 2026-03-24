@@ -1,6 +1,7 @@
 package server
 
 import (
+	"strings"
 	"time"
 
 	pb "caichip/api/bom/v1"
@@ -12,7 +13,7 @@ import (
 )
 
 // NewHTTPServer 创建 HTTP 服务
-func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, bomSvc *service.BomService, agentSvc *service.AgentService) *http.Server {
+func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, bomSvc *service.BomService, agentSvc *service.AgentService, scriptAdmin *service.ScriptPackageAdmin) *http.Server {
 	addr := ":8000"
 	timeout := 30 * time.Second
 	if c != nil && c.Server != nil && c.Server.Http != nil {
@@ -38,6 +39,18 @@ func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, bomSvc *service.BomServ
 
 	pb.RegisterBomServiceHTTPServer(srv, bomSvc)
 	RegisterAgentHTTPServer(srv, agentSvc)
+	RegisterScriptPackageAdminRoutes(srv, scriptAdmin)
+
+	if c != nil && c.ScriptStore != nil && c.ScriptStore.Enabled && strings.TrimSpace(c.ScriptStore.Root) != "" {
+		pref := strings.TrimSpace(c.ScriptStore.UrlPrefix)
+		if pref == "" {
+			pref = "/static/agent-scripts"
+		}
+		if !strings.HasPrefix(pref, "/") {
+			pref = "/" + pref
+		}
+		srv.HandlePrefix(pref, scriptStoreFileHandler(c.ScriptStore.Root, pref))
+	}
 
 	return srv
 }

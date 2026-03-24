@@ -1,6 +1,10 @@
 """
 立创商城搜索页爬虫：建议先落盘 HTML 再分析，便于对照真实 DOM 调整选择器。
 
+CLI（与 ickey_crawler 一致）:
+  python szlcsc_crawler.py --model LAN8720AI-CP-TR
+  python szlcsc_crawler.py -m A,B,C   # 串流依次搜索，stdout 仅 JSON
+
 商品数据均在带 **data-spm** 的节点下；单条样本结构为多个
 ``<dl><dt>标签</dt><dd>值</dd></dl>``（如：供应商编号、品牌、封装、库存、广东仓…）。
 解析时优先按该结构抽取，与样本页 ``szlcsc_page_*.html`` 一致。
@@ -16,15 +20,57 @@ from DrissionPage import ChromiumPage, ChromiumOptions
 from datetime import datetime
 import argparse
 import re
+import sys
 import time
 import json
 import os
+from urllib.parse import quote
+
+try:
+    from crawler_cli import emit_json_stderr_error, emit_json_stdout
+except ImportError:
+    _root = os.path.dirname(os.path.abspath(__file__))
+    if _root not in sys.path:
+        sys.path.insert(0, _root)
+    from crawler_cli import emit_json_stderr_error, emit_json_stdout
 
 # 不参与商品行的 data-spm 值（如页脚 ft）；若误过滤可再缩小集合
 _SPM_SKIP = frozenset({"ft"})
 
 # 嘉立创/立创统一登录中心（实际以页面为准，可 --login-url 覆盖）
 DEFAULT_LOGIN_URL = "https://passport.szlcsc.com/"
+
+
+def lcsc_search_url(keyword: str) -> str:
+    return f"https://so.szlcsc.com/global.html?k={quote(keyword, safe='')}"
+
+
+def _sz_field(v: str | None) -> str:
+    if not v or (isinstance(v, str) and v.strip() == "未提取到"):
+        return "N/A"
+    return str(v).strip()
+
+
+def lcsc_product_to_unified(p: dict, seq: int, query_model: str) -> dict:
+    """build_product_from_lcsc_row 结果 → 与 ickey_crawler 一致字段。"""
+    pt = _sz_field(p.get("价格梯度"))
+    if pt == "N/A":
+        pt = "N/A"
+    moq = _sz_field(p.get("起订量"))
+    return {
+        "seq": seq,
+        "model": _sz_field(p.get("型号")),
+        "manufacturer": _sz_field(p.get("品牌")),
+        "package": _sz_field(p.get("封装")),
+        "desc": _sz_field(p.get("描述"))[:100],
+        "stock": _sz_field(p.get("库存")),
+        "moq": moq,
+        "price_tiers": pt,
+        "hk_price": "N/A",
+        "mainland_price": pt,
+        "lead_time": "N/A",
+        "query_model": query_model,
+    }
 
 
 def _get_credentials(
@@ -314,29 +360,42 @@ def collect_product_roots_under_data_spm(page) -> list:
 
 
 def fetch_lcsc_product_data(
-    url: str,
+    url: str | None = None,
     username: str | None = None,
     password: str | None = None,
     login_url: str = DEFAULT_LOGIN_URL,
     skip_login: bool = False,
     headless: bool = False,
+    quiet: bool = False,
+    page: ChromiumPage | None = None,
+    keyword: str | None = None,
 ):
     """
-    获取立创商城搜索结果页面的产品数据。
-    若提供账号密码（或环境变量），先访问统一登录页再打开搜索 URL。
+    获取立创商城搜索结果页面的产品数据（build_product_from_lcsc_row 原始结构）。
+    若提供 keyword 则自动构造搜索 URL；否则使用 url。
+    quiet: True 时不 print、不落盘 HTML（CLI JSON 模式）。
+    page: 传入则复用浏览器（多型号串流）。
     """
-    page = setup_browser(headless=headless)
+    if keyword:
+        url = lcsc_search_url(keyword)
+    if not url:
+        raise ValueError("需要 url 或 keyword")
+
+    own_page = page is None
+    if own_page:
+        page = setup_browser(headless=headless)
 
     try:
         u, p = _get_credentials(username, password)
         if u and p and not skip_login:
-            login_szlcsc(page, u, p, login_url=login_url, quiet=False)
-        elif not u or not p:
+            login_szlcsc(page, u, p, login_url=login_url, quiet=quiet)
+        elif (not u or not p) and not quiet:
             print("未设置 SZLCSC_USERNAME/SZLCSC_PASSWORD，跳过登录", flush=True)
 
-        print("正在访问页面...", flush=True)
+        if not quiet:
+            print("正在访问页面...", flush=True)
         page.get(url)
-        
+
         # 等待带 data-spm 的列表区域（立创 SPM 埋点，商品块在此属性节点下）
         try:
             page.wait.ele_displayed("css:[data-spm]", timeout=15)
@@ -345,15 +404,13 @@ def fetch_lcsc_product_data(
                 page.wait.ele_displayed(".product-list", timeout=8)
             except Exception:
                 page.wait.ele_displayed('[class*="product-item"]', timeout=8)
-        
-        # 等待一点时间确保动态内容完全加载
+
         time.sleep(2)
 
-        # 先保存完整页面，再基于当前 DOM 解析（分析时可对照本地 HTML）
-        saved_path = save_page_html(page, prefix="szlcsc_page")
-        print(f"页面已保存: {saved_path}（请先对照此文件调整选择器）")
+        if not quiet:
+            saved_path = save_page_html(page, prefix="szlcsc_page")
+            print(f"页面已保存: {saved_path}（请先对照此文件调整选择器）")
 
-        # 商品数据均在 data-spm 节点下解析
         product_items = collect_product_roots_under_data_spm(page)
         if not product_items:
             product_items = page.eles('xpath://div[contains(@class, "product-item")]')
@@ -361,40 +418,133 @@ def fetch_lcsc_product_data(
             product_items = page.eles('xpath://tr[contains(@class, "product")]')
 
         if not product_items:
-            print("未找到产品项，请检查选择器")
-            try:
-                print(f"页面标题: {page.title}")
-            except Exception:
-                print("页面标题: (无法获取)")
-            print(f"可打开已保存的 HTML 文件分析结构: {saved_path}")
+            if not quiet:
+                print("未找到产品项，请检查选择器")
+                try:
+                    print(f"页面标题: {page.title}")
+                except Exception:
+                    print("页面标题: (无法获取)")
             return []
-        
+
         products = []
-        
+
         for idx, item in enumerate(product_items, 1):
             try:
                 spm = (item.attr("data-spm") or "").strip()
                 fields = extract_dl_fields(item)
                 if not fields:
-                    print(f"第 {idx} 条未解析到 dl 字段，跳过（可对照已保存 HTML）")
+                    if not quiet:
+                        print(f"第 {idx} 条未解析到 dl 字段，跳过（可对照已保存 HTML）")
                     continue
                 product = build_product_from_lcsc_row(item, fields, spm)
                 products.append(product)
-                print(f"成功提取第 {idx} 个产品: {product.get('型号', 'Unknown')}")
+                if not quiet:
+                    print(f"成功提取第 {idx} 个产品: {product.get('型号', 'Unknown')}")
             except Exception as e:
-                print(f"提取第 {idx} 个产品时出错: {e}")
+                if not quiet:
+                    print(f"提取第 {idx} 个产品时出错: {e}")
                 continue
-        
+
         return products
-        
+
     except Exception as e:
-        print(f"访问或解析页面时发生错误: {e}")
+        if not quiet:
+            print(f"访问或解析页面时发生错误: {e}")
         return []
     finally:
-        page.quit()
+        if own_page:
+            page.quit()
+
+
+def run_search(
+    keyword: str,
+    headless: bool = True,
+    quiet: bool = False,
+    query_model: str | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    login_url: str = DEFAULT_LOGIN_URL,
+    skip_login: bool = False,
+) -> list[dict]:
+    qm = query_model if query_model is not None else keyword
+    raw = fetch_lcsc_product_data(
+        keyword=keyword,
+        username=username,
+        password=password,
+        login_url=login_url,
+        skip_login=skip_login,
+        headless=headless,
+        quiet=quiet,
+        page=None,
+    )
+    return [lcsc_product_to_unified(p, i + 1, qm) for i, p in enumerate(raw)]
+
+
+def run_search_batch(
+    models: list[str],
+    headless: bool = True,
+    quiet: bool = False,
+    parse_workers: int = 8,
+    username: str | None = None,
+    password: str | None = None,
+    login_url: str = DEFAULT_LOGIN_URL,
+    skip_login: bool = False,
+) -> list[dict]:
+    _ = parse_workers
+    if not models:
+        return []
+    if len(models) == 1:
+        return run_search(
+            models[0],
+            headless=headless,
+            quiet=quiet,
+            query_model=models[0],
+            username=username,
+            password=password,
+            login_url=login_url,
+            skip_login=skip_login,
+        )
+
+    all_results: list[dict] = []
+    page = setup_browser(headless=headless)
+    try:
+        for i, model in enumerate(models):
+            # 仅首次按 skip_login 决定是否登录；后续会话语境已建立
+            sk = skip_login if i == 0 else True
+            raw = fetch_lcsc_product_data(
+                keyword=model,
+                username=username,
+                password=password,
+                login_url=login_url,
+                skip_login=sk,
+                headless=headless,
+                quiet=quiet,
+                page=page,
+            )
+            for j, prod in enumerate(raw):
+                all_results.append(lcsc_product_to_unified(prod, j + 1, model))
+    finally:
+        try:
+            page.quit()
+        except Exception:
+            pass
+    return all_results
 
 def main():
     parser = argparse.ArgumentParser(description="立创商城搜索页爬虫（可选自动登录）")
+    parser.add_argument(
+        "--model",
+        "-m",
+        type=str,
+        help="搜索型号，逗号分隔；输出与 ickey_crawler 一致的 JSON 到 stdout",
+    )
+    parser.add_argument(
+        "--parse-workers",
+        "-w",
+        type=int,
+        default=8,
+        help="预留，与 ickey 对齐",
+    )
     parser.add_argument(
         "--url",
         "-u",
@@ -422,13 +572,37 @@ def main():
     )
     args = parser.parse_args()
 
+    if args.model:
+        try:
+            models = [m.strip() for m in args.model.split(",") if m.strip()]
+            if not models:
+                raise ValueError("--model 不能为空")
+            results = run_search_batch(
+                models,
+                headless=True,
+                quiet=True,
+                parse_workers=args.parse_workers,
+                username=args.user,
+                password=args.password,
+                login_url=args.login_url or DEFAULT_LOGIN_URL,
+                skip_login=args.skip_login,
+            )
+            emit_json_stdout(results)
+        except Exception as e:
+            emit_json_stderr_error(str(e))
+            sys.exit(1)
+        return
+
     products = fetch_lcsc_product_data(
-        args.url,
+        url=args.url,
         username=args.user,
         password=args.password,
         login_url=args.login_url or DEFAULT_LOGIN_URL,
         skip_login=args.skip_login,
         headless=args.headless,
+        quiet=False,
+        page=None,
+        keyword=None,
     )
     
     if products:

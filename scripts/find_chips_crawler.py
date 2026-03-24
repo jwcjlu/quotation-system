@@ -6,7 +6,18 @@ import argparse
 import json
 import os
 import re
+import sys
 import time
+from urllib.parse import quote
+
+try:
+    from crawler_cli import emit_json_stderr_error, emit_json_stdout
+except ImportError:
+    # 允许从项目根或 scripts 目录运行
+    _root = os.path.dirname(os.path.abspath(__file__))
+    if _root not in sys.path:
+        sys.path.insert(0, _root)
+    from crawler_cli import emit_json_stderr_error, emit_json_stdout
 
 FINDCHIPS_ORIGIN = "https://www.findchips.com"
 
@@ -46,10 +57,13 @@ def _parse_data_price_json(raw: str) -> tuple[str, list[dict]]:
     return (" | ".join(parts), breaks)
 
 
-def setup_findchips_browser() -> ChromiumPage:
+def setup_findchips_browser(headless: bool = False) -> ChromiumPage:
     """与 icgoo/szlcsc 类似：独立端口、允许 CDP 来源，降低连接异常概率。"""
     co = ChromiumOptions()
     co.auto_port()
+    co.headless(headless)
+    if headless:
+        co.set_argument("--headless=new")
     co.set_argument("--remote-allow-origins=*")
     co.set_argument("--disable-blink-features=AutomationControlled")
     co.set_user_agent(
@@ -57,6 +71,7 @@ def setup_findchips_browser() -> ChromiumPage:
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
     co.set_argument("--window-size=1400,900")
+    co.set_argument("--blink-settings=imagesEnabled=false")
     co.set_load_mode("normal")
     return ChromiumPage(co)
 
@@ -335,11 +350,43 @@ def _collect_rows_from_table(table) -> list:
     return out
 
 
-def _fetch_findchips_once(page: ChromiumPage, url: str) -> list:
+def findchips_search_url(keyword: str) -> str:
+    """FindChips 搜索页 URL（与站点路径一致）。"""
+    return f"https://www.findchips.com/search/{quote(keyword, safe='')}"
+
+
+def _findchips_raw_to_unified(raw: dict, seq: int, query_model: str) -> dict:
+    """将 parse_findchips_table_row 结果转为与 ickey_crawler 一致的 JSON 字段。"""
+    desc = (raw.get("说明") or "").strip()
+    dist = (raw.get("分销商") or "").strip()
+    if dist:
+        desc = f"[{dist}] {desc}".strip() if desc else f"[{dist}]"
+    pt = raw.get("价格梯度") or raw.get("价格") or "N/A"
+    if not isinstance(pt, str):
+        pt = str(pt)
+    return {
+        "seq": seq,
+        "model": raw.get("部件编号") or "N/A",
+        "manufacturer": raw.get("制造商") or "N/A",
+        "package": "N/A",
+        "desc": (desc[:200] if desc else "N/A"),
+        "stock": str(raw.get("库存") or "N/A").replace("\n", " ")[:80],
+        "moq": "N/A",
+        "price_tiers": pt,
+        "hk_price": "N/A",
+        "mainland_price": pt,
+        "lead_time": "N/A",
+        "query_model": query_model,
+    }
+
+
+def _fetch_findchips_once(page: ChromiumPage, url: str, quiet: bool = False) -> list:
     """
     单次会话内抓取 FindChips 搜索页；可能抛出 PageDisconnectedError。
+    quiet: True 时不 print、不保存 HTML（供 CLI JSON 模式）
     """
-    print("正在访问页面...")
+    if not quiet:
+        print("正在访问页面...")
     page.get(url)
     try:
         page.wait.doc_loaded(timeout=60)
@@ -348,9 +395,11 @@ def _fetch_findchips_once(page: ChromiumPage, url: str) -> list:
 
     # Usercentrics GDPR：自动接受，避免遮罩挡住表格
     if accept_findchips_consent_if_present(page, timeout=12):
-        print("已自动接受 Cookie 同意（Accept All）")
+        if not quiet:
+            print("已自动接受 Cookie 同意（Accept All）")
     else:
-        print("未检测到隐私弹层或已关闭，继续…")
+        if not quiet:
+            print("未检测到隐私弹层或已关闭，继续…")
 
     # 等待主内容（table 或典型结果区；站点可能用 div 模拟表格）
     waited = False
@@ -367,13 +416,16 @@ def _fetch_findchips_once(page: ChromiumPage, url: str) -> list:
         except Exception:
             continue
     if not waited:
-        print("等待主内容超时，尝试继续...")
+        if not quiet:
+            print("等待主内容超时，尝试继续...")
 
     time.sleep(2)
 
     # 检测是否存在验证码（若有易盾特征，可手动处理）
     try:
         if page.ele(".yidun_control", timeout=2):
+            if quiet:
+                raise RuntimeError("FindChips: 检测到验证码，请在非 quiet 模式或浏览器中手动完成")
             print("检测到验证码，请手动完成...")
             input("完成验证后按回车继续...")
             page.refresh()
@@ -386,7 +438,8 @@ def _fetch_findchips_once(page: ChromiumPage, url: str) -> list:
     # 与离线 HTML 一致：.distributor-results、.premiumFrame + premiumAdTable
     blocks = _collect_distributor_tables(page)
     if not blocks:
-        print("未通过 .distributor-results/.premiumFrame 找到表格，回退 h2/h3/h4 …")
+        if not quiet:
+            print("未通过 .distributor-results/.premiumFrame 找到表格，回退 h2/h3/h4 …")
         for tag in ("h2", "h3", "h4"):
             for el in page.eles(f"tag:{tag}"):
                 dist_name = (el.text or "").strip()
@@ -398,7 +451,8 @@ def _fetch_findchips_once(page: ChromiumPage, url: str) -> list:
                     blocks.append((dist_name, table))
 
     if not blocks:
-        print("回退：遍历页面内 table …")
+        if not quiet:
+            print("回退：遍历页面内 table …")
         for table in page.eles("tag:table"):
             prev = table.prev("h2") or table.prev("h3") or table.prev("h4")
             hint = (prev.text or "").strip() if prev else ""
@@ -417,7 +471,7 @@ def _fetch_findchips_once(page: ChromiumPage, url: str) -> list:
                 item["分销商"] = block_hint
             products.append(item)
 
-    if products:
+    if products and not quiet:
         try:
             saved = save_findchips_page_html(page)
             print(f"已保存页面 HTML: {saved}")
@@ -427,6 +481,80 @@ def _fetch_findchips_once(page: ChromiumPage, url: str) -> list:
     return products
 
 
+def fetch_findchips_by_keyword(
+    keyword: str, retries: int = 2, quiet: bool = False, headless: bool = True
+) -> list[dict]:
+    """按型号搜索，返回 parse_findchips_table_row 原始字典列表。"""
+    url = findchips_search_url(keyword)
+    last_disc: PageDisconnectedError | None = None
+    for attempt in range(1, retries + 1):
+        page = setup_findchips_browser(headless=headless)
+        try:
+            return _fetch_findchips_once(page, url, quiet=quiet)
+        except PageDisconnectedError as e:
+            last_disc = e
+            if not quiet:
+                print(
+                    f"与页面连接已断开（{attempt}/{retries}），将重试…",
+                    flush=True,
+                )
+        except Exception as e:
+            if not quiet:
+                print(f"发生错误: {e}")
+            return []
+        finally:
+            _safe_quit(page)
+        if attempt < retries:
+            time.sleep(2.5)
+    if last_disc is not None and not quiet:
+        print(f"发生错误: {last_disc}")
+    return []
+
+
+def run_search(
+    keyword: str,
+    headless: bool = True,
+    quiet: bool = False,
+    query_model: str | None = None,
+) -> list[dict]:
+    """单型号，输出与 ickey_crawler 一致的列表。"""
+    qm = query_model if query_model is not None else keyword
+    raw = fetch_findchips_by_keyword(keyword, quiet=quiet, headless=headless)
+    return [_findchips_raw_to_unified(x, i + 1, qm) for i, x in enumerate(raw)]
+
+
+def run_search_batch(
+    models: list[str],
+    headless: bool = True,
+    quiet: bool = False,
+    parse_workers: int = 8,
+) -> list[dict]:
+    """多型号串流搜索；parse_workers 预留与 ickey 对齐（当前未用并行解析）。"""
+    _ = parse_workers
+    if not models:
+        return []
+    if len(models) == 1:
+        return run_search(models[0], headless=headless, quiet=quiet, query_model=models[0])
+
+    all_results: list[dict] = []
+    page = setup_findchips_browser(headless=headless)
+    try:
+        for model in models:
+            url = findchips_search_url(model)
+            try:
+                raw = _fetch_findchips_once(page, url, quiet=quiet)
+            except PageDisconnectedError:
+                _safe_quit(page)
+                time.sleep(2.5)
+                page = setup_findchips_browser(headless=headless)
+                raw = _fetch_findchips_once(page, url, quiet=quiet)
+            for i, x in enumerate(raw):
+                all_results.append(_findchips_raw_to_unified(x, i + 1, model))
+    finally:
+        _safe_quit(page)
+    return all_results
+
+
 def fetch_findchips_data(url: str, retries: int = 2) -> list:
     """
     获取 FindChips 搜索页面的产品数据。
@@ -434,9 +562,9 @@ def fetch_findchips_data(url: str, retries: int = 2) -> list:
     """
     last_disc: PageDisconnectedError | None = None
     for attempt in range(1, retries + 1):
-        page = setup_findchips_browser()
+        page = setup_findchips_browser(headless=False)
         try:
-            return _fetch_findchips_once(page, url)
+            return _fetch_findchips_once(page, url, quiet=False)
         except PageDisconnectedError as e:
             last_disc = e
             print(
@@ -590,6 +718,19 @@ def parse_findchips_html_file(path: str) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="FindChips 搜索页爬虫")
     parser.add_argument(
+        "--model",
+        "-m",
+        type=str,
+        help="搜索型号，逗号分隔多个，串流依次搜索；输出与 ickey_crawler 一致的 JSON 到 stdout",
+    )
+    parser.add_argument(
+        "--parse-workers",
+        "-w",
+        type=int,
+        default=8,
+        help="预留，与 ickey 对齐（当前未使用）",
+    )
+    parser.add_argument(
         "--validate-html",
         metavar="PATH",
         help="离线验证：解析已保存的 HTML（不启动浏览器），需 beautifulsoup4",
@@ -600,6 +741,23 @@ def main() -> None:
         help="搜索页 URL",
     )
     args = parser.parse_args()
+
+    if args.model:
+        try:
+            models = [m.strip() for m in args.model.split(",") if m.strip()]
+            if not models:
+                raise ValueError("--model 不能为空")
+            results = run_search_batch(
+                models,
+                headless=True,
+                quiet=True,
+                parse_workers=args.parse_workers,
+            )
+            emit_json_stdout(results)
+        except Exception as e:
+            emit_json_stderr_error(str(e))
+            sys.exit(1)
+        return
 
     if args.validate_html:
         p = os.path.abspath(args.validate_html)

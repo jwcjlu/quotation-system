@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import signal
 import subprocess
@@ -12,6 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from . import versionutil
+
+log = logging.getLogger("caichip.agent.runner")
 
 # 默认任务超时（秒），与需求 §6.2 一致
 DEFAULT_TIMEOUT_SEC = 300
@@ -57,25 +60,56 @@ def run_task(
     返回 (status, exit_code, stdout_tail, stderr_tail)
     status: success | failed | timeout | skipped
     """
+    task_id = task.get("task_id") or ""
     script_id = task.get("script_id") or ""
     version = task.get("version") or ""
     root = _find_version_root(data_dir, script_id, version)
     if root is None:
+        log.warning(
+            "task skip task_id=%s script_id=%s reason=no_package_dir",
+            task_id,
+            script_id,
+        )
         return "skipped", None, "", "script package directory not found"
     vf = root / "version.txt"
     if not vf.is_file():
+        log.warning(
+            "task skip task_id=%s script_id=%s reason=no_version_txt path=%s",
+            task_id,
+            script_id,
+            root,
+        )
         return "skipped", None, "", "local package missing"
     try:
         local_ver = vf.read_text(encoding="utf-8").strip()
     except OSError as e:
+        log.warning(
+            "task skip task_id=%s script_id=%s reason=read_version_txt err=%s",
+            task_id,
+            script_id,
+            e,
+        )
         return "skipped", None, "", str(e)
     if not versionutil.equal(local_ver, version):
+        log.warning(
+            "task skip task_id=%s script_id=%s reason=version_mismatch local=%s want=%s",
+            task_id,
+            script_id,
+            local_ver,
+            version,
+        )
         return "skipped", None, "", "version mismatch with version.txt"
 
     entry = task.get("entry_file")
     entry_str = None if entry is None else str(entry)
     py_file = resolve_entry_script(root, entry_str)
     if py_file is None:
+        log.error(
+            "task fail task_id=%s script_id=%s reason=no_entry_script root=%s",
+            task_id,
+            script_id,
+            root,
+        )
         return "failed", None, "", "no entry script (main.py/run.py or entry_file)"
 
     timeout_sec = int(task.get("timeout_sec") or 0)
@@ -93,6 +127,22 @@ def run_task(
     if isinstance(argv, list):
         cmd.extend(str(a) for a in argv)
 
+    try:
+        entry_display = str(py_file.resolve().relative_to(root.resolve()))
+    except ValueError:
+        entry_display = py_file.name
+
+    log.info(
+        "task exec start task_id=%s script_id=%s version=%s cwd=%s entry=%s timeout_sec=%s cmd=%s",
+        task_id,
+        script_id,
+        version,
+        root,
+        entry_display,
+        timeout_sec,
+        cmd,
+    )
+
     stdout_chunks: list[str] = []
     stderr_chunks: list[str] = []
 
@@ -103,6 +153,7 @@ def run_task(
     else:
         preexec_fn = os.setsid  # type: ignore[assignment]
 
+    t0 = time.monotonic()
     proc = subprocess.Popen(
         cmd,
         cwd=str(root),
@@ -126,6 +177,12 @@ def run_task(
         rc = proc.returncode
         status = "success" if rc == 0 else "failed"
     except subprocess.TimeoutExpired:
+        log.warning(
+            "task exec timeout task_id=%s script_id=%s after_sec=%s",
+            task_id,
+            script_id,
+            timeout_sec,
+        )
         _kill_tree(proc.pid)
         status = "timeout"
         rc = None
@@ -140,6 +197,23 @@ def run_task(
 
     so = "".join(stdout_chunks)
     se = "".join(stderr_chunks)
+    elapsed_ms = int((time.monotonic() - t0) * 1000)
+    log.info(
+        "task exec end task_id=%s script_id=%s status=%s exit_code=%s duration_ms=%s stdout_bytes=%s stderr_bytes=%s",
+        task_id,
+        script_id,
+        status,
+        rc,
+        elapsed_ms,
+        len(so.encode("utf-8", errors="replace")),
+        len(se.encode("utf-8", errors="replace")),
+    )
+    if status != "success" and se.strip():
+        log.warning(
+            "task stderr tail task_id=%s: %s",
+            task_id,
+            _tail(se.strip().replace("\n", " "), 500),
+        )
     return status, rc, _tail(so, 32000), _tail(se, 32000)
 
 

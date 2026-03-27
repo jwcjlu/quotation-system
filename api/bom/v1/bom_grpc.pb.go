@@ -19,22 +19,26 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BomService_UploadBOM_FullMethodName             = "/api.bom.v1.BomService/UploadBOM"
-	BomService_SearchQuotes_FullMethodName          = "/api.bom.v1.BomService/SearchQuotes"
-	BomService_AutoMatch_FullMethodName             = "/api.bom.v1.BomService/AutoMatch"
-	BomService_DownloadTemplate_FullMethodName      = "/api.bom.v1.BomService/DownloadTemplate"
-	BomService_GetBOM_FullMethodName                = "/api.bom.v1.BomService/GetBOM"
-	BomService_GetMatchResult_FullMethodName        = "/api.bom.v1.BomService/GetMatchResult"
-	BomService_CreateSession_FullMethodName         = "/api.bom.v1.BomService/CreateSession"
-	BomService_GetSession_FullMethodName            = "/api.bom.v1.BomService/GetSession"
-	BomService_PutPlatforms_FullMethodName          = "/api.bom.v1.BomService/PutPlatforms"
-	BomService_GetReadiness_FullMethodName          = "/api.bom.v1.BomService/GetReadiness"
-	BomService_GetBOMLines_FullMethodName           = "/api.bom.v1.BomService/GetBOMLines"
-	BomService_RetrySearchTasks_FullMethodName      = "/api.bom.v1.BomService/RetrySearchTasks"
-	BomService_SubmitBomSearchResult_FullMethodName = "/api.bom.v1.BomService/SubmitBomSearchResult"
-	BomService_ExportSession_FullMethodName         = "/api.bom.v1.BomService/ExportSession"
-	BomService_ListMatchHistory_FullMethodName      = "/api.bom.v1.BomService/ListMatchHistory"
-	BomService_GetMatchHistory_FullMethodName       = "/api.bom.v1.BomService/GetMatchHistory"
+	BomService_UploadBOM_FullMethodName                    = "/api.bom.v1.BomService/UploadBOM"
+	BomService_SearchQuotes_FullMethodName                 = "/api.bom.v1.BomService/SearchQuotes"
+	BomService_AutoMatch_FullMethodName                    = "/api.bom.v1.BomService/AutoMatch"
+	BomService_DownloadTemplate_FullMethodName             = "/api.bom.v1.BomService/DownloadTemplate"
+	BomService_GetBOM_FullMethodName                       = "/api.bom.v1.BomService/GetBOM"
+	BomService_GetMatchResult_FullMethodName               = "/api.bom.v1.BomService/GetMatchResult"
+	BomService_CreateSession_FullMethodName                = "/api.bom.v1.BomService/CreateSession"
+	BomService_GetSession_FullMethodName                   = "/api.bom.v1.BomService/GetSession"
+	BomService_ListSessions_FullMethodName                 = "/api.bom.v1.BomService/ListSessions"
+	BomService_PatchSession_FullMethodName                 = "/api.bom.v1.BomService/PatchSession"
+	BomService_PutPlatforms_FullMethodName                 = "/api.bom.v1.BomService/PutPlatforms"
+	BomService_GetReadiness_FullMethodName                 = "/api.bom.v1.BomService/GetReadiness"
+	BomService_GetBOMLines_FullMethodName                  = "/api.bom.v1.BomService/GetBOMLines"
+	BomService_GetSessionSearchTaskCoverage_FullMethodName = "/api.bom.v1.BomService/GetSessionSearchTaskCoverage"
+	BomService_CreateSessionLine_FullMethodName            = "/api.bom.v1.BomService/CreateSessionLine"
+	BomService_PatchSessionLine_FullMethodName             = "/api.bom.v1.BomService/PatchSessionLine"
+	BomService_DeleteSessionLine_FullMethodName            = "/api.bom.v1.BomService/DeleteSessionLine"
+	BomService_RetrySearchTasks_FullMethodName             = "/api.bom.v1.BomService/RetrySearchTasks"
+	BomService_SubmitBomSearchResult_FullMethodName        = "/api.bom.v1.BomService/SubmitBomSearchResult"
+	BomService_ExportSession_FullMethodName                = "/api.bom.v1.BomService/ExportSession"
 )
 
 // BomServiceClient is the client API for BomService service.
@@ -57,18 +61,26 @@ type BomServiceClient interface {
 	GetMatchResult(ctx context.Context, in *GetMatchResultRequest, opts ...grpc.CallOption) (*GetMatchResultReply, error)
 	CreateSession(ctx context.Context, in *CreateSessionRequest, opts ...grpc.CallOption) (*CreateSessionReply, error)
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionReply, error)
+	// 会话列表（分页、筛选）
+	ListSessions(ctx context.Context, in *ListSessionsRequest, opts ...grpc.CallOption) (*ListSessionsReply, error)
+	// 更新会话头信息（标题、客户联系方式等）
+	PatchSession(ctx context.Context, in *PatchSessionRequest, opts ...grpc.CallOption) (*GetSessionReply, error)
 	PutPlatforms(ctx context.Context, in *PutPlatformsRequest, opts ...grpc.CallOption) (*PutPlatformsReply, error)
 	GetReadiness(ctx context.Context, in *GetReadinessRequest, opts ...grpc.CallOption) (*GetReadinessReply, error)
 	GetBOMLines(ctx context.Context, in *GetBOMLinesRequest, opts ...grpc.CallOption) (*GetBOMLinesReply, error)
+	// 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
+	GetSessionSearchTaskCoverage(ctx context.Context, in *GetSessionSearchTaskCoverageRequest, opts ...grpc.CallOption) (*GetSessionSearchTaskCoverageReply, error)
+	// 追加一行
+	CreateSessionLine(ctx context.Context, in *CreateSessionLineRequest, opts ...grpc.CallOption) (*CreateSessionLineReply, error)
+	// 更新一行
+	PatchSessionLine(ctx context.Context, in *PatchSessionLineRequest, opts ...grpc.CallOption) (*PatchSessionLineReply, error)
+	// 删除一行
+	DeleteSessionLine(ctx context.Context, in *DeleteSessionLineRequest, opts ...grpc.CallOption) (*DeleteSessionLineReply, error)
 	RetrySearchTasks(ctx context.Context, in *RetrySearchTasksRequest, opts ...grpc.CallOption) (*RetrySearchTasksReply, error)
 	// Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
 	SubmitBomSearchResult(ctx context.Context, in *SubmitBomSearchResultRequest, opts ...grpc.CallOption) (*SubmitBomSearchResultReply, error)
 	// 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
 	ExportSession(ctx context.Context, in *ExportSessionRequest, opts ...grpc.CallOption) (*ExportSessionReply, error)
-	// 配单历史列表
-	ListMatchHistory(ctx context.Context, in *ListMatchHistoryRequest, opts ...grpc.CallOption) (*ListMatchHistoryReply, error)
-	// 配单历史详情（快照）
-	GetMatchHistory(ctx context.Context, in *GetMatchHistoryRequest, opts ...grpc.CallOption) (*GetMatchHistoryReply, error)
 }
 
 type bomServiceClient struct {
@@ -159,6 +171,26 @@ func (c *bomServiceClient) GetSession(ctx context.Context, in *GetSessionRequest
 	return out, nil
 }
 
+func (c *bomServiceClient) ListSessions(ctx context.Context, in *ListSessionsRequest, opts ...grpc.CallOption) (*ListSessionsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListSessionsReply)
+	err := c.cc.Invoke(ctx, BomService_ListSessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) PatchSession(ctx context.Context, in *PatchSessionRequest, opts ...grpc.CallOption) (*GetSessionReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSessionReply)
+	err := c.cc.Invoke(ctx, BomService_PatchSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bomServiceClient) PutPlatforms(ctx context.Context, in *PutPlatformsRequest, opts ...grpc.CallOption) (*PutPlatformsReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PutPlatformsReply)
@@ -183,6 +215,46 @@ func (c *bomServiceClient) GetBOMLines(ctx context.Context, in *GetBOMLinesReque
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetBOMLinesReply)
 	err := c.cc.Invoke(ctx, BomService_GetBOMLines_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) GetSessionSearchTaskCoverage(ctx context.Context, in *GetSessionSearchTaskCoverageRequest, opts ...grpc.CallOption) (*GetSessionSearchTaskCoverageReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSessionSearchTaskCoverageReply)
+	err := c.cc.Invoke(ctx, BomService_GetSessionSearchTaskCoverage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) CreateSessionLine(ctx context.Context, in *CreateSessionLineRequest, opts ...grpc.CallOption) (*CreateSessionLineReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateSessionLineReply)
+	err := c.cc.Invoke(ctx, BomService_CreateSessionLine_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) PatchSessionLine(ctx context.Context, in *PatchSessionLineRequest, opts ...grpc.CallOption) (*PatchSessionLineReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PatchSessionLineReply)
+	err := c.cc.Invoke(ctx, BomService_PatchSessionLine_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) DeleteSessionLine(ctx context.Context, in *DeleteSessionLineRequest, opts ...grpc.CallOption) (*DeleteSessionLineReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteSessionLineReply)
+	err := c.cc.Invoke(ctx, BomService_DeleteSessionLine_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -219,26 +291,6 @@ func (c *bomServiceClient) ExportSession(ctx context.Context, in *ExportSessionR
 	return out, nil
 }
 
-func (c *bomServiceClient) ListMatchHistory(ctx context.Context, in *ListMatchHistoryRequest, opts ...grpc.CallOption) (*ListMatchHistoryReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListMatchHistoryReply)
-	err := c.cc.Invoke(ctx, BomService_ListMatchHistory_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *bomServiceClient) GetMatchHistory(ctx context.Context, in *GetMatchHistoryRequest, opts ...grpc.CallOption) (*GetMatchHistoryReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetMatchHistoryReply)
-	err := c.cc.Invoke(ctx, BomService_GetMatchHistory_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // BomServiceServer is the server API for BomService service.
 // All implementations must embed UnimplementedBomServiceServer
 // for forward compatibility.
@@ -259,18 +311,26 @@ type BomServiceServer interface {
 	GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error)
 	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionReply, error)
+	// 会话列表（分页、筛选）
+	ListSessions(context.Context, *ListSessionsRequest) (*ListSessionsReply, error)
+	// 更新会话头信息（标题、客户联系方式等）
+	PatchSession(context.Context, *PatchSessionRequest) (*GetSessionReply, error)
 	PutPlatforms(context.Context, *PutPlatformsRequest) (*PutPlatformsReply, error)
 	GetReadiness(context.Context, *GetReadinessRequest) (*GetReadinessReply, error)
 	GetBOMLines(context.Context, *GetBOMLinesRequest) (*GetBOMLinesReply, error)
+	// 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
+	GetSessionSearchTaskCoverage(context.Context, *GetSessionSearchTaskCoverageRequest) (*GetSessionSearchTaskCoverageReply, error)
+	// 追加一行
+	CreateSessionLine(context.Context, *CreateSessionLineRequest) (*CreateSessionLineReply, error)
+	// 更新一行
+	PatchSessionLine(context.Context, *PatchSessionLineRequest) (*PatchSessionLineReply, error)
+	// 删除一行
+	DeleteSessionLine(context.Context, *DeleteSessionLineRequest) (*DeleteSessionLineReply, error)
 	RetrySearchTasks(context.Context, *RetrySearchTasksRequest) (*RetrySearchTasksReply, error)
 	// Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
 	SubmitBomSearchResult(context.Context, *SubmitBomSearchResultRequest) (*SubmitBomSearchResultReply, error)
 	// 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
 	ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error)
-	// 配单历史列表
-	ListMatchHistory(context.Context, *ListMatchHistoryRequest) (*ListMatchHistoryReply, error)
-	// 配单历史详情（快照）
-	GetMatchHistory(context.Context, *GetMatchHistoryRequest) (*GetMatchHistoryReply, error)
 	mustEmbedUnimplementedBomServiceServer()
 }
 
@@ -305,6 +365,12 @@ func (UnimplementedBomServiceServer) CreateSession(context.Context, *CreateSessi
 func (UnimplementedBomServiceServer) GetSession(context.Context, *GetSessionRequest) (*GetSessionReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSession not implemented")
 }
+func (UnimplementedBomServiceServer) ListSessions(context.Context, *ListSessionsRequest) (*ListSessionsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSessions not implemented")
+}
+func (UnimplementedBomServiceServer) PatchSession(context.Context, *PatchSessionRequest) (*GetSessionReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method PatchSession not implemented")
+}
 func (UnimplementedBomServiceServer) PutPlatforms(context.Context, *PutPlatformsRequest) (*PutPlatformsReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method PutPlatforms not implemented")
 }
@@ -314,6 +380,18 @@ func (UnimplementedBomServiceServer) GetReadiness(context.Context, *GetReadiness
 func (UnimplementedBomServiceServer) GetBOMLines(context.Context, *GetBOMLinesRequest) (*GetBOMLinesReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetBOMLines not implemented")
 }
+func (UnimplementedBomServiceServer) GetSessionSearchTaskCoverage(context.Context, *GetSessionSearchTaskCoverageRequest) (*GetSessionSearchTaskCoverageReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetSessionSearchTaskCoverage not implemented")
+}
+func (UnimplementedBomServiceServer) CreateSessionLine(context.Context, *CreateSessionLineRequest) (*CreateSessionLineReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateSessionLine not implemented")
+}
+func (UnimplementedBomServiceServer) PatchSessionLine(context.Context, *PatchSessionLineRequest) (*PatchSessionLineReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method PatchSessionLine not implemented")
+}
+func (UnimplementedBomServiceServer) DeleteSessionLine(context.Context, *DeleteSessionLineRequest) (*DeleteSessionLineReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteSessionLine not implemented")
+}
 func (UnimplementedBomServiceServer) RetrySearchTasks(context.Context, *RetrySearchTasksRequest) (*RetrySearchTasksReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method RetrySearchTasks not implemented")
 }
@@ -322,12 +400,6 @@ func (UnimplementedBomServiceServer) SubmitBomSearchResult(context.Context, *Sub
 }
 func (UnimplementedBomServiceServer) ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method ExportSession not implemented")
-}
-func (UnimplementedBomServiceServer) ListMatchHistory(context.Context, *ListMatchHistoryRequest) (*ListMatchHistoryReply, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListMatchHistory not implemented")
-}
-func (UnimplementedBomServiceServer) GetMatchHistory(context.Context, *GetMatchHistoryRequest) (*GetMatchHistoryReply, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetMatchHistory not implemented")
 }
 func (UnimplementedBomServiceServer) mustEmbedUnimplementedBomServiceServer() {}
 func (UnimplementedBomServiceServer) testEmbeddedByValue()                    {}
@@ -494,6 +566,42 @@ func _BomService_GetSession_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BomService_ListSessions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListSessionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ListSessions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ListSessions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ListSessions(ctx, req.(*ListSessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_PatchSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PatchSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).PatchSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_PatchSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).PatchSession(ctx, req.(*PatchSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BomService_PutPlatforms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PutPlatformsRequest)
 	if err := dec(in); err != nil {
@@ -544,6 +652,78 @@ func _BomService_GetBOMLines_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BomServiceServer).GetBOMLines(ctx, req.(*GetBOMLinesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_GetSessionSearchTaskCoverage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSessionSearchTaskCoverageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).GetSessionSearchTaskCoverage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_GetSessionSearchTaskCoverage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).GetSessionSearchTaskCoverage(ctx, req.(*GetSessionSearchTaskCoverageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_CreateSessionLine_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateSessionLineRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).CreateSessionLine(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_CreateSessionLine_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).CreateSessionLine(ctx, req.(*CreateSessionLineRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_PatchSessionLine_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PatchSessionLineRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).PatchSessionLine(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_PatchSessionLine_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).PatchSessionLine(ctx, req.(*PatchSessionLineRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_DeleteSessionLine_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteSessionLineRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).DeleteSessionLine(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_DeleteSessionLine_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).DeleteSessionLine(ctx, req.(*DeleteSessionLineRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -602,42 +782,6 @@ func _BomService_ExportSession_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BomService_ListMatchHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListMatchHistoryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BomServiceServer).ListMatchHistory(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BomService_ListMatchHistory_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BomServiceServer).ListMatchHistory(ctx, req.(*ListMatchHistoryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BomService_GetMatchHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetMatchHistoryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BomServiceServer).GetMatchHistory(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BomService_GetMatchHistory_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BomServiceServer).GetMatchHistory(ctx, req.(*GetMatchHistoryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // BomService_ServiceDesc is the grpc.ServiceDesc for BomService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -678,6 +822,14 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BomService_GetSession_Handler,
 		},
 		{
+			MethodName: "ListSessions",
+			Handler:    _BomService_ListSessions_Handler,
+		},
+		{
+			MethodName: "PatchSession",
+			Handler:    _BomService_PatchSession_Handler,
+		},
+		{
 			MethodName: "PutPlatforms",
 			Handler:    _BomService_PutPlatforms_Handler,
 		},
@@ -690,6 +842,22 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BomService_GetBOMLines_Handler,
 		},
 		{
+			MethodName: "GetSessionSearchTaskCoverage",
+			Handler:    _BomService_GetSessionSearchTaskCoverage_Handler,
+		},
+		{
+			MethodName: "CreateSessionLine",
+			Handler:    _BomService_CreateSessionLine_Handler,
+		},
+		{
+			MethodName: "PatchSessionLine",
+			Handler:    _BomService_PatchSessionLine_Handler,
+		},
+		{
+			MethodName: "DeleteSessionLine",
+			Handler:    _BomService_DeleteSessionLine_Handler,
+		},
+		{
 			MethodName: "RetrySearchTasks",
 			Handler:    _BomService_RetrySearchTasks_Handler,
 		},
@@ -700,14 +868,6 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ExportSession",
 			Handler:    _BomService_ExportSession_Handler,
-		},
-		{
-			MethodName: "ListMatchHistory",
-			Handler:    _BomService_ListMatchHistory_Handler,
-		},
-		{
-			MethodName: "GetMatchHistory",
-			Handler:    _BomService_GetMatchHistory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

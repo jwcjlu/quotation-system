@@ -2,6 +2,8 @@
 
 基于 [BOM货源搜索-技术设计方案.md](./BOM货源搜索-技术设计方案.md)，约定 **BOM 应用服务** 对外 HTTP API（与现有 **Agent 任务 API** 分离；Agent 仍走 [分布式采集Agent-API协议](./分布式采集Agent-API协议.md)）。
 
+**扩展（2026-03-24）**：会话 **客户信息（1:1）**、**列表**、**PATCH 头**、**行追加/修改/删除** 见 [superpowers 规格说明](./superpowers/specs/2026-03-24-bom-session-customer-lines-design.md) 与 [接口清单](./superpowers/specs/2026-03-24-bom-session-customer-api-list.md)；实现对应 `api/bom/v1/bom.proto` 中 `ListSessions`、`PatchSession`、`CreateSessionLine`、`PatchSessionLine`、`DeleteSessionLine` 及 `CreateSession`/`GetSession` 客户字段。
+
 **约定**
 
 - Base path：`/api/v1`（与现有服务风格一致时可调整）。
@@ -135,6 +137,7 @@
 | `message` | string | 展示用短文案 |
 | `auto_attempt` | int | 可选 |
 | `manual_attempt` | int | 可选 |
+| `search_ui_state` | string | 四态：`pending`（待搜索）/ `searching`（搜索中）/ `succeeded`（成功）/ `failed`（失败）；缺任务行为 `missing` |
 
 ---
 
@@ -142,7 +145,20 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
+| `GET` | `/bom-sessions/{session_id}/search-tasks/coverage` | **只读**：检查当前 `bom_session_line` × 勾选平台 与 `bom_search_task` 是否对齐（不写入） |
 | `POST` | `/bom-sessions/{session_id}/search-tasks/retry` | 对手动失败或待重试项触发 **手动重试**（`manual_attempt+1`） |
+
+### `GET .../search-tasks/coverage`
+
+**Response（摘要）**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `consistent` | bool | 无缺失任务（`missing_tasks` 为空）时为 `true` |
+| `orphan_task_count` | int | 库中仍存但当前行/平台集合已不覆盖的任务行数（仅统计，不自动删除） |
+| `expected_task_count` | int | 期望任务数（去重 MPN × 勾选平台） |
+| `existing_task_count` | int | 当前业务日下 `bom_search_task` 行数 |
+| `missing_tasks` | array | 每项：`line_id`, `line_no`, `mpn_norm`, `platform_id`, `reason`（如 `no_task_row`） |
 
 ### `POST .../search-tasks/retry`
 
@@ -185,13 +201,11 @@
 
 ---
 
-## 7. 导出与历史
+## 7. 导出
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/bom-sessions/{session_id}/export` | 导出 Excel/CSV（`Accept` 或 `?format=`） |
-| `GET` | `/bom-match-history` | 配单历史列表（分页） |
-| `GET` | `/bom-match-history/{match_result_id}` | 历史快照详情（浏览） |
 
 ---
 

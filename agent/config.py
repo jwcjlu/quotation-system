@@ -26,6 +26,8 @@ class Config:
     queue: str
     tags: list[str]
     data_dir: str  # 脚本包根目录 script_id/version/
+    log_dir: str  # 日志目录（默认 data_dir/logs）
+    log_level: str  # DEBUG|INFO|WARNING|ERROR
     task_heartbeat_sec: float  # 两次任务心跳发起间隔（长轮询在单次请求内）
     script_sync_sec: float
     long_poll_sec: int
@@ -40,14 +42,23 @@ class Config:
             raise ValueError("环境变量 CAICHIP_API_KEY 未设置")
         tags_raw = os.environ.get("AGENT_TAGS", "")
         tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
-        data_dir = os.environ.get("AGENT_DATA_DIR", os.path.join(os.getcwd(), "agent_data"))
+        data_dir = os.path.abspath(
+            os.environ.get("AGENT_DATA_DIR", os.path.join(os.getcwd(), "agent_data"))
+        )
+        log_dir_raw = os.environ.get("AGENT_LOG_DIR", "").strip()
+        log_dir = (
+            os.path.abspath(log_dir_raw) if log_dir_raw else os.path.join(data_dir, "logs")
+        )
+        log_level = os.environ.get("AGENT_LOG_LEVEL", "INFO").strip() or "INFO"
         return Config(
             base_url=base,
             api_key=key,
             agent_id=_default_agent_id(),
             queue=os.environ.get("AGENT_QUEUE", "default").strip() or "default",
             tags=tags,
-            data_dir=os.path.abspath(data_dir),
+            data_dir=data_dir,
+            log_dir=log_dir,
+            log_level=log_level,
             task_heartbeat_sec=float(os.environ.get("AGENT_TASK_HEARTBEAT_SEC", "10")),
             script_sync_sec=float(os.environ.get("AGENT_SCRIPT_SYNC_SEC", "600")),
             # 空闲时约等于请求周期；可改为 50 减少请求次数（与服务端长轮询上限对齐）

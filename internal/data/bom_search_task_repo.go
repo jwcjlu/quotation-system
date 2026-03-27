@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -497,4 +498,127 @@ UPDATE bom_search_task SET
   updated_at = CURRENT_TIMESTAMP(3)
 WHERE session_id = ? AND mpn_norm = ? AND platform_id = ? AND biz_date = ?`,
 		sessionID, mpnNorm, platformID, dateStr).Error
+}
+
+// ComputeSearchTaskCoverage 只读：期望 (行 MPN×平台) 与 bom_search_task 对比；不修改数据库。
+// 孤儿任务（行或平台已删但任务行仍在）仅计数，不将 consistent 置 false（策略 A：见开发计划 Task 3）。
+func (r *BOMSearchTaskRepo) ComputeSearchTaskCoverage(ctx context.Context, sessionID string) (*biz.SearchTaskCoverageReport, error) {
+	if !r.DBOk() {
+		return &biz.SearchTaskCoverageReport{Consistent: true}, nil
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return &biz.SearchTaskCoverageReport{Consistent: true}, nil
+	}
+	bizDate, _, platforms, err := r.loadSessionTaskMeta(ctx, sessionID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, biz.ErrBOMSessionNotFound
+		}
+		return nil, err
+	}
+
+	type lineRow struct {
+		ID     int64
+		LineNo int32
+		MPN    string
+	}
+	qrows, err := r.db.WithContext(ctx).Raw(`
+SELECT id, line_no, mpn FROM bom_session_line WHERE session_id = ? ORDER BY line_no`, sessionID).Rows()
+	if err != nil {
+		return nil, err
+	}
+	var lineRows []lineRow
+	for qrows.Next() {
+		var id int64
+		var lineNo int32
+		var mpn string
+		if err = qrows.Scan(&id, &lineNo, &mpn); err != nil {
+			_ = qrows.Close()
+			return nil, err
+		}
+		lineRows = append(lineRows, lineRow{ID: id, LineNo: lineNo, MPN: mpn})
+	}
+	if err = qrows.Err(); err != nil {
+		_ = qrows.Close()
+		return nil, err
+	}
+	_ = qrows.Close()
+
+	lineMpns := make(map[string]struct{})
+	firstLineByMpn := make(map[string]lineRow)
+	for _, ln := range lineRows {
+		mn := biz.NormalizeMPNForTask(ln.MPN)
+		lineMpns[mn] = struct{}{}
+		if _, ok := firstLineByMpn[mn]; !ok {
+			firstLineByMpn[mn] = ln
+		}
+	}
+
+	platformSet := make(map[string]bool)
+	var platList []string
+	for _, p := range platforms {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		platformSet[p] = true
+		platList = append(platList, p)
+	}
+
+	tasks, err := r.ListTasksForSession(ctx, sessionID, bizDate)
+	if err != nil {
+		return nil, err
+	}
+	taskKey := make(map[string]struct{}, len(tasks))
+	for _, t := range tasks {
+		k := strings.TrimSpace(t.MpnNorm) + "\x00" + strings.TrimSpace(t.PlatformID)
+		taskKey[k] = struct{}{}
+	}
+
+	report := &biz.SearchTaskCoverageReport{
+		ExistingTaskCount: len(tasks),
+	}
+
+	if len(platList) == 0 {
+		report.ExpectedTaskCount = 0
+		report.OrphanTaskCount = len(tasks)
+		report.Consistent = len(report.Missing) == 0
+		return report, nil
+	}
+
+	expected := 0
+	for mn := range lineMpns {
+		for _, p := range platList {
+			expected++
+			k := mn + "\x00" + p
+			if _, ok := taskKey[k]; ok {
+				continue
+			}
+			fl := firstLineByMpn[mn]
+			report.Missing = append(report.Missing, biz.SearchTaskMissingEntry{
+				LineID:     strconv.FormatInt(fl.ID, 10),
+				LineNo:     fl.LineNo,
+				MpnNorm:    mn,
+				PlatformID: p,
+				Reason:     "no_task_row",
+			})
+		}
+	}
+	report.ExpectedTaskCount = expected
+
+	for _, t := range tasks {
+		mn := strings.TrimSpace(t.MpnNorm)
+		pid := strings.TrimSpace(t.PlatformID)
+		if _, ok := lineMpns[mn]; !ok {
+			report.OrphanTaskCount++
+			continue
+		}
+		if !platformSet[pid] {
+			report.OrphanTaskCount++
+		}
+	}
+
+	report.Consistent = len(report.Missing) == 0
+	return report, nil
 }

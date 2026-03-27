@@ -4,6 +4,10 @@
 CREATE TABLE IF NOT EXISTS bom_session (
     id                      CHAR(36) NOT NULL PRIMARY KEY,
     title                   VARCHAR(256) NULL,
+    customer_name           VARCHAR(256) NULL,
+    contact_phone           VARCHAR(64)  NULL,
+    contact_email           VARCHAR(256) NULL,
+    contact_extra           VARCHAR(512) NULL,
     status                  VARCHAR(32)  NOT NULL DEFAULT 'draft',
     biz_date                DATE         NOT NULL,
     selection_revision      INT          NOT NULL DEFAULT 1,
@@ -66,18 +70,6 @@ CREATE TABLE IF NOT EXISTS bom_search_task (
     KEY idx_bom_search_session_state (session_id, state),
     KEY idx_bom_search_mpn (mpn_norm, platform_id, biz_date),
     CONSTRAINT fk_bom_search_session FOREIGN KEY (session_id) REFERENCES bom_session (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS bom_match_result (
-    id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    session_id              CHAR(36) NOT NULL,
-    version                 INT          NOT NULL DEFAULT 1,
-    strategy                VARCHAR(32)  NULL,
-    payload_json            JSON         NOT NULL,
-    created_at              DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    UNIQUE KEY uk_bom_match_session_ver (session_id, version),
-    KEY idx_bom_match_session (session_id, version),
-    CONSTRAINT fk_bom_match_session FOREIGN KEY (session_id) REFERENCES bom_session (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS bom_platform_script (

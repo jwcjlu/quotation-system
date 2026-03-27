@@ -12,10 +12,13 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+import requests
+
 from .client import CaichipAgentClient, LeaseConflictError
 from .config import Config
 from . import manifest
 from . import runner
+from . import sync_actions
 
 log = logging.getLogger("caichip.agent")
 
@@ -50,10 +53,11 @@ class AgentApp:
         th_task.start()
         th_sync.start()
         log.info(
-            "caichip agent started agent_id=%s base=%s data_dir=%s",
+            "caichip agent started agent_id=%s base=%s data_dir=%s log_dir=%s",
             self.cfg.agent_id,
             self.cfg.base_url,
             self.cfg.data_dir,
+            self.cfg.log_dir,
         )
         try:
             while not self._stop.is_set():
@@ -94,7 +98,18 @@ class AgentApp:
                     "scripts": scripts,
                     "long_poll_timeout_sec": min(self.cfg.long_poll_sec, 55),
                 }
-                self.client.script_sync_heartbeat(body)
+                data = self.client.script_sync_heartbeat(body)
+                acts = data.get("sync_actions") or []
+                if acts:
+                    sess = requests.Session()
+                    sync_actions.apply_sync_actions(
+                        sess,
+                        self.cfg.base_url,
+                        self.cfg.api_key,
+                        self.cfg.data_dir,
+                        acts,
+                        timeout_sec=int(self.cfg.http_timeout_sec),
+                    )
             except Exception as e:
                 log.exception("script sync heartbeat error: %s", e)
             if self._stop.wait(timeout=self.cfg.script_sync_sec):
@@ -102,10 +117,30 @@ class AgentApp:
 
     def _run_one_task(self, task: dict) -> None:
         script_id = task.get("script_id") or ""
+        task_id = task.get("task_id") or ""
+        lease_id = (task.get("lease_id") or "")[:16]
         lock = self._lock_for_script(script_id)
         lock.acquire()
         try:
-            status, code, so, se = runner.run_task(data_dir=self.cfg.data_dir, task=task)
+            try:
+                status, code, so, se = runner.run_task(
+                    data_dir=self.cfg.data_dir, task=task
+                )
+            except Exception:
+                log.exception(
+                    "task crashed before result task_id=%s script_id=%s",
+                    task_id,
+                    script_id,
+                )
+                raise
+            log.info(
+                "task done task_id=%s script_id=%s status=%s exit_code=%s lease=%s…",
+                task_id,
+                script_id,
+                status,
+                code,
+                lease_id or "-",
+            )
             payload = {
                 "protocol_version": "1.0",
                 "agent_id": self.cfg.agent_id,
@@ -113,7 +148,7 @@ class AgentApp:
                 "status": status,
                 "lease_id": task.get("lease_id") or "",
                 "attempt": 1,
-                "stdout_tail": so,
+                "stdout": so,
                 "stderr_tail": se,
                 "result": {
                     "exit_code": code,

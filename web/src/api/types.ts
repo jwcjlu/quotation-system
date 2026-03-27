@@ -61,6 +61,25 @@ export interface GetSessionReply {
   biz_date: string
   selection_revision: number
   platform_ids: string[]
+  customer_name?: string
+  contact_phone?: string
+  contact_email?: string
+  contact_extra?: string
+}
+
+export interface SessionListItem {
+  session_id: string
+  title: string
+  customer_name: string
+  status: string
+  biz_date: string
+  updated_at: string
+  line_count: number
+}
+
+export interface ListSessionsReply {
+  items: SessionListItem[]
+  total: number
 }
 
 export interface GetReadinessReply {
@@ -79,6 +98,22 @@ export interface PlatformGap {
   message: string
   auto_attempt: number
   manual_attempt: number
+  /** pending | searching | succeeded | failed | missing */
+  search_ui_state?: string
+}
+
+export interface GetSessionSearchTaskCoverageReply {
+  consistent: boolean
+  orphan_task_count: number
+  expected_task_count: number
+  existing_task_count: number
+  missing_tasks: Array<{
+    line_id: string
+    line_no: number
+    mpn_norm: string
+    platform_id: string
+    reason: string
+  }>
 }
 
 export interface BOMLineRow {
@@ -94,18 +129,4 @@ export interface BOMLineRow {
 
 export interface GetBOMLinesReply {
   lines: BOMLineRow[]
-}
-
-export interface MatchHistoryListItem {
-  match_result_id: number
-  session_id: string
-  version: number
-  strategy: string
-  created_at: string
-  total_amount: number
-}
-
-export interface ListMatchHistoryReply {
-  items: MatchHistoryListItem[]
-  total: number
 }

@@ -28,6 +28,27 @@ agent:
   offline_heartbeat_multiplier: 6
   # 开发调试用：POST /api/v1/agent/dev/enqueue 入队任务（生产务必 false）
   dev_enqueue_enabled: true
+  # 任务队列：memory=内存（单机）；mysql=表 caichip_dispatch_task（多实例，须 MySQL8+ 且已执行 schema）
+  dispatch_store: mysql
+  # 租约 deadline = 任务 timeout_sec + 此处附加秒数
+  dispatch_lease_extra_sec: 0
+
+# Agent 脚本包分发（需 DB 表 docs/schema/agent_script_package_mysql.sql）
+script_store:
+  enabled: true
+  root: "D://workspace/caichip/static/scripts"
+  url_prefix: /static/agent-scripts
+  public_base_url: "http://10.86.32.78:18080"
+  max_upload_mb: 64
+
+script_admin:
+  api_keys:
+    - "change-me-admin-key"
+
+# BOM 搜索任务回传 POST /api/v1/bom-sessions/{id}/search-results（Header: X-API-Key 或 Authorization: Bearer）
+bom_search_callback:
+  api_keys:
+    - "change-me-bom-search-callback"
 
 platform:
   ickey:

@@ -2,48 +2,34 @@ package data
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"caichip/internal/biz"
-	"caichip/internal/conf"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-// BOMSearchTaskRepo bom_search_task / bom_quote_cache 访问（无 DB 时为 no-op）。
+// BOMSearchTaskRepo 仅保留 Agent 任务回写 bom_search_task / bom_quote_cache 所需方法（无 DB 时为部分 no-op）。
 type BOMSearchTaskRepo struct {
-	db       *gorm.DB
-	dispatch *DispatchTaskRepo
-	bc       *conf.Bootstrap
+	db *gorm.DB
 }
 
 // NewBOMSearchTaskRepo ...
-func NewBOMSearchTaskRepo(d *Data, dispatch *DispatchTaskRepo, bc *conf.Bootstrap) *BOMSearchTaskRepo {
+func NewBOMSearchTaskRepo(d *Data) *BOMSearchTaskRepo {
 	if d == nil || d.DB == nil {
-		return &BOMSearchTaskRepo{bc: bc}
+		return &BOMSearchTaskRepo{}
 	}
-	return &BOMSearchTaskRepo{db: d.DB, dispatch: dispatch, bc: bc}
-}
-
-func mysqlDispatchEnabled(bc *conf.Bootstrap) bool {
-	if bc == nil || bc.Agent == nil {
-		return false
-	}
-	return strings.EqualFold(strings.TrimSpace(bc.Agent.DispatchStore), "mysql")
+	return &BOMSearchTaskRepo{db: d.DB}
 }
 
 // DBOk ...
 func (r *BOMSearchTaskRepo) DBOk() bool {
 	return r != nil && r.db != nil
 }
-
-var _ biz.BOMSearchTaskEnsurer = (*BOMSearchTaskRepo)(nil)
 
 var (
 	// ErrSearchTaskNotFound 会话下无对应搜索任务行。
@@ -52,27 +38,8 @@ var (
 	ErrSearchTaskCaichipMismatch = errors.New("bom_search_task caichip_task_id mismatch")
 )
 
-// SearchTaskRow 任务一行（API 聚合用）。
-type SearchTaskRow struct {
-	MpnNorm           string
-	PlatformID        string
-	State             string
-	AutoAttempt       int
-	ManualAttempt     int
-	LastError         sql.NullString
-	SelectionRevision int
-}
-
-// BOMSearchTaskRowKey 按 caichip_task_id 定位 bom 搜索行（Agent TaskResult 回写缓存用）。
-type BOMSearchTaskRowKey struct {
-	SessionID  string
-	MpnNorm    string
-	PlatformID string
-	BizDate    time.Time
-}
-
 // LoadSearchTaskByCaichipTaskID 根据调度下发的 caichip_task_id（cloud uuid）查一行；无匹配返回 (nil, nil)。
-func (r *BOMSearchTaskRepo) LoadSearchTaskByCaichipTaskID(ctx context.Context, caichipTaskID string) (*BOMSearchTaskRowKey, error) {
+func (r *BOMSearchTaskRepo) LoadSearchTaskByCaichipTaskID(ctx context.Context, caichipTaskID string) (*biz.BOMSearchTaskLookup, error) {
 	if !r.DBOk() {
 		return nil, nil
 	}
@@ -80,269 +47,40 @@ func (r *BOMSearchTaskRepo) LoadSearchTaskByCaichipTaskID(ctx context.Context, c
 	if caichipTaskID == "" {
 		return nil, nil
 	}
-	var sid, mpn, pid string
-	var bizStr sql.NullString
-	err := r.db.WithContext(ctx).Raw(`
-SELECT session_id, mpn_norm, platform_id, biz_date
-FROM bom_search_task WHERE caichip_task_id = ? LIMIT 1`, caichipTaskID).Row().Scan(&sid, &mpn, &pid, &bizStr)
-	if err == sql.ErrNoRows {
+	var task BomSearchTask
+	err := r.db.WithContext(ctx).Where("caichip_task_id = ?", caichipTaskID).First(&task).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	if err := scanBizDateValid(bizStr); err != nil {
-		return nil, err
+	if task.BizDate.IsZero() {
+		return nil, errors.New("bom_search_task biz_date missing")
 	}
-	bd, err := parseDateTimeForScan(bizStr.String)
-	if err != nil {
-		return nil, err
-	}
-	return &BOMSearchTaskRowKey{
-		SessionID:  sid,
-		MpnNorm:    mpn,
-		PlatformID: pid,
-		BizDate:    bd,
+	return &biz.BOMSearchTaskLookup{
+		SessionID:  task.SessionID,
+		MpnNorm:    task.MpnNorm,
+		PlatformID: task.PlatformID,
+		BizDate:    task.BizDate,
 	}, nil
 }
 
-func scanBizDateValid(bizStr sql.NullString) error {
-	if !bizStr.Valid || strings.TrimSpace(bizStr.String) == "" {
-		return fmt.Errorf("bom_search_task biz_date missing")
+var _ biz.BOMSearchTaskRepo = (*BOMSearchTaskRepo)(nil)
+
+func normalizeMPNForSearchTask(mpn string) string {
+	m := strings.TrimSpace(mpn)
+	if m == "" {
+		return "-"
 	}
-	return nil
+	return strings.ToUpper(m)
 }
 
-func (r *BOMSearchTaskRepo) loadSessionTaskMeta(ctx context.Context, sessionID string) (bizDate time.Time, rev int, platforms []string, err error) {
-	if r.db == nil {
-		return time.Time{}, 0, nil, sql.ErrNoRows
-	}
-	sessionID = strings.TrimSpace(sessionID)
-	var platformRaw []byte
-	var bizStr sql.NullString
-	err = r.db.WithContext(ctx).Raw(`
-SELECT biz_date, selection_revision, platform_ids
-FROM bom_session WHERE id = ?`, sessionID).Row().Scan(&bizStr, &rev, &platformRaw)
+func (r *BOMSearchTaskRepo) upsertQuoteCache(ctx context.Context, x *gorm.DB, mpnNorm, platformID, dateStr, outcome string, quotesJSON, noMpnDetail []byte) error {
+	bd, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
-		return time.Time{}, 0, nil, err
-	}
-	if bizStr.Valid {
-		bizDate, err = parseDateTimeForScan(bizStr.String)
-		if err != nil {
-			return time.Time{}, 0, nil, fmt.Errorf("biz_date: %w", err)
-		}
-	}
-	if len(platformRaw) > 0 {
-		_ = json.Unmarshal(platformRaw, &platforms)
-	}
-	if platforms == nil {
-		platforms = []string{}
-	}
-	return bizDate, rev, platforms, nil
-}
-
-// EnsureTasksForSession 按当前会话 platform_ids × 行 MPN 写入/刷新 bom_search_task（幂等 upsert）。
-func (r *BOMSearchTaskRepo) EnsureTasksForSession(ctx context.Context, sessionID string) error {
-	if !r.DBOk() {
-		return nil
-	}
-	sessionID = strings.TrimSpace(sessionID)
-	if sessionID == "" {
-		return nil
-	}
-	bizDate, rev, platforms, err := r.loadSessionTaskMeta(ctx, sessionID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return biz.ErrBOMSessionNotFound
-		}
 		return err
 	}
-	if len(platforms) == 0 {
-		return nil
-	}
-
-	var lines []string
-	rows, qErr := r.db.WithContext(ctx).Raw(`
-SELECT mpn FROM bom_session_line WHERE session_id = ? ORDER BY line_no`, sessionID).Rows()
-	if qErr != nil {
-		return qErr
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var mpn string
-		if err = rows.Scan(&mpn); err != nil {
-			return err
-		}
-		lines = append(lines, biz.NormalizeMPNForTask(mpn))
-	}
-	if err = rows.Err(); err != nil {
-		return err
-	}
-
-	dateStr := bizDate.Format("2006-01-02")
-	for _, mpnNorm := range lines {
-		for _, pid := range platforms {
-			p := strings.TrimSpace(pid)
-			if p == "" {
-				continue
-			}
-			taskCloudID := uuid.NewString()
-			err = r.db.WithContext(ctx).Exec(`
-INSERT INTO bom_search_task (session_id, mpn_norm, platform_id, biz_date, state, selection_revision, caichip_task_id)
-VALUES (?, ?, ?, ?, 'pending', ?, ?)
-ON DUPLICATE KEY UPDATE
-  selection_revision = VALUES(selection_revision),
-  updated_at = CURRENT_TIMESTAMP(3),
-  caichip_task_id = IFNULL(caichip_task_id, VALUES(caichip_task_id))`,
-				sessionID, mpnNorm, p, dateStr, rev, taskCloudID).Error
-			if err != nil {
-				return err
-			}
-			if mysqlDispatchEnabled(r.bc) && r.dispatch != nil && r.dispatch.DBOk() {
-				var cid sql.NullString
-				qErr := r.db.WithContext(ctx).Raw(`
-SELECT caichip_task_id FROM bom_search_task
-WHERE session_id = ? AND mpn_norm = ? AND platform_id = ? AND biz_date = ?`,
-					sessionID, mpnNorm, p, dateStr).Row().Scan(&cid)
-				if qErr == nil && cid.Valid && strings.TrimSpace(cid.String) != "" {
-					scriptID, e2 := r.lookupPlatformScriptID(ctx, p)
-					if e2 == nil && scriptID != "" {
-						entryFile := fmt.Sprintf("%s_crawler.py", scriptID)
-						qt := &biz.QueuedTask{
-							TaskMessage: biz.TaskMessage{
-								TaskID:    strings.TrimSpace(cid.String),
-								ScriptID:  scriptID,
-								Version:   "1.0.0",
-								Attempt:   1,
-								EntryFile: &entryFile,
-								Argv:      []string{"--model", mpnNorm, "--parse-workers", "8"},
-								Params:    map[string]interface{}{},
-							},
-							Queue: "default",
-						}
-						_ = r.dispatch.EnqueuePending(ctx, qt)
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-// TaskAgg 按 state 聚合。
-type TaskAgg struct {
-	Total       int
-	PendingLike int // pending + dispatched + running
-	Succeeded   int // succeeded_quotes + succeeded_no_mpn
-	FailedLike  int // failed + cancelled
-	ByState     map[string]int
-}
-
-// AggregateTasksForSession 当前会话下所有搜索任务按 state 计数。
-func (r *BOMSearchTaskRepo) AggregateTasksForSession(ctx context.Context, sessionID string, bizDate time.Time) (*TaskAgg, error) {
-	if !r.DBOk() {
-		return &TaskAgg{ByState: map[string]int{}}, nil
-	}
-	sessionID = strings.TrimSpace(sessionID)
-	dateStr := bizDate.Format("2006-01-02")
-	rows, err := r.db.WithContext(ctx).Raw(`
-SELECT state, COUNT(*) FROM bom_search_task
-WHERE session_id = ? AND biz_date = ?
-GROUP BY state`, sessionID, dateStr).Rows()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	agg := &TaskAgg{ByState: map[string]int{}}
-	for rows.Next() {
-		var st string
-		var n int
-		if err = rows.Scan(&st, &n); err != nil {
-			return nil, err
-		}
-		st = strings.TrimSpace(strings.ToLower(st))
-		agg.ByState[st] = n
-		agg.Total += n
-		switch st {
-		case "pending", "dispatched", "running":
-			agg.PendingLike += n
-		case "succeeded_quotes", "succeeded_no_mpn":
-			agg.Succeeded += n
-		case "failed", "cancelled":
-			agg.FailedLike += n
-		default:
-			agg.PendingLike += n
-		}
-	}
-	return agg, rows.Err()
-}
-
-// ListTasksForSession 列出会话在业务日下的全部任务。
-func (r *BOMSearchTaskRepo) ListTasksForSession(ctx context.Context, sessionID string, bizDate time.Time) ([]SearchTaskRow, error) {
-	if !r.DBOk() {
-		return nil, nil
-	}
-	sessionID = strings.TrimSpace(sessionID)
-	dateStr := bizDate.Format("2006-01-02")
-	rows, err := r.db.WithContext(ctx).Raw(`
-SELECT mpn_norm, platform_id, state, auto_attempt, manual_attempt, last_error, selection_revision
-FROM bom_search_task
-WHERE session_id = ? AND biz_date = ?`, sessionID, dateStr).Rows()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []SearchTaskRow
-	for rows.Next() {
-		var t SearchTaskRow
-		if err = rows.Scan(&t.MpnNorm, &t.PlatformID, &t.State, &t.AutoAttempt, &t.ManualAttempt, &t.LastError, &t.SelectionRevision); err != nil {
-			return nil, err
-		}
-		out = append(out, t)
-	}
-	return out, rows.Err()
-}
-
-// QuoteCacheOutcome 报价缓存结果摘要。
-func (r *BOMSearchTaskRepo) QuoteCacheOutcome(ctx context.Context, mpnNorm, platformID string, bizDate time.Time) (outcome string, err error) {
-	if !r.DBOk() {
-		return "", nil
-	}
-	dateStr := bizDate.Format("2006-01-02")
-	mpnNorm = biz.NormalizeMPNForTask(mpnNorm)
-	platformID = strings.TrimSpace(platformID)
-	var oc sql.NullString
-	err = r.db.WithContext(ctx).Raw(`
-SELECT outcome FROM bom_quote_cache
-WHERE mpn_norm = ? AND platform_id = ? AND biz_date = ?`, mpnNorm, platformID, dateStr).Row().Scan(&oc)
-	if err == sql.ErrNoRows {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	if oc.Valid {
-		return strings.TrimSpace(oc.String), nil
-	}
-	return "", nil
-}
-
-// UpsertQuoteCache 写入/更新 bom_quote_cache（主键 mpn_norm, platform_id, biz_date）。
-func (r *BOMSearchTaskRepo) UpsertQuoteCache(ctx context.Context, mpnNorm, platformID string, bizDate time.Time, outcome string, quotesJSON, noMpnDetail []byte) error {
-	if !r.DBOk() {
-		return nil
-	}
-	dateStr := bizDate.Format("2006-01-02")
-	mpnNorm = biz.NormalizeMPNForTask(mpnNorm)
-	platformID = strings.TrimSpace(platformID)
-	outcome = strings.TrimSpace(outcome)
-	if outcome == "" {
-		outcome = "ok"
-	}
-	return r.upsertQuoteCacheExec(ctx, r.db, mpnNorm, platformID, dateStr, outcome, quotesJSON, noMpnDetail)
-}
-
-func (r *BOMSearchTaskRepo) upsertQuoteCacheExec(ctx context.Context, x *gorm.DB, mpnNorm, platformID, dateStr, outcome string, quotesJSON, noMpnDetail []byte) error {
 	var qj, nd interface{}
 	if len(quotesJSON) > 0 {
 		qj = quotesJSON
@@ -350,23 +88,36 @@ func (r *BOMSearchTaskRepo) upsertQuoteCacheExec(ctx context.Context, x *gorm.DB
 	if len(noMpnDetail) > 0 {
 		nd = noMpnDetail
 	}
-	return x.WithContext(ctx).Exec(`
-INSERT INTO bom_quote_cache (mpn_norm, platform_id, biz_date, outcome, quotes_json, no_mpn_detail)
-VALUES (?, ?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-  outcome = VALUES(outcome),
-  quotes_json = VALUES(quotes_json),
-  no_mpn_detail = VALUES(no_mpn_detail),
-  updated_at = CURRENT_TIMESTAMP(3)`, mpnNorm, platformID, dateStr, outcome, qj, nd).Error
+	cache := BomQuoteCache{
+		MpnNorm:     mpnNorm,
+		PlatformID:  platformID,
+		BizDate:     bd,
+		Outcome:     outcome,
+		QuotesJSON:  quotesJSON,
+		NoMpnDetail: noMpnDetail,
+	}
+	return x.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "mpn_norm"},
+			{Name: "platform_id"},
+			{Name: "biz_date"},
+		},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"outcome":       outcome,
+			"quotes_json":   qj,
+			"no_mpn_detail": nd,
+			"updated_at":    gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		}),
+	}).Create(&cache).Error
 }
 
 // FinalizeSearchTask 事务内校验任务行、更新 state（并视状态 UPSERT 报价缓存）。
 func (r *BOMSearchTaskRepo) FinalizeSearchTask(ctx context.Context, sessionID, mpnNorm, platformID string, bizDate time.Time, caichipTaskID, state string, lastErr *string, quoteOutcome string, quotesJSON, noMpnDetail []byte) error {
 	if !r.DBOk() {
-		return sql.ErrNoRows
+		return ErrSearchTaskNotFound
 	}
 	sessionID = strings.TrimSpace(sessionID)
-	mpnNorm = biz.NormalizeMPNForTask(mpnNorm)
+	mpnNorm = normalizeMPNForSearchTask(mpnNorm)
 	platformID = strings.TrimSpace(platformID)
 	dateStr := bizDate.Format("2006-01-02")
 	st := strings.TrimSpace(strings.ToLower(state))
@@ -377,21 +128,20 @@ func (r *BOMSearchTaskRepo) FinalizeSearchTask(ctx context.Context, sessionID, m
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	var existing sql.NullString
-	scanErr := tx.Raw(`
-SELECT caichip_task_id FROM bom_search_task
-WHERE session_id = ? AND mpn_norm = ? AND platform_id = ? AND biz_date = ?
-FOR UPDATE`, sessionID, mpnNorm, platformID, dateStr).Row().Scan(&existing)
-	if errors.Is(scanErr, sql.ErrNoRows) {
+	var task BomSearchTask
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("session_id = ? AND mpn_norm = ? AND platform_id = ? AND biz_date = ?", sessionID, mpnNorm, platformID, dateStr).
+		First(&task).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return ErrSearchTaskNotFound
 	}
-	if scanErr != nil {
-		return scanErr
+	if err != nil {
+		return err
 	}
 
 	cid := strings.TrimSpace(caichipTaskID)
-	if cid != "" && existing.Valid && strings.TrimSpace(existing.String) != "" {
-		if strings.TrimSpace(existing.String) != cid {
+	if cid != "" && task.CaichipTaskID.Valid && strings.TrimSpace(task.CaichipTaskID.String) != "" {
+		if strings.TrimSpace(task.CaichipTaskID.String) != cid {
 			return ErrSearchTaskCaichipMismatch
 		}
 	}
@@ -401,100 +151,334 @@ FOR UPDATE`, sessionID, mpnNorm, platformID, dateStr).Row().Scan(&existing)
 		lastErrArg = *lastErr
 	}
 
-	if err := tx.Exec(`
-UPDATE bom_search_task SET
-  state = ?,
-  last_error = ?,
-  updated_at = CURRENT_TIMESTAMP(3),
-  auto_attempt = auto_attempt + 1
-WHERE session_id = ? AND mpn_norm = ? AND platform_id = ? AND biz_date = ?`,
-		st, lastErrArg, sessionID, mpnNorm, platformID, dateStr).Error; err != nil {
+	upd := map[string]interface{}{
+		"state":      st,
+		"last_error": lastErrArg,
+		"updated_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+	}
+	if st == "failed_retryable" || st == "failed_terminal" {
+		upd["auto_attempt"] = gorm.Expr("auto_attempt + 1")
+	}
+	if err := tx.Model(&BomSearchTask{}).
+		Where("session_id = ? AND mpn_norm = ? AND platform_id = ? AND biz_date = ?", sessionID, mpnNorm, platformID, dateStr).
+		Updates(upd).Error; err != nil {
 		return err
 	}
 
 	switch st {
-	case "succeeded_quotes":
+	case "succeeded", "succeeded_quotes":
 		oc := strings.TrimSpace(quoteOutcome)
 		if oc == "" {
 			oc = "ok"
 		}
-		if err := r.upsertQuoteCacheExec(ctx, tx, mpnNorm, platformID, dateStr, oc, quotesJSON, noMpnDetail); err != nil {
+		if err := r.upsertQuoteCache(ctx, tx, mpnNorm, platformID, dateStr, oc, quotesJSON, noMpnDetail); err != nil {
 			return err
 		}
-	case "succeeded_no_mpn":
-		if err := r.upsertQuoteCacheExec(ctx, tx, mpnNorm, platformID, dateStr, "no_mpn_match", nil, noMpnDetail); err != nil {
+	case "no_result", "succeeded_no_mpn":
+		if err := r.upsertQuoteCache(ctx, tx, mpnNorm, platformID, dateStr, "no_mpn_match", nil, noMpnDetail); err != nil {
 			return err
 		}
 	}
 	return tx.Commit().Error
 }
 
-// LoadSucceededQuoteRowsForSession 列出 succeeded_quotes 且已有关联缓存行的报价 JSON（供配单聚合）。
-func (r *BOMSearchTaskRepo) LoadSucceededQuoteRowsForSession(ctx context.Context, sessionID string, bizDate time.Time) ([]biz.SessionQuoteRawRow, error) {
+func (r *BOMSearchTaskRepo) snapshotRows(rows []BomSearchTask) []biz.TaskReadinessSnapshot {
+	out := make([]biz.TaskReadinessSnapshot, 0, len(rows))
+	for _, t := range rows {
+		out = append(out, biz.TaskReadinessSnapshot{
+			MpnNorm:    t.MpnNorm,
+			PlatformID: t.PlatformID,
+			State:      strings.ToLower(strings.TrimSpace(t.State)),
+		})
+	}
+	return out
+}
+
+// ListTasksForSession 会话下全部搜索任务（就绪聚合用）。
+func (r *BOMSearchTaskRepo) ListTasksForSession(ctx context.Context, sessionID string) ([]biz.TaskReadinessSnapshot, error) {
+	if !r.DBOk() {
+		return nil, nil
+	}
+	var rows []BomSearchTask
+	err := r.db.WithContext(ctx).Where("session_id = ?", strings.TrimSpace(sessionID)).Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return r.snapshotRows(rows), nil
+}
+
+// ListActiveBySession state IN (pending, running, failed_retryable)。
+func (r *BOMSearchTaskRepo) ListActiveBySession(ctx context.Context, sessionID string) ([]biz.TaskReadinessSnapshot, error) {
+	if !r.DBOk() {
+		return nil, nil
+	}
+	var rows []BomSearchTask
+	err := r.db.WithContext(ctx).
+		Where("session_id = ? AND state IN ?", strings.TrimSpace(sessionID), []string{"pending", "running", "failed_retryable"}).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	return r.snapshotRows(rows), nil
+}
+
+// CancelBySessionPlatform 未完成平台任务标为 cancelled（设计 §5 会话级关闭平台）。
+func (r *BOMSearchTaskRepo) CancelBySessionPlatform(ctx context.Context, sessionID, platformID string) (int64, error) {
+	if !r.DBOk() {
+		return 0, nil
+	}
+	tx := r.db.WithContext(ctx).Model(&BomSearchTask{}).
+		Where("session_id = ? AND platform_id = ? AND state IN ?", strings.TrimSpace(sessionID), strings.TrimSpace(platformID),
+			[]string{"pending", "running", "failed_retryable"}).
+		Updates(map[string]interface{}{
+			"state":      "cancelled",
+			"updated_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		})
+	return tx.RowsAffected, tx.Error
+}
+
+// MarkSkippedBySessionPlatform 未完成平台任务标为 skipped。
+func (r *BOMSearchTaskRepo) MarkSkippedBySessionPlatform(ctx context.Context, sessionID, platformID string) (int64, error) {
+	if !r.DBOk() {
+		return 0, nil
+	}
+	tx := r.db.WithContext(ctx).Model(&BomSearchTask{}).
+		Where("session_id = ? AND platform_id = ? AND state IN ?", strings.TrimSpace(sessionID), strings.TrimSpace(platformID),
+			[]string{"pending", "running", "failed_retryable"}).
+		Updates(map[string]interface{}{
+			"state":      "skipped",
+			"updated_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		})
+	return tx.RowsAffected, tx.Error
+}
+
+// CancelTasksBySessionMpnNorm 删除/改行时作废该型号下全部平台任务。
+func (r *BOMSearchTaskRepo) CancelTasksBySessionMpnNorm(ctx context.Context, sessionID, mpnNorm string) error {
+	if !r.DBOk() {
+		return nil
+	}
+	mn := normalizeMPNForSearchTask(mpnNorm)
+	return r.db.WithContext(ctx).Model(&BomSearchTask{}).
+		Where("session_id = ? AND mpn_norm = ?", strings.TrimSpace(sessionID), mn).
+		Updates(map[string]interface{}{
+			"state":      "cancelled",
+			"updated_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		}).Error
+}
+
+// CancelAllTasksBySession 导入全量替换前作废全部任务行（设计 §4，不物理删）。
+func (r *BOMSearchTaskRepo) CancelAllTasksBySession(ctx context.Context, sessionID string) error {
+	if !r.DBOk() {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&BomSearchTask{}).
+		Where("session_id = ?", strings.TrimSpace(sessionID)).
+		Updates(map[string]interface{}{
+			"state":      "cancelled",
+			"updated_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		}).Error
+}
+
+// UpsertPendingTasks 为 (mpn_norm, platform) 写入 pending；冲突则重置为 pending 并清调度键。
+func (r *BOMSearchTaskRepo) UpsertPendingTasks(ctx context.Context, sessionID string, bizDate time.Time, selectionRevision int, pairs []biz.MpnPlatformPair) error {
+	if !r.DBOk() || len(pairs) == 0 {
+		return nil
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	for _, p := range pairs {
+		mn := normalizeMPNForSearchTask(p.MpnNorm)
+		pid := strings.TrimSpace(p.PlatformID)
+		if mn == "" || mn == "-" || pid == "" {
+			continue
+		}
+		row := BomSearchTask{
+			SessionID:         sessionID,
+			MpnNorm:           mn,
+			PlatformID:        pid,
+			BizDate:           bizDate,
+			State:             "pending",
+			AutoAttempt:       0,
+			ManualAttempt:     0,
+			SelectionRevision: selectionRevision,
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
+		}
+		if err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "session_id"},
+				{Name: "mpn_norm"},
+				{Name: "platform_id"},
+				{Name: "biz_date"},
+			},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"state":              "pending",
+				"selection_revision": selectionRevision,
+				"last_error":         gorm.Expr("NULL"),
+				"caichip_task_id":    gorm.Expr("NULL"),
+				"updated_at":         gorm.Expr("CURRENT_TIMESTAMP(3)"),
+			}),
+		}).Create(&row).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GetTaskStateBySessionKey 返回当前任务 state，无行则 ("", nil)。
+func (r *BOMSearchTaskRepo) GetTaskStateBySessionKey(ctx context.Context, sessionID, mpnNorm, platformID string, bizDate time.Time) (string, error) {
+	if !r.DBOk() {
+		return "", nil
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	mpnNorm = normalizeMPNForSearchTask(mpnNorm)
+	platformID = strings.TrimSpace(platformID)
+	dateStr := bizDate.Format("2006-01-02")
+	var task BomSearchTask
+	err := r.db.WithContext(ctx).
+		Where("session_id = ? AND mpn_norm = ? AND platform_id = ? AND biz_date = ?", sessionID, mpnNorm, platformID, dateStr).
+		First(&task).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return strings.ToLower(strings.TrimSpace(task.State)), nil
+}
+
+// UpdateTaskStateBySessionKey 仅更新 state（重试/管理用）。
+func (r *BOMSearchTaskRepo) UpdateTaskStateBySessionKey(ctx context.Context, sessionID, mpnNorm, platformID string, bizDate time.Time, state string) error {
+	if !r.DBOk() {
+		return nil
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	mpnNorm = normalizeMPNForSearchTask(mpnNorm)
+	platformID = strings.TrimSpace(platformID)
+	st := strings.ToLower(strings.TrimSpace(state))
+	dateStr := bizDate.Format("2006-01-02")
+	return r.db.WithContext(ctx).Model(&BomSearchTask{}).
+		Where("session_id = ? AND mpn_norm = ? AND platform_id = ? AND biz_date = ?", sessionID, mpnNorm, platformID, dateStr).
+		Updates(map[string]interface{}{
+			"state":      st,
+			"updated_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		}).Error
+}
+
+func taskToLookup(t *BomSearchTask) biz.BOMSearchTaskLookup {
+	return biz.BOMSearchTaskLookup{
+		SessionID:  t.SessionID,
+		MpnNorm:    t.MpnNorm,
+		PlatformID: t.PlatformID,
+		BizDate:    t.BizDate,
+	}
+}
+
+// ListSearchTaskLookupsByCaichipTaskID 同 caichip_task_id 的全部业务行（fan-out）。
+func (r *BOMSearchTaskRepo) ListSearchTaskLookupsByCaichipTaskID(ctx context.Context, caichipTaskID string) ([]biz.BOMSearchTaskLookup, error) {
+	if !r.DBOk() {
+		return nil, nil
+	}
+	caichipTaskID = strings.TrimSpace(caichipTaskID)
+	if caichipTaskID == "" {
+		return nil, nil
+	}
+	var rows []BomSearchTask
+	err := r.db.WithContext(ctx).Where("caichip_task_id = ?", caichipTaskID).Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]biz.BOMSearchTaskLookup, 0, len(rows))
+	for i := range rows {
+		if rows[i].BizDate.IsZero() {
+			continue
+		}
+		out = append(out, taskToLookup(&rows[i]))
+	}
+	return out, nil
+}
+
+// ListPendingLookupsByMergeKey 合并键下仍为 pending 的任务（含多会话）。
+func (r *BOMSearchTaskRepo) ListPendingLookupsByMergeKey(ctx context.Context, mpnNorm, platformID string, bizDate time.Time) ([]biz.BOMSearchTaskLookup, error) {
+	if !r.DBOk() {
+		return nil, nil
+	}
+	mpnNorm = normalizeMPNForSearchTask(mpnNorm)
+	platformID = strings.TrimSpace(platformID)
+	dateStr := bizDate.Format("2006-01-02")
+	var rows []BomSearchTask
+	err := r.db.WithContext(ctx).
+		Where("mpn_norm = ? AND platform_id = ? AND biz_date = ? AND state = ?", mpnNorm, platformID, dateStr, "pending").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]biz.BOMSearchTaskLookup, 0, len(rows))
+	for i := range rows {
+		if rows[i].BizDate.IsZero() {
+			continue
+		}
+		out = append(out, taskToLookup(&rows[i]))
+	}
+	return out, nil
+}
+
+// LoadQuoteCacheByMergeKey 读取报价缓存；无行则 ok=false。
+func (r *BOMSearchTaskRepo) LoadQuoteCacheByMergeKey(ctx context.Context, mpnNorm, platformID string, bizDate time.Time) (*biz.QuoteCacheSnapshot, bool, error) {
+	if !r.DBOk() {
+		return nil, false, nil
+	}
+	mpnNorm = normalizeMPNForSearchTask(mpnNorm)
+	platformID = strings.TrimSpace(platformID)
+	dateStr := bizDate.Format("2006-01-02")
+	bd, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	if err != nil {
+		return nil, false, err
+	}
+	var row BomQuoteCache
+	err = r.db.WithContext(ctx).
+		Where("mpn_norm = ? AND platform_id = ? AND biz_date = ?", mpnNorm, platformID, bd).
+		First(&row).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	qj := row.QuotesJSON
+	nd := row.NoMpnDetail
+	return &biz.QuoteCacheSnapshot{
+		Outcome:     row.Outcome,
+		QuotesJSON:  qj,
+		NoMpnDetail: nd,
+	}, true, nil
+}
+
+// DistinctPendingMergeKeysForSession 会话内 pending 任务涉及的合并键去重。
+func (r *BOMSearchTaskRepo) DistinctPendingMergeKeysForSession(ctx context.Context, sessionID string) ([]biz.MergeKey, error) {
 	if !r.DBOk() {
 		return nil, nil
 	}
 	sessionID = strings.TrimSpace(sessionID)
-	dateStr := bizDate.Format("2006-01-02")
-	rows, err := r.db.WithContext(ctx).Raw(`
-SELECT t.mpn_norm, t.platform_id, c.quotes_json
-FROM bom_search_task t
-INNER JOIN bom_quote_cache c
-  ON c.mpn_norm = t.mpn_norm AND c.platform_id = t.platform_id AND c.biz_date = t.biz_date
-WHERE t.session_id = ? AND t.biz_date = ? AND t.state = 'succeeded_quotes'`, sessionID, dateStr).Rows()
+	type keyRow struct {
+		MpnNorm    string    `gorm:"column:mpn_norm"`
+		PlatformID string    `gorm:"column:platform_id"`
+		BizDate    time.Time `gorm:"column:biz_date"`
+	}
+	var rows []keyRow
+	err := r.db.WithContext(ctx).Raw(fmt.Sprintf(`
+SELECT mpn_norm, platform_id, biz_date FROM %s
+WHERE session_id = ? AND state = 'pending'
+GROUP BY mpn_norm, platform_id, biz_date`, TableBomSearchTask), sessionID).Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var out []biz.SessionQuoteRawRow
-	for rows.Next() {
-		var row biz.SessionQuoteRawRow
-		var qj []byte
-		if err = rows.Scan(&row.MpnNorm, &row.PlatformID, &qj); err != nil {
-			return nil, err
-		}
-		row.QuotesJSON = qj
-		out = append(out, row)
+	out := make([]biz.MergeKey, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, biz.MergeKey{
+			MpnNorm:    row.MpnNorm,
+			PlatformID: row.PlatformID,
+			BizDate:    row.BizDate,
+		})
 	}
-	return out, rows.Err()
-}
-
-func (r *BOMSearchTaskRepo) lookupPlatformScriptID(ctx context.Context, platformID string) (string, error) {
-	platformID = strings.TrimSpace(platformID)
-	if platformID == "" || r.db == nil {
-		return "", sql.ErrNoRows
-	}
-	var sid string
-	err := r.db.WithContext(ctx).Raw(`
-SELECT script_id FROM bom_platform_script WHERE platform_id = ? AND enabled = 1`, platformID).Row().Scan(&sid)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(sid), nil
-}
-
-// BumpManualRetry 将任务置回 pending 并 manual_attempt+1。
-func (r *BOMSearchTaskRepo) BumpManualRetry(ctx context.Context, sessionID, mpnNorm, platformID string) error {
-	if !r.DBOk() {
-		return nil
-	}
-	sessionID = strings.TrimSpace(sessionID)
-	mpnNorm = biz.NormalizeMPNForTask(mpnNorm)
-	platformID = strings.TrimSpace(platformID)
-	if sessionID == "" || mpnNorm == "" || platformID == "" {
-		return nil
-	}
-	bizDate, _, _, err := r.loadSessionTaskMeta(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-	dateStr := bizDate.Format("2006-01-02")
-	return r.db.WithContext(ctx).Exec(`
-UPDATE bom_search_task SET
-  manual_attempt = manual_attempt + 1,
-  state = 'pending',
-  last_error = NULL,
-  updated_at = CURRENT_TIMESTAMP(3)
-WHERE session_id = ? AND mpn_norm = ? AND platform_id = ? AND biz_date = ?`,
-		sessionID, mpnNorm, platformID, dateStr).Error
+	return out, nil
 }

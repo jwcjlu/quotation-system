@@ -1,0 +1,27 @@
+---
+description: Kratos 官方项目结构与 DDD 分层；新增/修改 Go 代码时遵守目录与依赖方向
+globs:
+alwaysApply: true
+---
+
+# Kratos 项目结构（本仓库约定）
+
+完整说明见仓库文档：`docs/kratos-project-layout.md`。官方参考：[Kratos 项目结构](https://go-kratos.dev/zh-cn/docs/intro/layout/)。
+
+## 必须遵守
+
+- **`api/`**：仅放 `.proto` 及生成代码；不要在这里写业务实现。
+- **`cmd/<service>/`**：进程入口、`wire.go` / `wire_gen.go`。
+- **`internal/biz`**：领域逻辑、用例组装；**Repository 接口在此定义**（如 `repo.go`）；MySQL 调度选型、`TaskScheduler` 的 DB 实现、BOM stdout 解析等也在 `biz`。
+- **`internal/data`**：实现 `biz` 的 repo；**MySQL 统一用 GORM**；仅做持久化与资源访问。**禁止**在此写业务更新逻辑（状态机、就绪判定、跨表业务决策等一律在 **`internal/biz`**）。
+- **`internal/service`**：实现 proto Service；DTO ↔ 领域转换、编排 `biz`；**薄应用层**。
+- **`internal/server`**：HTTP/gRPC 实例、路由、中间件。
+- **`internal/conf`**：配置结构（proto 等）。
+
+## 依赖方向
+
+`server` → `service` → `biz` ← `data`（data 仅实现 biz 接口）。禁止 `biz` 直接依赖具体 `data` 类型（应依赖接口）。
+
+## 新增功能时
+
+优先在正确分层落文件；避免把业务规则堆在 `service` 或把 SQL 散落在 `service`。**新 MySQL 访问请用 GORM**；`data` 层方法保持「按接口读写」，复杂用例在 `biz` 编排多次 repo 调用。

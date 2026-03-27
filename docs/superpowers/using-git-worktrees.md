@@ -43,8 +43,8 @@ git check-ignore -v .worktrees
 
 ```powershell
 cd d:\workspace\caichip
-git worktree add .worktrees/bom-sourcing -b feature/bom-sourcing
-cd .worktrees\bom-sourcing
+git worktree add .worktrees/agent-feature -b feature/agent-feature
+cd .worktrees\agent-feature
 go mod download
 go test ./... -count=1
 ```
@@ -67,8 +67,8 @@ go build -o bin/server ./cmd/server/...
 
 ```powershell
 cd d:\workspace\caichip
-git worktree remove .worktrees/bom-sourcing
-git branch -d feature/bom-sourcing
+git worktree remove .worktrees/agent-feature
+git branch -d feature/agent-feature
 ```
 
 （分支是否删除视团队策略而定。）
@@ -77,11 +77,12 @@ git branch -d feature/bom-sourcing
 
 ---
 
-## 与 BOM 计划的关系
+## 与本仓库计划的关系
 
 | 文档 | 说明 |
 |------|------|
-| [plans/2025-03-24-bom-sourcing-implementation.md](./plans/2025-03-24-bom-sourcing-implementation.md) | 在独立 worktree 中按 Task 执行 |
+| [plans/2026-03-24-agent-dispatch-mysql-implementation.md](./plans/2026-03-24-agent-dispatch-mysql-implementation.md) | Agent MySQL 调度落地 |
+| [plans/2026-03-24-agent-script-packages-implementation.md](./plans/2026-03-24-agent-script-packages-implementation.md) | 脚本包分发 |
 
 ---
 

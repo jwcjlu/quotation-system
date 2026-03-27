@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { createSession, uploadBOM, downloadTemplate, PLATFORM_IDS } from '../api'
+import { validateSessionHeaderFields, type ReadinessMode } from '../utils/sessionFields'
 
 const PARSE_MODES = [
   { value: 'auto', label: '通用模式', desc: '自动识别表头' },
@@ -16,9 +17,9 @@ const MAPPING_FIELDS = [
 ] as const
 
 interface UploadPageProps {
-  /** classic：仅 /api/v1/bom/upload；session：先 POST /bom-sessions 再带 session_id 上传 */
-  flow: 'classic' | 'session'
   onSuccess: (bomId: string) => void
+  /** 嵌入 BOM 列表页时紧凑排版，并避免与其它页面 file input id 冲突 */
+  embedded?: boolean
 }
 
 function readExcelHeaders(file: File): Promise<string[]> {
@@ -50,8 +51,14 @@ function readExcelHeaders(file: File): Promise<string[]> {
   })
 }
 
-export function UploadPage({ flow, onSuccess }: UploadPageProps) {
+export function UploadPage({ onSuccess, embedded }: UploadPageProps) {
+  const fid = embedded ? 'file-input-session-embedded' : 'file-input'
   const [sessionTitle, setSessionTitle] = useState('')
+  const [customerName, setCustomerName] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactExtra, setContactExtra] = useState('')
+  const [readinessMode, setReadinessMode] = useState<ReadinessMode>('lenient')
   const [sessionPlatforms, setSessionPlatforms] = useState<string[]>([...PLATFORM_IDS])
   const [file, setFile] = useState<File | null>(null)
   const [parseMode, setParseMode] = useState<string>('auto')
@@ -110,25 +117,36 @@ export function UploadPage({ flow, onSuccess }: UploadPageProps) {
       setError('自定义模式请至少配置「型号」列映射')
       return
     }
-    if (flow === 'session' && sessionPlatforms.length === 0) {
+    if (sessionPlatforms.length === 0) {
       setError('请至少勾选一个货源平台')
+      return
+    }
+    const fieldErr = validateSessionHeaderFields({
+      title: sessionTitle.trim(),
+      customerName: customerName.trim(),
+      contactPhone: contactPhone.trim(),
+      contactEmail: contactEmail.trim(),
+      contactExtra: contactExtra.trim(),
+    })
+    if (fieldErr) {
+      setError(fieldErr)
       return
     }
     setLoading(true)
     setError(null)
     try {
       const mapping = parseMode === 'custom' && Object.keys(columnMapping).length > 0 ? columnMapping : undefined
-      if (flow === 'session') {
-        const sess = await createSession({
-          title: sessionTitle.trim(),
-          platform_ids: sessionPlatforms,
-        })
-        const res = await uploadBOM(file, parseMode, mapping, { sessionId: sess.session_id })
-        onSuccess(res.bom_id)
-      } else {
-        const res = await uploadBOM(file, parseMode, mapping)
-        onSuccess(res.bom_id)
-      }
+      const sess = await createSession({
+        title: sessionTitle.trim(),
+        platform_ids: sessionPlatforms,
+        customer_name: customerName.trim(),
+        contact_phone: contactPhone.trim(),
+        contact_email: contactEmail.trim(),
+        contact_extra: contactExtra.trim(),
+        readiness_mode: readinessMode,
+      })
+      const res = await uploadBOM(file, parseMode, mapping, { sessionId: sess.session_id })
+      onSuccess(res.bom_id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '上传失败')
     } finally {
@@ -151,20 +169,31 @@ export function UploadPage({ flow, onSuccess }: UploadPageProps) {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-slate-800">
-          {flow === 'session' ? '货源会话 · BOM 上传' : 'BOM 单导入'}
+    <div className={embedded ? 'space-y-4' : 'space-y-8'}>
+      <div className={embedded ? 'text-left' : 'text-center'}>
+        <h2 className={embedded ? 'text-lg font-bold text-slate-800' : 'text-2xl font-bold text-slate-800'}>
+          {embedded ? '新建会话并上传 BOM' : '货源会话 · BOM 上传'}
         </h2>
-        <p className="text-slate-600 mt-1">
-          {flow === 'session'
-            ? '将创建会话并写入 bom_session_line，随后可在「会话看板」轮询就绪与行数据'
-            : '支持 Excel 格式，选择解析模式后上传'}
+        <p className="text-slate-600 mt-1 text-sm">
+          {embedded
+            ? '创建 bom_session 并写入行数据；下方可打开会话查看与行维护'
+            : '将创建会话并写入 bom_session_line，随后可在会话列表中打开详情'}
         </p>
       </div>
 
-      {flow === 'session' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">数据就绪策略</label>
+            <select
+              value={readinessMode}
+              onChange={(e) => setReadinessMode(e.target.value as ReadinessMode)}
+              className="w-full max-w-md border border-slate-300 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="lenient">宽松：各平台任务到终态即可标「数据已准备」</option>
+              <option value="strict">严格：每行至少一个平台为成功（succeeded）</option>
+            </select>
+            <p className="text-xs text-slate-500 mt-1">对应后端 readiness_mode（lenient / strict）</p>
+          </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">会话标题（可选）</label>
             <input
@@ -174,6 +203,48 @@ export function UploadPage({ flow, onSuccess }: UploadPageProps) {
               placeholder="例如：客户 A 询价单"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
             />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">客户名称</label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="选填"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">联系电话</label>
+              <input
+                type="text"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="选填"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">邮箱</label>
+              <input
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="选填"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1">备注 / 微信等</label>
+              <input
+                type="text"
+                value={contactExtra}
+                onChange={(e) => setContactExtra(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                placeholder="选填"
+              />
+            </div>
           </div>
           <div>
             <span className="block text-sm font-medium text-slate-700 mb-2">初始勾选平台（POST /bom-sessions）</span>
@@ -191,15 +262,14 @@ export function UploadPage({ flow, onSuccess }: UploadPageProps) {
             </div>
           </div>
         </div>
-      )}
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <div className={embedded ? 'grid md:grid-cols-2 gap-4' : 'grid md:grid-cols-2 gap-8'}>
         <div>
           <div
             onDrop={onDrop}
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
-            className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors ${
+            className={`border-2 border-dashed rounded-xl ${embedded ? 'p-6' : 'p-12'} text-center transition-colors ${
               dragOver ? 'border-blue-400 bg-blue-50' : 'border-slate-300 bg-white'
             }`}
           >
@@ -208,9 +278,9 @@ export function UploadPage({ flow, onSuccess }: UploadPageProps) {
               accept=".xlsx,.xls"
               onChange={onFileSelect}
               className="hidden"
-              id="file-input"
+              id={fid}
             />
-            <label htmlFor="file-input" className="cursor-pointer block">
+            <label htmlFor={fid} className="cursor-pointer block">
               <svg className="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>

@@ -2,7 +2,7 @@
 -- status: uploaded | published | archived
 -- 同一 script_id 在业务上至多一行 published（由 SetPublished 事务保证）
 
-CREATE TABLE IF NOT EXISTS agent_script_package (
+CREATE TABLE IF NOT EXISTS t_agent_script_package (
     id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     script_id          VARCHAR(128) NOT NULL,
     version            VARCHAR(64)  NOT NULL,

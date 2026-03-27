@@ -19,28 +19,23 @@ import (
 // Injectors from wire.go:
 
 func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) {
-	bomRepo := data.NewBOMRepo()
+	agentHub := biz.NewAgentHub(bootstrap)
 	dataData, cleanup, err := data.NewData(bootstrap)
 	if err != nil {
 		return nil, nil, err
 	}
-	bomSessionRepo := data.NewBOMSessionRepo(dataData)
 	dispatchTaskRepo := data.NewDispatchTaskRepo(dataData)
-	bomSearchTaskRepo := data.NewBOMSearchTaskRepo(dataData, dispatchTaskRepo, bootstrap)
-	bomUseCase := biz.NewBOMUseCase(bomRepo, bomSessionRepo, bomSearchTaskRepo)
-	bomSessionUseCase := biz.NewBOMSessionUseCase(bomSessionRepo)
-	searchRepo := data.NewSearchRepo(bomRepo)
-	matchUseCase := biz.NewMatchUseCase(bomRepo, searchRepo)
-	bomMatchHistoryRepo := data.NewBOMMatchHistoryRepo(dataData)
-	bomService := service.NewBomService(bomUseCase, bomSessionUseCase, matchUseCase, searchRepo, bomMatchHistoryRepo, bomSearchTaskRepo, bootstrap, logger)
-	agentHub := biz.NewAgentHub(bootstrap)
 	agentRegistryRepo := data.NewAgentRegistryRepo(dataData)
+	taskScheduler := biz.NewAgentTaskScheduler(agentHub, dispatchTaskRepo, agentRegistryRepo, bootstrap)
 	agentScriptPackageRepo := data.NewAgentScriptPackageRepo(dataData)
-	agentService := service.NewAgentService(agentHub, dispatchTaskRepo, agentRegistryRepo, agentScriptPackageRepo, bomSearchTaskRepo, bootstrap, logger)
+	bomSearchTaskRepo := data.NewBOMSearchTaskRepo(dataData)
+	bomSessionRepo := data.NewBomSessionRepo(dataData)
+	agentService := service.NewAgentService(agentHub, taskScheduler, dispatchTaskRepo, agentRegistryRepo, agentScriptPackageRepo, bomSearchTaskRepo, bomSessionRepo, bootstrap, logger)
 	scriptPackageAdmin := service.NewScriptPackageAdmin(bootstrap, agentScriptPackageRepo, logger)
-	httpServer := server.NewHTTPServer(bootstrap, logger, bomService, agentService, scriptPackageAdmin)
-	grpcServer := server.NewGRPCServer(bootstrap, logger, bomService)
-	app := newApp(bootstrap, logger, httpServer, grpcServer)
+	bomMergeDispatch := data.NewBomMergeDispatch(dataData, dispatchTaskRepo, bomSearchTaskRepo, bomSessionRepo)
+	bomService := service.NewBomService(bomSessionRepo, bomSearchTaskRepo, bomMergeDispatch, logger)
+	httpServer := server.NewHTTPServer(bootstrap, logger, agentService, scriptPackageAdmin, bomService)
+	app := newApp(bootstrap, logger, httpServer)
 	return app, func() {
 		cleanup()
 	}, nil

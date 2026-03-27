@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	v1 "caichip/api/agent/v1"
-	"caichip/internal/data"
+	"caichip/internal/biz"
 	"caichip/internal/pkg/versionutil"
 )
 
-func needsScriptSync(pub *data.AgentScriptPackage, row *v1.ScriptRow) bool {
+func needsScriptSync(pub *biz.PublishedScriptMeta, row *v1.ScriptRow) bool {
 	if pub == nil {
 		return false
 	}
@@ -44,7 +44,7 @@ func buildDownloadURL(publicBaseURL, urlPrefix, storageRelPath string) string {
 }
 
 func buildSyncActionsForPlatform(
-	published []*data.AgentScriptPackage,
+	published []biz.PublishedScriptMeta,
 	reported []*v1.ScriptRow,
 	publicBaseURL, urlPrefix string,
 ) []*v1.SyncAction {
@@ -60,8 +60,9 @@ func buildSyncActionsForPlatform(
 		rep[sid] = row
 	}
 	var out []*v1.SyncAction
-	for _, pub := range published {
-		if pub == nil || !strings.EqualFold(strings.TrimSpace(pub.Status), "published") {
+	for i := range published {
+		pub := &published[i]
+		if !strings.EqualFold(strings.TrimSpace(pub.Status), "published") {
 			continue
 		}
 		if !needsScriptSync(pub, rep[pub.ScriptID]) {

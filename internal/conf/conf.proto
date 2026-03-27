@@ -39,6 +39,8 @@ message Data {
 message DataDatabase {
   string driver = 1;
   string dsn = 2;
+  // 未设置或 true：连接成功后执行 GORM AutoMigrate（建表/补列/补简单索引）；显式 false 时跳过（生产可用手工 SQL）。
+  optional bool auto_migrate = 3;
 }
 
 message DataRedis {

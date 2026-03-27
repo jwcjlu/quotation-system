@@ -4,11 +4,9 @@ import "github.com/google/wire"
 
 var ProviderSet = wire.NewSet(
 	NewData,
-	NewBOMRepo,
-	NewSearchRepo,
-	NewBOMSessionRepo,
 	NewBOMSearchTaskRepo,
-	NewBOMMatchHistoryRepo,
+	NewBomSessionRepo,
+	NewBomMergeDispatch,
 	NewAgentScriptPackageRepo,
 	NewDispatchTaskRepo,
 	NewAgentRegistryRepo,

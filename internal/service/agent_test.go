@@ -25,7 +25,9 @@ func testAgentConf() *conf.Bootstrap {
 }
 
 func TestAgentService_Auth(t *testing.T) {
-	s := NewAgentService(biz.NewAgentHub(testAgentConf()), nil, nil, nil, nil, testAgentConf(), log.DefaultLogger)
+	bc := testAgentConf()
+	h := biz.NewAgentHub(bc)
+	s := NewAgentService(h, biz.NewAgentTaskScheduler(h, nil, nil, bc), nil, nil, nil, nil, nil, bc, log.DefaultLogger)
 	if s.ValidateAPIKey("", "") {
 		t.Fatal("empty should fail")
 	}
@@ -40,7 +42,7 @@ func TestAgentService_Auth(t *testing.T) {
 func TestAgentService_TaskHeartbeatPull(t *testing.T) {
 	bc := testAgentConf()
 	h := biz.NewAgentHub(bc)
-	s := NewAgentService(h, nil, nil, nil, nil, bc, log.DefaultLogger)
+	s := NewAgentService(h, biz.NewAgentTaskScheduler(h, nil, nil, bc), nil, nil, nil, nil, nil, bc, log.DefaultLogger)
 	h.EnqueueTask(&biz.QueuedTask{
 		TaskMessage: biz.TaskMessage{
 			TaskID:   "tid-1",

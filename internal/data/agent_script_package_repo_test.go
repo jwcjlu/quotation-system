@@ -10,7 +10,7 @@ import (
 )
 
 const agentScriptPackageDDL = `
-CREATE TABLE IF NOT EXISTS agent_script_package (
+CREATE TABLE IF NOT EXISTS t_agent_script_package (
     id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     script_id          VARCHAR(128) NOT NULL,
     version            VARCHAR(64)  NOT NULL,
@@ -56,7 +56,7 @@ func TestAgentScriptPackageRepo_PublishRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := sqlDB.ExecContext(context.Background(), "DROP TABLE IF EXISTS agent_script_package"); err != nil {
+	if _, err := sqlDB.ExecContext(context.Background(), "DROP TABLE IF EXISTS t_agent_script_package"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := sqlDB.ExecContext(context.Background(), agentScriptPackageDDL); err != nil {

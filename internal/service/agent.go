@@ -9,7 +9,6 @@ import (
 	v1 "caichip/api/agent/v1"
 	"caichip/internal/biz"
 	"caichip/internal/conf"
-	"caichip/internal/data"
 
 	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
@@ -20,20 +19,31 @@ import (
 type AgentService struct {
 	hub          *biz.AgentHub
 	sched        biz.TaskScheduler
-	dispatchRepo *data.DispatchTaskRepo
-	registry     *data.AgentRegistryRepo
+	dispatchRepo biz.DispatchTaskRepo
+	registry     biz.AgentRegistryRepo
 	log          *log.Helper
 	keys         map[string]struct{}
 	longPollMax  int
 	enabled      bool
 	devEnqueue   bool
 	bc           *conf.Bootstrap
-	scriptRepo   *data.AgentScriptPackageRepo
-	bomSearch    *data.BOMSearchTaskRepo
+	scriptLister biz.AgentScriptPublishedLister
+	bomSearch    biz.BOMSearchTaskRepo
+	bomSession   biz.BOMSessionRepo
 }
 
 // NewAgentService 创建 Agent 服务；未配置 agent 或 enabled=false 时路由可不注册。
-func NewAgentService(hub *biz.AgentHub, dispatchRepo *data.DispatchTaskRepo, registry *data.AgentRegistryRepo, scriptRepo *data.AgentScriptPackageRepo, bomSearch *data.BOMSearchTaskRepo, bc *conf.Bootstrap, logger log.Logger) *AgentService {
+func NewAgentService(
+	hub *biz.AgentHub,
+	sched biz.TaskScheduler,
+	dispatchRepo biz.DispatchTaskRepo,
+	registry biz.AgentRegistryRepo,
+	scriptLister biz.AgentScriptPublishedLister,
+	bomSearch biz.BOMSearchTaskRepo,
+	bomSession biz.BOMSessionRepo,
+	bc *conf.Bootstrap,
+	logger log.Logger,
+) *AgentService {
 	keys := make(map[string]struct{})
 	enabled := false
 	devEnq := false
@@ -51,7 +61,6 @@ func NewAgentService(hub *biz.AgentHub, dispatchRepo *data.DispatchTaskRepo, reg
 			maxSec = int(a.LongPollMaxSec)
 		}
 	}
-	sched := newTaskScheduler(hub, dispatchRepo, registry, bc)
 	return &AgentService{
 		hub:          hub,
 		sched:        sched,
@@ -63,8 +72,9 @@ func NewAgentService(hub *biz.AgentHub, dispatchRepo *data.DispatchTaskRepo, reg
 		enabled:      enabled,
 		devEnqueue:   devEnq,
 		bc:           bc,
-		scriptRepo:   scriptRepo,
+		scriptLister: scriptLister,
 		bomSearch:    bomSearch,
+		bomSession:   bomSession,
 	}
 }
 
@@ -115,7 +125,7 @@ func (s *AgentService) TaskHeartbeat(ctx context.Context, req *v1.TaskHeartbeatR
 		}
 	}
 	s.sched.UpdateAgentMeta(req.GetAgentId(), req.GetQueue(), req.GetTags(), scripts)
-	if mysqlDispatchReady(s.bc, s.dispatchRepo, s.registry) {
+	if biz.MySQLDispatchReady(s.bc, s.dispatchRepo, s.registry) {
 		_ = s.registry.UpsertTaskHeartbeat(ctx, req.GetAgentId(), req.GetQueue(), req.GetHostname(), scripts, req.GetTags())
 	}
 
@@ -204,7 +214,7 @@ func (s *AgentService) ScriptSyncHeartbeat(ctx context.Context, req *v1.ScriptSy
 	}
 	var actions []*v1.SyncAction
 	if s.scriptStoreSyncEnabled() {
-		published, err := s.scriptRepo.ListAllPublished(ctx)
+		published, err := s.scriptLister.ListPublishedScripts(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -229,7 +239,7 @@ func (s *AgentService) scriptStoreSyncEnabled() bool {
 	if s.bc == nil || s.bc.ScriptStore == nil || !s.bc.ScriptStore.Enabled {
 		return false
 	}
-	return s.scriptRepo != nil && s.scriptRepo.DBOk()
+	return s.scriptLister != nil && s.scriptLister.DBOk()
 }
 
 // TaskResult 任务结果上报。
@@ -266,28 +276,17 @@ func (s *AgentService) maybeApplyBOMQuotesFromTaskStdout(ctx context.Context, re
 	if s == nil || s.bomSearch == nil || !s.bomSearch.DBOk() {
 		return
 	}
-	if !strings.EqualFold(strings.TrimSpace(req.GetStatus()), "success") {
-		return
-	}
-	if strings.TrimSpace(req.GetStdout()) == "" {
-		return
-	}
-	row, err := s.bomSearch.LoadSearchTaskByCaichipTaskID(ctx, req.GetTaskId())
+	applied, err := biz.ApplyBOMQuotesFromAgentStdout(ctx, s.bomSearch, s.bomSession, req.GetTaskId(), req.GetStatus(), req.GetStdout())
 	if err != nil {
-		s.log.Warnf("task result: load bom_search_task by caichip_task_id=%q: %v", req.GetTaskId(), err)
+		if errors.Is(err, biz.ErrBOMQuotesStdoutParseRejected) {
+			s.log.Warnf("task result: stdout quotes not parseable or rejected task_id=%q", req.GetTaskId())
+			return
+		}
+		s.log.Warnf("task result: bom stdout apply task_id=%q: %v", req.GetTaskId(), err)
 		return
 	}
-	if row == nil {
+	if applied {
 		return
-	}
-	quotes, ok := parseTaskStdoutQuotes(req.GetStdout())
-	if !ok {
-		s.log.Warnf("task result: stdout quotes not parseable or rejected task_id=%q", req.GetTaskId())
-		return
-	}
-	tid := strings.TrimSpace(req.GetTaskId())
-	if err := s.bomSearch.FinalizeSearchTask(ctx, row.SessionID, row.MpnNorm, row.PlatformID, row.BizDate, tid, "succeeded_quotes", nil, "ok", quotes, nil); err != nil {
-		s.log.Warnf("task result: FinalizeSearchTask from agent stdout session=%s mpn=%s platform=%s: %v", row.SessionID, row.MpnNorm, row.PlatformID, err)
 	}
 }
 

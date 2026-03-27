@@ -16,7 +16,12 @@ import (
 
 func wireApp(*conf.Bootstrap, log.Logger) (*kratos.App, func(), error) {
 	panic(wire.Build(
-		wire.Bind(new(biz.BOMSearchTaskEnsurer), new(*data.BOMSearchTaskRepo)),
+		wire.Bind(new(biz.DispatchTaskRepo), new(*data.DispatchTaskRepo)),
+		wire.Bind(new(biz.AgentRegistryRepo), new(*data.AgentRegistryRepo)),
+		wire.Bind(new(biz.BOMSearchTaskRepo), new(*data.BOMSearchTaskRepo)),
+		wire.Bind(new(biz.BOMSessionRepo), new(*data.BomSessionRepo)),
+		wire.Bind(new(biz.MergeDispatchExecutor), new(*data.BomMergeDispatch)),
+		wire.Bind(new(biz.AgentScriptPublishedLister), new(*data.AgentScriptPackageRepo)),
 		server.ProviderSet,
 		data.ProviderSet,
 		biz.ProviderSet,

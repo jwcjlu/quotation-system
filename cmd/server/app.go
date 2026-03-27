@@ -5,11 +5,10 @@ import (
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/kratos/v2/transport/http"
 )
 
-func newApp(bc *conf.Bootstrap, logger log.Logger, hs *http.Server, gs *grpc.Server) *kratos.App {
+func newApp(bc *conf.Bootstrap, logger log.Logger, hs *http.Server) *kratos.App {
 	addr := ":8000"
 	if bc != nil && bc.Server != nil && bc.Server.Http != nil {
 		addr = bc.Server.Http.Addr
@@ -20,9 +19,6 @@ func newApp(bc *conf.Bootstrap, logger log.Logger, hs *http.Server, gs *grpc.Ser
 		kratos.Version("1.0"),
 		kratos.Metadata(map[string]string{}),
 		kratos.Logger(logger),
-		kratos.Server(
-			hs,
-			gs,
-		),
+		kratos.Server(hs),
 	)
 }

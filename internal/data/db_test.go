@@ -7,6 +7,38 @@ import (
 	"caichip/internal/conf"
 )
 
+func TestMysqlDSNWithParseTime(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"", ""},
+		{"u:p@tcp(h:3306)/db", "u:p@tcp(h:3306)/db?parseTime=true"},
+		{"u:p@tcp(h:3306)/db?charset=utf8mb4", "u:p@tcp(h:3306)/db?charset=utf8mb4&parseTime=true"},
+		{"u:p@tcp(h:3306)/db?parseTime=true", "u:p@tcp(h:3306)/db?parseTime=true"},
+		{"u:p@tcp(h:3306)/db?parseTime=true&charset=utf8mb4", "u:p@tcp(h:3306)/db?parseTime=true&charset=utf8mb4"},
+	}
+	for _, tt := range tests {
+		if got := mysqlDSNWithParseTime(tt.in); got != tt.want {
+			t.Errorf("mysqlDSNWithParseTime(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestMysqlDSNWithReadWriteTimeout(t *testing.T) {
+	tests := []struct {
+		in, want string
+	}{
+		{"", ""},
+		{"u:p@tcp(h:3306)/db?parseTime=true", "u:p@tcp(h:3306)/db?parseTime=true&readTimeout=60s&writeTimeout=60s"},
+		{"u:p@tcp(h:3306)/db?charset=utf8mb4&readTimeout=10s", "u:p@tcp(h:3306)/db?charset=utf8mb4&readTimeout=10s"},
+	}
+	for _, tt := range tests {
+		if got := mysqlDSNWithReadWriteTimeout(tt.in); got != tt.want {
+			t.Errorf("mysqlDSNWithReadWriteTimeout(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
 func TestDatabasePing(t *testing.T) {
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {

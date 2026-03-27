@@ -53,7 +53,7 @@ service BomService {
     };
   }
 
-  // ---------- BOM 会话（货源搜索 / 轮询就绪，见 docs/BOM货源搜索-接口清单.md）----------
+  // ---------- BOM 会话（货源搜索 / 轮询就绪）----------
 
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply) {
     option (google.api.http) = {
@@ -65,6 +65,21 @@ service BomService {
   rpc GetSession(GetSessionRequest) returns (GetSessionReply) {
     option (google.api.http) = {
       get: "/api/v1/bom-sessions/{session_id}"
+    };
+  }
+
+  // 会话列表（分页、筛选）
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-sessions"
+    };
+  }
+
+  // 更新会话头信息（标题、客户联系方式等）
+  rpc PatchSession(PatchSessionRequest) returns (GetSessionReply) {
+    option (google.api.http) = {
+      patch: "/api/v1/bom-sessions/{session_id}"
+      body: "*"
     };
   }
 
@@ -87,6 +102,36 @@ service BomService {
     };
   }
 
+  // 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
+  rpc GetSessionSearchTaskCoverage(GetSessionSearchTaskCoverageRequest) returns (GetSessionSearchTaskCoverageReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-sessions/{session_id}/search-tasks/coverage"
+    };
+  }
+
+  // 追加一行
+  rpc CreateSessionLine(CreateSessionLineRequest) returns (CreateSessionLineReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions/{session_id}/lines"
+      body: "*"
+    };
+  }
+
+  // 更新一行
+  rpc PatchSessionLine(PatchSessionLineRequest) returns (PatchSessionLineReply) {
+    option (google.api.http) = {
+      patch: "/api/v1/bom-sessions/{session_id}/lines/{line_id}"
+      body: "*"
+    };
+  }
+
+  // 删除一行
+  rpc DeleteSessionLine(DeleteSessionLineRequest) returns (DeleteSessionLineReply) {
+    option (google.api.http) = {
+      delete: "/api/v1/bom-sessions/{session_id}/lines/{line_id}"
+    };
+  }
+
   rpc RetrySearchTasks(RetrySearchTasksRequest) returns (RetrySearchTasksReply) {
     option (google.api.http) = {
       post: "/api/v1/bom-sessions/{session_id}/search-tasks/retry"
@@ -102,24 +147,10 @@ service BomService {
     };
   }
 
-  // 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
+  // 导出会话 BOM 行（Excel/CSV）
   rpc ExportSession(ExportSessionRequest) returns (ExportSessionReply) {
     option (google.api.http) = {
       get: "/api/v1/bom-sessions/{session_id}/export"
-    };
-  }
-
-  // 配单历史列表
-  rpc ListMatchHistory(ListMatchHistoryRequest) returns (ListMatchHistoryReply) {
-    option (google.api.http) = {
-      get: "/api/v1/bom-match-history"
-    };
-  }
-
-  // 配单历史详情（快照）
-  rpc GetMatchHistory(GetMatchHistoryRequest) returns (GetMatchHistoryReply) {
-    option (google.api.http) = {
-      get: "/api/v1/bom-match-history/{match_result_id}"
     };
   }
 }
@@ -244,6 +275,12 @@ message DownloadTemplateReply {
 message CreateSessionRequest {
   string title = 1;
   repeated string platform_ids = 2;
+  string customer_name = 3;
+  string contact_phone = 4;
+  string contact_email = 5;
+  string contact_extra = 6;
+  // 数据就绪判定：lenient=各平台终态即可；strict=每行至少一平台 succeeded（见设计 §2.3）
+  optional string readiness_mode = 7;
 }
 
 message CreateSessionReply {
@@ -263,6 +300,44 @@ message GetSessionReply {
   string biz_date = 4;
   int32 selection_revision = 5;
   repeated string platform_ids = 6;
+  string customer_name = 7;
+  string contact_phone = 8;
+  string contact_email = 9;
+  string contact_extra = 10;
+  string readiness_mode = 11;
+}
+
+message ListSessionsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string status = 3;
+  string biz_date = 4;
+  string q = 5;
+}
+
+message SessionListItem {
+  string session_id = 1;
+  string title = 2;
+  string customer_name = 3;
+  string status = 4;
+  string biz_date = 5;
+  string updated_at = 6;
+  int32 line_count = 7;
+}
+
+message ListSessionsReply {
+  repeated SessionListItem items = 1;
+  int32 total = 2;
+}
+
+message PatchSessionRequest {
+  string session_id = 1;
+  optional string title = 2;
+  optional string customer_name = 3;
+  optional string contact_phone = 4;
+  optional string contact_email = 5;
+  optional string contact_extra = 6;
+  optional string readiness_mode = 7;
 }
 
 message PutPlatformsRequest {
@@ -310,11 +385,71 @@ message PlatformGap {
   string message = 4;
   int32 auto_attempt = 5;
   int32 manual_attempt = 6;
+  // 四态：pending | searching | succeeded | failed | missing（缺任务行）
+  string search_ui_state = 7;
+}
+
+message GetSessionSearchTaskCoverageRequest {
+  string session_id = 1;
+}
+
+message SearchTaskMissingItem {
+  string line_id = 1;
+  int32 line_no = 2;
+  string mpn_norm = 3;
+  string platform_id = 4;
+  string reason = 5;
+}
+
+message GetSessionSearchTaskCoverageReply {
+  bool consistent = 1;
+  int32 orphan_task_count = 2;
+  int32 expected_task_count = 3;
+  int32 existing_task_count = 4;
+  repeated SearchTaskMissingItem missing_tasks = 5;
 }
 
 message GetBOMLinesReply {
   repeated BOMLineRow lines = 1;
 }
+
+message CreateSessionLineRequest {
+  string session_id = 1;
+  string mpn = 2;
+  string mfr = 3;
+  string package = 4;
+  double qty = 5;
+  string raw = 6;
+  string extra_json = 7;
+}
+
+message CreateSessionLineReply {
+  string line_id = 1;
+  int32 line_no = 2;
+}
+
+message PatchSessionLineRequest {
+  string session_id = 1;
+  string line_id = 2;
+  optional string mpn = 3;
+  optional string mfr = 4;
+  optional string package = 5;
+  optional double qty = 6;
+  optional string raw = 7;
+  optional string extra_json = 8;
+}
+
+message PatchSessionLineReply {
+  string line_id = 1;
+  int32 line_no = 2;
+}
+
+message DeleteSessionLineRequest {
+  string session_id = 1;
+  string line_id = 2;
+}
+
+message DeleteSessionLineReply {}
 
 message RetrySearchTasksRequest {
   string session_id = 1;
@@ -347,7 +482,7 @@ message SubmitBomSearchResultReply {
   string server_time = 2;
 }
 
-// ---------- Export & history（接口清单 §7）----------
+// ---------- Export ----------
 message ExportSessionRequest {
   string session_id = 1;
   // xlsx | csv，缺省 xlsx
@@ -357,37 +492,4 @@ message ExportSessionRequest {
 message ExportSessionReply {
   bytes file = 1;
   string filename = 2;
-}
-
-message ListMatchHistoryRequest {
-  int32 page = 1;
-  int32 page_size = 2;
-}
-
-message MatchHistoryItem {
-  int64 match_result_id = 1;
-  string session_id = 2;
-  int32 version = 3;
-  string strategy = 4;
-  string created_at = 5;
-  double total_amount = 6;
-}
-
-message ListMatchHistoryReply {
-  repeated MatchHistoryItem items = 1;
-  int32 total = 2;
-}
-
-message GetMatchHistoryRequest {
-  int64 match_result_id = 1;
-}
-
-message GetMatchHistoryReply {
-  int64 match_result_id = 1;
-  string session_id = 2;
-  int32 version = 3;
-  string strategy = 4;
-  string created_at = 5;
-  double total_amount = 6;
-  repeated MatchItem items = 7;
 }

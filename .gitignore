@@ -1,0 +1,13 @@
+# Git worktrees（Superpowers / 独立分支开发，勿提交 worktree 内容）
+.worktrees/
+worktrees/
+
+bin/
+
+# 爬虫落盘调试用 HTML（勿提交大文件）
+szlcsc_page_*.html
+ickey_page_*.html
+debug_page.html
+findchips_page_*.html
+findchips_20*.html
+findchips_products.validate.json

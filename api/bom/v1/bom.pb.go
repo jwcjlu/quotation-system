@@ -1103,9 +1103,15 @@ func (x *DownloadTemplateReply) GetFilename() string {
 
 // ---------- Session ----------
 type CreateSessionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
-	PlatformIds   []string               `protobuf:"bytes,2,rep,name=platform_ids,json=platformIds,proto3" json:"platform_ids,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Title        string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
+	PlatformIds  []string               `protobuf:"bytes,2,rep,name=platform_ids,json=platformIds,proto3" json:"platform_ids,omitempty"`
+	CustomerName string                 `protobuf:"bytes,3,opt,name=customer_name,json=customerName,proto3" json:"customer_name,omitempty"`
+	ContactPhone string                 `protobuf:"bytes,4,opt,name=contact_phone,json=contactPhone,proto3" json:"contact_phone,omitempty"`
+	ContactEmail string                 `protobuf:"bytes,5,opt,name=contact_email,json=contactEmail,proto3" json:"contact_email,omitempty"`
+	ContactExtra string                 `protobuf:"bytes,6,opt,name=contact_extra,json=contactExtra,proto3" json:"contact_extra,omitempty"`
+	// 数据就绪判定：lenient=各平台终态即可；strict=每行至少一平台 succeeded（见设计 §2.3）
+	ReadinessMode *string `protobuf:"bytes,7,opt,name=readiness_mode,json=readinessMode,proto3,oneof" json:"readiness_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1152,6 +1158,41 @@ func (x *CreateSessionRequest) GetPlatformIds() []string {
 		return x.PlatformIds
 	}
 	return nil
+}
+
+func (x *CreateSessionRequest) GetCustomerName() string {
+	if x != nil {
+		return x.CustomerName
+	}
+	return ""
+}
+
+func (x *CreateSessionRequest) GetContactPhone() string {
+	if x != nil {
+		return x.ContactPhone
+	}
+	return ""
+}
+
+func (x *CreateSessionRequest) GetContactEmail() string {
+	if x != nil {
+		return x.ContactEmail
+	}
+	return ""
+}
+
+func (x *CreateSessionRequest) GetContactExtra() string {
+	if x != nil {
+		return x.ContactExtra
+	}
+	return ""
+}
+
+func (x *CreateSessionRequest) GetReadinessMode() string {
+	if x != nil && x.ReadinessMode != nil {
+		return *x.ReadinessMode
+	}
+	return ""
 }
 
 type CreateSessionReply struct {
@@ -1266,6 +1307,11 @@ type GetSessionReply struct {
 	BizDate           string                 `protobuf:"bytes,4,opt,name=biz_date,json=bizDate,proto3" json:"biz_date,omitempty"`
 	SelectionRevision int32                  `protobuf:"varint,5,opt,name=selection_revision,json=selectionRevision,proto3" json:"selection_revision,omitempty"`
 	PlatformIds       []string               `protobuf:"bytes,6,rep,name=platform_ids,json=platformIds,proto3" json:"platform_ids,omitempty"`
+	CustomerName      string                 `protobuf:"bytes,7,opt,name=customer_name,json=customerName,proto3" json:"customer_name,omitempty"`
+	ContactPhone      string                 `protobuf:"bytes,8,opt,name=contact_phone,json=contactPhone,proto3" json:"contact_phone,omitempty"`
+	ContactEmail      string                 `protobuf:"bytes,9,opt,name=contact_email,json=contactEmail,proto3" json:"contact_email,omitempty"`
+	ContactExtra      string                 `protobuf:"bytes,10,opt,name=contact_extra,json=contactExtra,proto3" json:"contact_extra,omitempty"`
+	ReadinessMode     string                 `protobuf:"bytes,11,opt,name=readiness_mode,json=readinessMode,proto3" json:"readiness_mode,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -1342,6 +1388,353 @@ func (x *GetSessionReply) GetPlatformIds() []string {
 	return nil
 }
 
+func (x *GetSessionReply) GetCustomerName() string {
+	if x != nil {
+		return x.CustomerName
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetContactPhone() string {
+	if x != nil {
+		return x.ContactPhone
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetContactEmail() string {
+	if x != nil {
+		return x.ContactEmail
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetContactExtra() string {
+	if x != nil {
+		return x.ContactExtra
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetReadinessMode() string {
+	if x != nil {
+		return x.ReadinessMode
+	}
+	return ""
+}
+
+type ListSessionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	BizDate       string                 `protobuf:"bytes,4,opt,name=biz_date,json=bizDate,proto3" json:"biz_date,omitempty"`
+	Q             string                 `protobuf:"bytes,5,opt,name=q,proto3" json:"q,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSessionsRequest) Reset() {
+	*x = ListSessionsRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSessionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSessionsRequest) ProtoMessage() {}
+
+func (x *ListSessionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSessionsRequest.ProtoReflect.Descriptor instead.
+func (*ListSessionsRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ListSessionsRequest) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListSessionsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListSessionsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListSessionsRequest) GetBizDate() string {
+	if x != nil {
+		return x.BizDate
+	}
+	return ""
+}
+
+func (x *ListSessionsRequest) GetQ() string {
+	if x != nil {
+		return x.Q
+	}
+	return ""
+}
+
+type SessionListItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	CustomerName  string                 `protobuf:"bytes,3,opt,name=customer_name,json=customerName,proto3" json:"customer_name,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	BizDate       string                 `protobuf:"bytes,5,opt,name=biz_date,json=bizDate,proto3" json:"biz_date,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	LineCount     int32                  `protobuf:"varint,7,opt,name=line_count,json=lineCount,proto3" json:"line_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionListItem) Reset() {
+	*x = SessionListItem{}
+	mi := &file_bom_v1_bom_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionListItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionListItem) ProtoMessage() {}
+
+func (x *SessionListItem) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionListItem.ProtoReflect.Descriptor instead.
+func (*SessionListItem) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *SessionListItem) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SessionListItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *SessionListItem) GetCustomerName() string {
+	if x != nil {
+		return x.CustomerName
+	}
+	return ""
+}
+
+func (x *SessionListItem) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *SessionListItem) GetBizDate() string {
+	if x != nil {
+		return x.BizDate
+	}
+	return ""
+}
+
+func (x *SessionListItem) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *SessionListItem) GetLineCount() int32 {
+	if x != nil {
+		return x.LineCount
+	}
+	return 0
+}
+
+type ListSessionsReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*SessionListItem     `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSessionsReply) Reset() {
+	*x = ListSessionsReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSessionsReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSessionsReply) ProtoMessage() {}
+
+func (x *ListSessionsReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSessionsReply.ProtoReflect.Descriptor instead.
+func (*ListSessionsReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ListSessionsReply) GetItems() []*SessionListItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListSessionsReply) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type PatchSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Title         *string                `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	CustomerName  *string                `protobuf:"bytes,3,opt,name=customer_name,json=customerName,proto3,oneof" json:"customer_name,omitempty"`
+	ContactPhone  *string                `protobuf:"bytes,4,opt,name=contact_phone,json=contactPhone,proto3,oneof" json:"contact_phone,omitempty"`
+	ContactEmail  *string                `protobuf:"bytes,5,opt,name=contact_email,json=contactEmail,proto3,oneof" json:"contact_email,omitempty"`
+	ContactExtra  *string                `protobuf:"bytes,6,opt,name=contact_extra,json=contactExtra,proto3,oneof" json:"contact_extra,omitempty"`
+	ReadinessMode *string                `protobuf:"bytes,7,opt,name=readiness_mode,json=readinessMode,proto3,oneof" json:"readiness_mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PatchSessionRequest) Reset() {
+	*x = PatchSessionRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PatchSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PatchSessionRequest) ProtoMessage() {}
+
+func (x *PatchSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PatchSessionRequest.ProtoReflect.Descriptor instead.
+func (*PatchSessionRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *PatchSessionRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *PatchSessionRequest) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *PatchSessionRequest) GetCustomerName() string {
+	if x != nil && x.CustomerName != nil {
+		return *x.CustomerName
+	}
+	return ""
+}
+
+func (x *PatchSessionRequest) GetContactPhone() string {
+	if x != nil && x.ContactPhone != nil {
+		return *x.ContactPhone
+	}
+	return ""
+}
+
+func (x *PatchSessionRequest) GetContactEmail() string {
+	if x != nil && x.ContactEmail != nil {
+		return *x.ContactEmail
+	}
+	return ""
+}
+
+func (x *PatchSessionRequest) GetContactExtra() string {
+	if x != nil && x.ContactExtra != nil {
+		return *x.ContactExtra
+	}
+	return ""
+}
+
+func (x *PatchSessionRequest) GetReadinessMode() string {
+	if x != nil && x.ReadinessMode != nil {
+		return *x.ReadinessMode
+	}
+	return ""
+}
+
 type PutPlatformsRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	SessionId        string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -1353,7 +1746,7 @@ type PutPlatformsRequest struct {
 
 func (x *PutPlatformsRequest) Reset() {
 	*x = PutPlatformsRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[20]
+	mi := &file_bom_v1_bom_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1365,7 +1758,7 @@ func (x *PutPlatformsRequest) String() string {
 func (*PutPlatformsRequest) ProtoMessage() {}
 
 func (x *PutPlatformsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[20]
+	mi := &file_bom_v1_bom_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1378,7 +1771,7 @@ func (x *PutPlatformsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutPlatformsRequest.ProtoReflect.Descriptor instead.
 func (*PutPlatformsRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{20}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *PutPlatformsRequest) GetSessionId() string {
@@ -1411,7 +1804,7 @@ type PutPlatformsReply struct {
 
 func (x *PutPlatformsReply) Reset() {
 	*x = PutPlatformsReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[21]
+	mi := &file_bom_v1_bom_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1423,7 +1816,7 @@ func (x *PutPlatformsReply) String() string {
 func (*PutPlatformsReply) ProtoMessage() {}
 
 func (x *PutPlatformsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[21]
+	mi := &file_bom_v1_bom_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1436,7 +1829,7 @@ func (x *PutPlatformsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PutPlatformsReply.ProtoReflect.Descriptor instead.
 func (*PutPlatformsReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{21}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *PutPlatformsReply) GetSelectionRevision() int32 {
@@ -1455,7 +1848,7 @@ type GetReadinessRequest struct {
 
 func (x *GetReadinessRequest) Reset() {
 	*x = GetReadinessRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[22]
+	mi := &file_bom_v1_bom_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1467,7 +1860,7 @@ func (x *GetReadinessRequest) String() string {
 func (*GetReadinessRequest) ProtoMessage() {}
 
 func (x *GetReadinessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[22]
+	mi := &file_bom_v1_bom_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1480,7 +1873,7 @@ func (x *GetReadinessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReadinessRequest.ProtoReflect.Descriptor instead.
 func (*GetReadinessRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{22}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetReadinessRequest) GetSessionId() string {
@@ -1504,7 +1897,7 @@ type GetReadinessReply struct {
 
 func (x *GetReadinessReply) Reset() {
 	*x = GetReadinessReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[23]
+	mi := &file_bom_v1_bom_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1516,7 +1909,7 @@ func (x *GetReadinessReply) String() string {
 func (*GetReadinessReply) ProtoMessage() {}
 
 func (x *GetReadinessReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[23]
+	mi := &file_bom_v1_bom_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1529,7 +1922,7 @@ func (x *GetReadinessReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetReadinessReply.ProtoReflect.Descriptor instead.
 func (*GetReadinessReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{23}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetReadinessReply) GetSessionId() string {
@@ -1583,7 +1976,7 @@ type GetBOMLinesRequest struct {
 
 func (x *GetBOMLinesRequest) Reset() {
 	*x = GetBOMLinesRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[24]
+	mi := &file_bom_v1_bom_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1595,7 +1988,7 @@ func (x *GetBOMLinesRequest) String() string {
 func (*GetBOMLinesRequest) ProtoMessage() {}
 
 func (x *GetBOMLinesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[24]
+	mi := &file_bom_v1_bom_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1608,7 +2001,7 @@ func (x *GetBOMLinesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBOMLinesRequest.ProtoReflect.Descriptor instead.
 func (*GetBOMLinesRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{24}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetBOMLinesRequest) GetSessionId() string {
@@ -1634,7 +2027,7 @@ type BOMLineRow struct {
 
 func (x *BOMLineRow) Reset() {
 	*x = BOMLineRow{}
-	mi := &file_bom_v1_bom_proto_msgTypes[25]
+	mi := &file_bom_v1_bom_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1646,7 +2039,7 @@ func (x *BOMLineRow) String() string {
 func (*BOMLineRow) ProtoMessage() {}
 
 func (x *BOMLineRow) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[25]
+	mi := &file_bom_v1_bom_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1659,7 +2052,7 @@ func (x *BOMLineRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BOMLineRow.ProtoReflect.Descriptor instead.
 func (*BOMLineRow) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{25}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *BOMLineRow) GetLineId() string {
@@ -1726,13 +2119,15 @@ type PlatformGap struct {
 	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
 	AutoAttempt   int32                  `protobuf:"varint,5,opt,name=auto_attempt,json=autoAttempt,proto3" json:"auto_attempt,omitempty"`
 	ManualAttempt int32                  `protobuf:"varint,6,opt,name=manual_attempt,json=manualAttempt,proto3" json:"manual_attempt,omitempty"`
+	// 四态：pending | searching | succeeded | failed | missing（缺任务行）
+	SearchUiState string `protobuf:"bytes,7,opt,name=search_ui_state,json=searchUiState,proto3" json:"search_ui_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PlatformGap) Reset() {
 	*x = PlatformGap{}
-	mi := &file_bom_v1_bom_proto_msgTypes[26]
+	mi := &file_bom_v1_bom_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1744,7 +2139,7 @@ func (x *PlatformGap) String() string {
 func (*PlatformGap) ProtoMessage() {}
 
 func (x *PlatformGap) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[26]
+	mi := &file_bom_v1_bom_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1757,7 +2152,7 @@ func (x *PlatformGap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlatformGap.ProtoReflect.Descriptor instead.
 func (*PlatformGap) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{26}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *PlatformGap) GetPlatformId() string {
@@ -1802,6 +2197,209 @@ func (x *PlatformGap) GetManualAttempt() int32 {
 	return 0
 }
 
+func (x *PlatformGap) GetSearchUiState() string {
+	if x != nil {
+		return x.SearchUiState
+	}
+	return ""
+}
+
+type GetSessionSearchTaskCoverageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSessionSearchTaskCoverageRequest) Reset() {
+	*x = GetSessionSearchTaskCoverageRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSessionSearchTaskCoverageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSessionSearchTaskCoverageRequest) ProtoMessage() {}
+
+func (x *GetSessionSearchTaskCoverageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSessionSearchTaskCoverageRequest.ProtoReflect.Descriptor instead.
+func (*GetSessionSearchTaskCoverageRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetSessionSearchTaskCoverageRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type SearchTaskMissingItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LineId        string                 `protobuf:"bytes,1,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	LineNo        int32                  `protobuf:"varint,2,opt,name=line_no,json=lineNo,proto3" json:"line_no,omitempty"`
+	MpnNorm       string                 `protobuf:"bytes,3,opt,name=mpn_norm,json=mpnNorm,proto3" json:"mpn_norm,omitempty"`
+	PlatformId    string                 `protobuf:"bytes,4,opt,name=platform_id,json=platformId,proto3" json:"platform_id,omitempty"`
+	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchTaskMissingItem) Reset() {
+	*x = SearchTaskMissingItem{}
+	mi := &file_bom_v1_bom_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchTaskMissingItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchTaskMissingItem) ProtoMessage() {}
+
+func (x *SearchTaskMissingItem) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchTaskMissingItem.ProtoReflect.Descriptor instead.
+func (*SearchTaskMissingItem) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *SearchTaskMissingItem) GetLineId() string {
+	if x != nil {
+		return x.LineId
+	}
+	return ""
+}
+
+func (x *SearchTaskMissingItem) GetLineNo() int32 {
+	if x != nil {
+		return x.LineNo
+	}
+	return 0
+}
+
+func (x *SearchTaskMissingItem) GetMpnNorm() string {
+	if x != nil {
+		return x.MpnNorm
+	}
+	return ""
+}
+
+func (x *SearchTaskMissingItem) GetPlatformId() string {
+	if x != nil {
+		return x.PlatformId
+	}
+	return ""
+}
+
+func (x *SearchTaskMissingItem) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type GetSessionSearchTaskCoverageReply struct {
+	state             protoimpl.MessageState   `protogen:"open.v1"`
+	Consistent        bool                     `protobuf:"varint,1,opt,name=consistent,proto3" json:"consistent,omitempty"`
+	OrphanTaskCount   int32                    `protobuf:"varint,2,opt,name=orphan_task_count,json=orphanTaskCount,proto3" json:"orphan_task_count,omitempty"`
+	ExpectedTaskCount int32                    `protobuf:"varint,3,opt,name=expected_task_count,json=expectedTaskCount,proto3" json:"expected_task_count,omitempty"`
+	ExistingTaskCount int32                    `protobuf:"varint,4,opt,name=existing_task_count,json=existingTaskCount,proto3" json:"existing_task_count,omitempty"`
+	MissingTasks      []*SearchTaskMissingItem `protobuf:"bytes,5,rep,name=missing_tasks,json=missingTasks,proto3" json:"missing_tasks,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetSessionSearchTaskCoverageReply) Reset() {
+	*x = GetSessionSearchTaskCoverageReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSessionSearchTaskCoverageReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSessionSearchTaskCoverageReply) ProtoMessage() {}
+
+func (x *GetSessionSearchTaskCoverageReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSessionSearchTaskCoverageReply.ProtoReflect.Descriptor instead.
+func (*GetSessionSearchTaskCoverageReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GetSessionSearchTaskCoverageReply) GetConsistent() bool {
+	if x != nil {
+		return x.Consistent
+	}
+	return false
+}
+
+func (x *GetSessionSearchTaskCoverageReply) GetOrphanTaskCount() int32 {
+	if x != nil {
+		return x.OrphanTaskCount
+	}
+	return 0
+}
+
+func (x *GetSessionSearchTaskCoverageReply) GetExpectedTaskCount() int32 {
+	if x != nil {
+		return x.ExpectedTaskCount
+	}
+	return 0
+}
+
+func (x *GetSessionSearchTaskCoverageReply) GetExistingTaskCount() int32 {
+	if x != nil {
+		return x.ExistingTaskCount
+	}
+	return 0
+}
+
+func (x *GetSessionSearchTaskCoverageReply) GetMissingTasks() []*SearchTaskMissingItem {
+	if x != nil {
+		return x.MissingTasks
+	}
+	return nil
+}
+
 type GetBOMLinesReply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Lines         []*BOMLineRow          `protobuf:"bytes,1,rep,name=lines,proto3" json:"lines,omitempty"`
@@ -1811,7 +2409,7 @@ type GetBOMLinesReply struct {
 
 func (x *GetBOMLinesReply) Reset() {
 	*x = GetBOMLinesReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[27]
+	mi := &file_bom_v1_bom_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1823,7 +2421,7 @@ func (x *GetBOMLinesReply) String() string {
 func (*GetBOMLinesReply) ProtoMessage() {}
 
 func (x *GetBOMLinesReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[27]
+	mi := &file_bom_v1_bom_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1836,7 +2434,7 @@ func (x *GetBOMLinesReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBOMLinesReply.ProtoReflect.Descriptor instead.
 func (*GetBOMLinesReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{27}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetBOMLinesReply) GetLines() []*BOMLineRow {
@@ -1844,6 +2442,390 @@ func (x *GetBOMLinesReply) GetLines() []*BOMLineRow {
 		return x.Lines
 	}
 	return nil
+}
+
+type CreateSessionLineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Mpn           string                 `protobuf:"bytes,2,opt,name=mpn,proto3" json:"mpn,omitempty"`
+	Mfr           string                 `protobuf:"bytes,3,opt,name=mfr,proto3" json:"mfr,omitempty"`
+	Package       string                 `protobuf:"bytes,4,opt,name=package,proto3" json:"package,omitempty"`
+	Qty           float64                `protobuf:"fixed64,5,opt,name=qty,proto3" json:"qty,omitempty"`
+	Raw           string                 `protobuf:"bytes,6,opt,name=raw,proto3" json:"raw,omitempty"`
+	ExtraJson     string                 `protobuf:"bytes,7,opt,name=extra_json,json=extraJson,proto3" json:"extra_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateSessionLineRequest) Reset() {
+	*x = CreateSessionLineRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateSessionLineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateSessionLineRequest) ProtoMessage() {}
+
+func (x *CreateSessionLineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateSessionLineRequest.ProtoReflect.Descriptor instead.
+func (*CreateSessionLineRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *CreateSessionLineRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *CreateSessionLineRequest) GetMpn() string {
+	if x != nil {
+		return x.Mpn
+	}
+	return ""
+}
+
+func (x *CreateSessionLineRequest) GetMfr() string {
+	if x != nil {
+		return x.Mfr
+	}
+	return ""
+}
+
+func (x *CreateSessionLineRequest) GetPackage() string {
+	if x != nil {
+		return x.Package
+	}
+	return ""
+}
+
+func (x *CreateSessionLineRequest) GetQty() float64 {
+	if x != nil {
+		return x.Qty
+	}
+	return 0
+}
+
+func (x *CreateSessionLineRequest) GetRaw() string {
+	if x != nil {
+		return x.Raw
+	}
+	return ""
+}
+
+func (x *CreateSessionLineRequest) GetExtraJson() string {
+	if x != nil {
+		return x.ExtraJson
+	}
+	return ""
+}
+
+type CreateSessionLineReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LineId        string                 `protobuf:"bytes,1,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	LineNo        int32                  `protobuf:"varint,2,opt,name=line_no,json=lineNo,proto3" json:"line_no,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateSessionLineReply) Reset() {
+	*x = CreateSessionLineReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateSessionLineReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateSessionLineReply) ProtoMessage() {}
+
+func (x *CreateSessionLineReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateSessionLineReply.ProtoReflect.Descriptor instead.
+func (*CreateSessionLineReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *CreateSessionLineReply) GetLineId() string {
+	if x != nil {
+		return x.LineId
+	}
+	return ""
+}
+
+func (x *CreateSessionLineReply) GetLineNo() int32 {
+	if x != nil {
+		return x.LineNo
+	}
+	return 0
+}
+
+type PatchSessionLineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	LineId        string                 `protobuf:"bytes,2,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	Mpn           *string                `protobuf:"bytes,3,opt,name=mpn,proto3,oneof" json:"mpn,omitempty"`
+	Mfr           *string                `protobuf:"bytes,4,opt,name=mfr,proto3,oneof" json:"mfr,omitempty"`
+	Package       *string                `protobuf:"bytes,5,opt,name=package,proto3,oneof" json:"package,omitempty"`
+	Qty           *float64               `protobuf:"fixed64,6,opt,name=qty,proto3,oneof" json:"qty,omitempty"`
+	Raw           *string                `protobuf:"bytes,7,opt,name=raw,proto3,oneof" json:"raw,omitempty"`
+	ExtraJson     *string                `protobuf:"bytes,8,opt,name=extra_json,json=extraJson,proto3,oneof" json:"extra_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PatchSessionLineRequest) Reset() {
+	*x = PatchSessionLineRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PatchSessionLineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PatchSessionLineRequest) ProtoMessage() {}
+
+func (x *PatchSessionLineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PatchSessionLineRequest.ProtoReflect.Descriptor instead.
+func (*PatchSessionLineRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *PatchSessionLineRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetLineId() string {
+	if x != nil {
+		return x.LineId
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetMpn() string {
+	if x != nil && x.Mpn != nil {
+		return *x.Mpn
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetMfr() string {
+	if x != nil && x.Mfr != nil {
+		return *x.Mfr
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetPackage() string {
+	if x != nil && x.Package != nil {
+		return *x.Package
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetQty() float64 {
+	if x != nil && x.Qty != nil {
+		return *x.Qty
+	}
+	return 0
+}
+
+func (x *PatchSessionLineRequest) GetRaw() string {
+	if x != nil && x.Raw != nil {
+		return *x.Raw
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetExtraJson() string {
+	if x != nil && x.ExtraJson != nil {
+		return *x.ExtraJson
+	}
+	return ""
+}
+
+type PatchSessionLineReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LineId        string                 `protobuf:"bytes,1,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	LineNo        int32                  `protobuf:"varint,2,opt,name=line_no,json=lineNo,proto3" json:"line_no,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PatchSessionLineReply) Reset() {
+	*x = PatchSessionLineReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PatchSessionLineReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PatchSessionLineReply) ProtoMessage() {}
+
+func (x *PatchSessionLineReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PatchSessionLineReply.ProtoReflect.Descriptor instead.
+func (*PatchSessionLineReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *PatchSessionLineReply) GetLineId() string {
+	if x != nil {
+		return x.LineId
+	}
+	return ""
+}
+
+func (x *PatchSessionLineReply) GetLineNo() int32 {
+	if x != nil {
+		return x.LineNo
+	}
+	return 0
+}
+
+type DeleteSessionLineRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	LineId        string                 `protobuf:"bytes,2,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSessionLineRequest) Reset() {
+	*x = DeleteSessionLineRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSessionLineRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSessionLineRequest) ProtoMessage() {}
+
+func (x *DeleteSessionLineRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteSessionLineRequest.ProtoReflect.Descriptor instead.
+func (*DeleteSessionLineRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *DeleteSessionLineRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *DeleteSessionLineRequest) GetLineId() string {
+	if x != nil {
+		return x.LineId
+	}
+	return ""
+}
+
+type DeleteSessionLineReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteSessionLineReply) Reset() {
+	*x = DeleteSessionLineReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteSessionLineReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteSessionLineReply) ProtoMessage() {}
+
+func (x *DeleteSessionLineReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteSessionLineReply.ProtoReflect.Descriptor instead.
+func (*DeleteSessionLineReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{40}
 }
 
 type RetrySearchTasksRequest struct {
@@ -1856,7 +2838,7 @@ type RetrySearchTasksRequest struct {
 
 func (x *RetrySearchTasksRequest) Reset() {
 	*x = RetrySearchTasksRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[28]
+	mi := &file_bom_v1_bom_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1868,7 +2850,7 @@ func (x *RetrySearchTasksRequest) String() string {
 func (*RetrySearchTasksRequest) ProtoMessage() {}
 
 func (x *RetrySearchTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[28]
+	mi := &file_bom_v1_bom_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1881,7 +2863,7 @@ func (x *RetrySearchTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrySearchTasksRequest.ProtoReflect.Descriptor instead.
 func (*RetrySearchTasksRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{28}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *RetrySearchTasksRequest) GetSessionId() string {
@@ -1908,7 +2890,7 @@ type RetrySearchItem struct {
 
 func (x *RetrySearchItem) Reset() {
 	*x = RetrySearchItem{}
-	mi := &file_bom_v1_bom_proto_msgTypes[29]
+	mi := &file_bom_v1_bom_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1920,7 +2902,7 @@ func (x *RetrySearchItem) String() string {
 func (*RetrySearchItem) ProtoMessage() {}
 
 func (x *RetrySearchItem) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[29]
+	mi := &file_bom_v1_bom_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1933,7 +2915,7 @@ func (x *RetrySearchItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrySearchItem.ProtoReflect.Descriptor instead.
 func (*RetrySearchItem) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{29}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *RetrySearchItem) GetMpn() string {
@@ -1959,7 +2941,7 @@ type RetrySearchTasksReply struct {
 
 func (x *RetrySearchTasksReply) Reset() {
 	*x = RetrySearchTasksReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[30]
+	mi := &file_bom_v1_bom_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1971,7 +2953,7 @@ func (x *RetrySearchTasksReply) String() string {
 func (*RetrySearchTasksReply) ProtoMessage() {}
 
 func (x *RetrySearchTasksReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[30]
+	mi := &file_bom_v1_bom_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1984,7 +2966,7 @@ func (x *RetrySearchTasksReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrySearchTasksReply.ProtoReflect.Descriptor instead.
 func (*RetrySearchTasksReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{30}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *RetrySearchTasksReply) GetAccepted() int32 {
@@ -2011,7 +2993,7 @@ type SubmitBomSearchResultRequest struct {
 
 func (x *SubmitBomSearchResultRequest) Reset() {
 	*x = SubmitBomSearchResultRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[31]
+	mi := &file_bom_v1_bom_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2023,7 +3005,7 @@ func (x *SubmitBomSearchResultRequest) String() string {
 func (*SubmitBomSearchResultRequest) ProtoMessage() {}
 
 func (x *SubmitBomSearchResultRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[31]
+	mi := &file_bom_v1_bom_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2036,7 +3018,7 @@ func (x *SubmitBomSearchResultRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitBomSearchResultRequest.ProtoReflect.Descriptor instead.
 func (*SubmitBomSearchResultRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{31}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *SubmitBomSearchResultRequest) GetSessionId() string {
@@ -2105,7 +3087,7 @@ type SubmitBomSearchResultReply struct {
 
 func (x *SubmitBomSearchResultReply) Reset() {
 	*x = SubmitBomSearchResultReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[32]
+	mi := &file_bom_v1_bom_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2117,7 +3099,7 @@ func (x *SubmitBomSearchResultReply) String() string {
 func (*SubmitBomSearchResultReply) ProtoMessage() {}
 
 func (x *SubmitBomSearchResultReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[32]
+	mi := &file_bom_v1_bom_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2130,7 +3112,7 @@ func (x *SubmitBomSearchResultReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitBomSearchResultReply.ProtoReflect.Descriptor instead.
 func (*SubmitBomSearchResultReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{32}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *SubmitBomSearchResultReply) GetAccepted() bool {
@@ -2147,7 +3129,7 @@ func (x *SubmitBomSearchResultReply) GetServerTime() string {
 	return ""
 }
 
-// ---------- Export & history（接口清单 §7）----------
+// ---------- Export ----------
 type ExportSessionRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -2159,7 +3141,7 @@ type ExportSessionRequest struct {
 
 func (x *ExportSessionRequest) Reset() {
 	*x = ExportSessionRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[33]
+	mi := &file_bom_v1_bom_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2171,7 +3153,7 @@ func (x *ExportSessionRequest) String() string {
 func (*ExportSessionRequest) ProtoMessage() {}
 
 func (x *ExportSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[33]
+	mi := &file_bom_v1_bom_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2184,7 +3166,7 @@ func (x *ExportSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportSessionRequest.ProtoReflect.Descriptor instead.
 func (*ExportSessionRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{33}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ExportSessionRequest) GetSessionId() string {
@@ -2211,7 +3193,7 @@ type ExportSessionReply struct {
 
 func (x *ExportSessionReply) Reset() {
 	*x = ExportSessionReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[34]
+	mi := &file_bom_v1_bom_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2223,7 +3205,7 @@ func (x *ExportSessionReply) String() string {
 func (*ExportSessionReply) ProtoMessage() {}
 
 func (x *ExportSessionReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[34]
+	mi := &file_bom_v1_bom_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2236,7 +3218,7 @@ func (x *ExportSessionReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportSessionReply.ProtoReflect.Descriptor instead.
 func (*ExportSessionReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{34}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ExportSessionReply) GetFile() []byte {
@@ -2251,330 +3233,6 @@ func (x *ExportSessionReply) GetFilename() string {
 		return x.Filename
 	}
 	return ""
-}
-
-type ListMatchHistoryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListMatchHistoryRequest) Reset() {
-	*x = ListMatchHistoryRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[35]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListMatchHistoryRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListMatchHistoryRequest) ProtoMessage() {}
-
-func (x *ListMatchHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[35]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListMatchHistoryRequest.ProtoReflect.Descriptor instead.
-func (*ListMatchHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{35}
-}
-
-func (x *ListMatchHistoryRequest) GetPage() int32 {
-	if x != nil {
-		return x.Page
-	}
-	return 0
-}
-
-func (x *ListMatchHistoryRequest) GetPageSize() int32 {
-	if x != nil {
-		return x.PageSize
-	}
-	return 0
-}
-
-type MatchHistoryItem struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MatchResultId int64                  `protobuf:"varint,1,opt,name=match_result_id,json=matchResultId,proto3" json:"match_result_id,omitempty"`
-	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Version       int32                  `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
-	Strategy      string                 `protobuf:"bytes,4,opt,name=strategy,proto3" json:"strategy,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	TotalAmount   float64                `protobuf:"fixed64,6,opt,name=total_amount,json=totalAmount,proto3" json:"total_amount,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *MatchHistoryItem) Reset() {
-	*x = MatchHistoryItem{}
-	mi := &file_bom_v1_bom_proto_msgTypes[36]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MatchHistoryItem) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MatchHistoryItem) ProtoMessage() {}
-
-func (x *MatchHistoryItem) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[36]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MatchHistoryItem.ProtoReflect.Descriptor instead.
-func (*MatchHistoryItem) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{36}
-}
-
-func (x *MatchHistoryItem) GetMatchResultId() int64 {
-	if x != nil {
-		return x.MatchResultId
-	}
-	return 0
-}
-
-func (x *MatchHistoryItem) GetSessionId() string {
-	if x != nil {
-		return x.SessionId
-	}
-	return ""
-}
-
-func (x *MatchHistoryItem) GetVersion() int32 {
-	if x != nil {
-		return x.Version
-	}
-	return 0
-}
-
-func (x *MatchHistoryItem) GetStrategy() string {
-	if x != nil {
-		return x.Strategy
-	}
-	return ""
-}
-
-func (x *MatchHistoryItem) GetCreatedAt() string {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return ""
-}
-
-func (x *MatchHistoryItem) GetTotalAmount() float64 {
-	if x != nil {
-		return x.TotalAmount
-	}
-	return 0
-}
-
-type ListMatchHistoryReply struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*MatchHistoryItem    `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListMatchHistoryReply) Reset() {
-	*x = ListMatchHistoryReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[37]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListMatchHistoryReply) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListMatchHistoryReply) ProtoMessage() {}
-
-func (x *ListMatchHistoryReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[37]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListMatchHistoryReply.ProtoReflect.Descriptor instead.
-func (*ListMatchHistoryReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{37}
-}
-
-func (x *ListMatchHistoryReply) GetItems() []*MatchHistoryItem {
-	if x != nil {
-		return x.Items
-	}
-	return nil
-}
-
-func (x *ListMatchHistoryReply) GetTotal() int32 {
-	if x != nil {
-		return x.Total
-	}
-	return 0
-}
-
-type GetMatchHistoryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MatchResultId int64                  `protobuf:"varint,1,opt,name=match_result_id,json=matchResultId,proto3" json:"match_result_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetMatchHistoryRequest) Reset() {
-	*x = GetMatchHistoryRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[38]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetMatchHistoryRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetMatchHistoryRequest) ProtoMessage() {}
-
-func (x *GetMatchHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[38]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetMatchHistoryRequest.ProtoReflect.Descriptor instead.
-func (*GetMatchHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{38}
-}
-
-func (x *GetMatchHistoryRequest) GetMatchResultId() int64 {
-	if x != nil {
-		return x.MatchResultId
-	}
-	return 0
-}
-
-type GetMatchHistoryReply struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MatchResultId int64                  `protobuf:"varint,1,opt,name=match_result_id,json=matchResultId,proto3" json:"match_result_id,omitempty"`
-	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Version       int32                  `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
-	Strategy      string                 `protobuf:"bytes,4,opt,name=strategy,proto3" json:"strategy,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	TotalAmount   float64                `protobuf:"fixed64,6,opt,name=total_amount,json=totalAmount,proto3" json:"total_amount,omitempty"`
-	Items         []*MatchItem           `protobuf:"bytes,7,rep,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetMatchHistoryReply) Reset() {
-	*x = GetMatchHistoryReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[39]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetMatchHistoryReply) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetMatchHistoryReply) ProtoMessage() {}
-
-func (x *GetMatchHistoryReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[39]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetMatchHistoryReply.ProtoReflect.Descriptor instead.
-func (*GetMatchHistoryReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{39}
-}
-
-func (x *GetMatchHistoryReply) GetMatchResultId() int64 {
-	if x != nil {
-		return x.MatchResultId
-	}
-	return 0
-}
-
-func (x *GetMatchHistoryReply) GetSessionId() string {
-	if x != nil {
-		return x.SessionId
-	}
-	return ""
-}
-
-func (x *GetMatchHistoryReply) GetVersion() int32 {
-	if x != nil {
-		return x.Version
-	}
-	return 0
-}
-
-func (x *GetMatchHistoryReply) GetStrategy() string {
-	if x != nil {
-		return x.Strategy
-	}
-	return ""
-}
-
-func (x *GetMatchHistoryReply) GetCreatedAt() string {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return ""
-}
-
-func (x *GetMatchHistoryReply) GetTotalAmount() float64 {
-	if x != nil {
-		return x.TotalAmount
-	}
-	return 0
-}
-
-func (x *GetMatchHistoryReply) GetItems() []*MatchItem {
-	if x != nil {
-		return x.Items
-	}
-	return nil
 }
 
 var File_bom_v1_bom_proto protoreflect.FileDescriptor
@@ -2675,10 +3333,16 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x17DownloadTemplateRequest\"G\n" +
 	"\x15DownloadTemplateReply\x12\x12\n" +
 	"\x04file\x18\x01 \x01(\fR\x04file\x12\x1a\n" +
-	"\bfilename\x18\x02 \x01(\tR\bfilename\"O\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\"\xa2\x02\n" +
 	"\x14CreateSessionRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12!\n" +
-	"\fplatform_ids\x18\x02 \x03(\tR\vplatformIds\"}\n" +
+	"\fplatform_ids\x18\x02 \x03(\tR\vplatformIds\x12#\n" +
+	"\rcustomer_name\x18\x03 \x01(\tR\fcustomerName\x12#\n" +
+	"\rcontact_phone\x18\x04 \x01(\tR\fcontactPhone\x12#\n" +
+	"\rcontact_email\x18\x05 \x01(\tR\fcontactEmail\x12#\n" +
+	"\rcontact_extra\x18\x06 \x01(\tR\fcontactExtra\x12*\n" +
+	"\x0ereadiness_mode\x18\a \x01(\tH\x00R\rreadinessMode\x88\x01\x01B\x11\n" +
+	"\x0f_readiness_mode\"}\n" +
 	"\x12CreateSessionReply\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n" +
@@ -2686,7 +3350,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x12selection_revision\x18\x03 \x01(\x05R\x11selectionRevision\"2\n" +
 	"\x11GetSessionRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"\xcb\x01\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"\x86\x03\n" +
 	"\x0fGetSessionReply\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x14\n" +
@@ -2694,7 +3358,48 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12\x19\n" +
 	"\bbiz_date\x18\x04 \x01(\tR\abizDate\x12-\n" +
 	"\x12selection_revision\x18\x05 \x01(\x05R\x11selectionRevision\x12!\n" +
-	"\fplatform_ids\x18\x06 \x03(\tR\vplatformIds\"\x84\x01\n" +
+	"\fplatform_ids\x18\x06 \x03(\tR\vplatformIds\x12#\n" +
+	"\rcustomer_name\x18\a \x01(\tR\fcustomerName\x12#\n" +
+	"\rcontact_phone\x18\b \x01(\tR\fcontactPhone\x12#\n" +
+	"\rcontact_email\x18\t \x01(\tR\fcontactEmail\x12#\n" +
+	"\rcontact_extra\x18\n" +
+	" \x01(\tR\fcontactExtra\x12%\n" +
+	"\x0ereadiness_mode\x18\v \x01(\tR\rreadinessMode\"\x87\x01\n" +
+	"\x13ListSessionsRequest\x12\x12\n" +
+	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x19\n" +
+	"\bbiz_date\x18\x04 \x01(\tR\abizDate\x12\f\n" +
+	"\x01q\x18\x05 \x01(\tR\x01q\"\xdc\x01\n" +
+	"\x0fSessionListItem\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12#\n" +
+	"\rcustomer_name\x18\x03 \x01(\tR\fcustomerName\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x19\n" +
+	"\bbiz_date\x18\x05 \x01(\tR\abizDate\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x06 \x01(\tR\tupdatedAt\x12\x1d\n" +
+	"\n" +
+	"line_count\x18\a \x01(\x05R\tlineCount\"\\\n" +
+	"\x11ListSessionsReply\x121\n" +
+	"\x05items\x18\x01 \x03(\v2\x1b.api.bom.v1.SessionListItemR\x05items\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"\x88\x03\n" +
+	"\x13PatchSessionRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n" +
+	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12(\n" +
+	"\rcustomer_name\x18\x03 \x01(\tH\x01R\fcustomerName\x88\x01\x01\x12(\n" +
+	"\rcontact_phone\x18\x04 \x01(\tH\x02R\fcontactPhone\x88\x01\x01\x12(\n" +
+	"\rcontact_email\x18\x05 \x01(\tH\x03R\fcontactEmail\x88\x01\x01\x12(\n" +
+	"\rcontact_extra\x18\x06 \x01(\tH\x04R\fcontactExtra\x88\x01\x01\x12*\n" +
+	"\x0ereadiness_mode\x18\a \x01(\tH\x05R\rreadinessMode\x88\x01\x01B\b\n" +
+	"\x06_titleB\x10\n" +
+	"\x0e_customer_nameB\x10\n" +
+	"\x0e_contact_phoneB\x10\n" +
+	"\x0e_contact_emailB\x10\n" +
+	"\x0e_contact_extraB\x11\n" +
+	"\x0f_readiness_mode\"\x84\x01\n" +
 	"\x13PutPlatformsRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
@@ -2725,7 +3430,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\apackage\x18\x05 \x01(\tR\apackage\x12\x10\n" +
 	"\x03qty\x18\x06 \x01(\x01R\x03qty\x12!\n" +
 	"\fmatch_status\x18\a \x01(\tR\vmatchStatus\x12<\n" +
-	"\rplatform_gaps\x18\b \x03(\v2\x17.api.bom.v1.PlatformGapR\fplatformGaps\"\xc9\x01\n" +
+	"\rplatform_gaps\x18\b \x03(\v2\x17.api.bom.v1.PlatformGapR\fplatformGaps\"\xf1\x01\n" +
 	"\vPlatformGap\x12\x1f\n" +
 	"\vplatform_id\x18\x01 \x01(\tR\n" +
 	"platformId\x12\x14\n" +
@@ -2734,9 +3439,67 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"reasonCode\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12!\n" +
 	"\fauto_attempt\x18\x05 \x01(\x05R\vautoAttempt\x12%\n" +
-	"\x0emanual_attempt\x18\x06 \x01(\x05R\rmanualAttempt\"@\n" +
+	"\x0emanual_attempt\x18\x06 \x01(\x05R\rmanualAttempt\x12&\n" +
+	"\x0fsearch_ui_state\x18\a \x01(\tR\rsearchUiState\"D\n" +
+	"#GetSessionSearchTaskCoverageRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"\x9d\x01\n" +
+	"\x15SearchTaskMissingItem\x12\x17\n" +
+	"\aline_id\x18\x01 \x01(\tR\x06lineId\x12\x17\n" +
+	"\aline_no\x18\x02 \x01(\x05R\x06lineNo\x12\x19\n" +
+	"\bmpn_norm\x18\x03 \x01(\tR\ampnNorm\x12\x1f\n" +
+	"\vplatform_id\x18\x04 \x01(\tR\n" +
+	"platformId\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\x97\x02\n" +
+	"!GetSessionSearchTaskCoverageReply\x12\x1e\n" +
+	"\n" +
+	"consistent\x18\x01 \x01(\bR\n" +
+	"consistent\x12*\n" +
+	"\x11orphan_task_count\x18\x02 \x01(\x05R\x0forphanTaskCount\x12.\n" +
+	"\x13expected_task_count\x18\x03 \x01(\x05R\x11expectedTaskCount\x12.\n" +
+	"\x13existing_task_count\x18\x04 \x01(\x05R\x11existingTaskCount\x12F\n" +
+	"\rmissing_tasks\x18\x05 \x03(\v2!.api.bom.v1.SearchTaskMissingItemR\fmissingTasks\"@\n" +
 	"\x10GetBOMLinesReply\x12,\n" +
-	"\x05lines\x18\x01 \x03(\v2\x16.api.bom.v1.BOMLineRowR\x05lines\"k\n" +
+	"\x05lines\x18\x01 \x03(\v2\x16.api.bom.v1.BOMLineRowR\x05lines\"\xba\x01\n" +
+	"\x18CreateSessionLineRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x10\n" +
+	"\x03mpn\x18\x02 \x01(\tR\x03mpn\x12\x10\n" +
+	"\x03mfr\x18\x03 \x01(\tR\x03mfr\x12\x18\n" +
+	"\apackage\x18\x04 \x01(\tR\apackage\x12\x10\n" +
+	"\x03qty\x18\x05 \x01(\x01R\x03qty\x12\x10\n" +
+	"\x03raw\x18\x06 \x01(\tR\x03raw\x12\x1d\n" +
+	"\n" +
+	"extra_json\x18\a \x01(\tR\textraJson\"J\n" +
+	"\x16CreateSessionLineReply\x12\x17\n" +
+	"\aline_id\x18\x01 \x01(\tR\x06lineId\x12\x17\n" +
+	"\aline_no\x18\x02 \x01(\x05R\x06lineNo\"\xab\x02\n" +
+	"\x17PatchSessionLineRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x17\n" +
+	"\aline_id\x18\x02 \x01(\tR\x06lineId\x12\x15\n" +
+	"\x03mpn\x18\x03 \x01(\tH\x00R\x03mpn\x88\x01\x01\x12\x15\n" +
+	"\x03mfr\x18\x04 \x01(\tH\x01R\x03mfr\x88\x01\x01\x12\x1d\n" +
+	"\apackage\x18\x05 \x01(\tH\x02R\apackage\x88\x01\x01\x12\x15\n" +
+	"\x03qty\x18\x06 \x01(\x01H\x03R\x03qty\x88\x01\x01\x12\x15\n" +
+	"\x03raw\x18\a \x01(\tH\x04R\x03raw\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"extra_json\x18\b \x01(\tH\x05R\textraJson\x88\x01\x01B\x06\n" +
+	"\x04_mpnB\x06\n" +
+	"\x04_mfrB\n" +
+	"\n" +
+	"\b_packageB\x06\n" +
+	"\x04_qtyB\x06\n" +
+	"\x04_rawB\r\n" +
+	"\v_extra_json\"I\n" +
+	"\x15PatchSessionLineReply\x12\x17\n" +
+	"\aline_id\x18\x01 \x01(\tR\x06lineId\x12\x17\n" +
+	"\aline_no\x18\x02 \x01(\x05R\x06lineNo\"R\n" +
+	"\x18DeleteSessionLineRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x17\n" +
+	"\aline_id\x18\x02 \x01(\tR\x06lineId\"\x18\n" +
+	"\x16DeleteSessionLineReply\"k\n" +
 	"\x17RetrySearchTasksRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x121\n" +
@@ -2769,34 +3532,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x06format\x18\x02 \x01(\tR\x06format\"D\n" +
 	"\x12ExportSessionReply\x12\x12\n" +
 	"\x04file\x18\x01 \x01(\fR\x04file\x12\x1a\n" +
-	"\bfilename\x18\x02 \x01(\tR\bfilename\"J\n" +
-	"\x17ListMatchHistoryRequest\x12\x12\n" +
-	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\"\xd1\x01\n" +
-	"\x10MatchHistoryItem\x12&\n" +
-	"\x0fmatch_result_id\x18\x01 \x01(\x03R\rmatchResultId\x12\x1d\n" +
-	"\n" +
-	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\x05R\aversion\x12\x1a\n" +
-	"\bstrategy\x18\x04 \x01(\tR\bstrategy\x12\x1d\n" +
-	"\n" +
-	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12!\n" +
-	"\ftotal_amount\x18\x06 \x01(\x01R\vtotalAmount\"a\n" +
-	"\x15ListMatchHistoryReply\x122\n" +
-	"\x05items\x18\x01 \x03(\v2\x1c.api.bom.v1.MatchHistoryItemR\x05items\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"@\n" +
-	"\x16GetMatchHistoryRequest\x12&\n" +
-	"\x0fmatch_result_id\x18\x01 \x01(\x03R\rmatchResultId\"\x82\x02\n" +
-	"\x14GetMatchHistoryReply\x12&\n" +
-	"\x0fmatch_result_id\x18\x01 \x01(\x03R\rmatchResultId\x12\x1d\n" +
-	"\n" +
-	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\x05R\aversion\x12\x1a\n" +
-	"\bstrategy\x18\x04 \x01(\tR\bstrategy\x12\x1d\n" +
-	"\n" +
-	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12!\n" +
-	"\ftotal_amount\x18\x06 \x01(\x01R\vtotalAmount\x12+\n" +
-	"\x05items\x18\a \x03(\v2\x15.api.bom.v1.MatchItemR\x05items2\xe7\x0f\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename2\xcf\x14\n" +
 	"\n" +
 	"BomService\x12d\n" +
 	"\tUploadBOM\x12\x1c.api.bom.v1.UploadBOMRequest\x1a\x1a.api.bom.v1.UploadBOMReply\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/api/v1/bom/upload\x12m\n" +
@@ -2807,15 +3543,19 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x0eGetMatchResult\x12!.api.bom.v1.GetMatchResultRequest\x1a\x1f.api.bom.v1.GetMatchResultReply\"\"\x82\xd3\xe4\x93\x02\x1c\x12\x1a/api/v1/bom/{bom_id}/match\x12r\n" +
 	"\rCreateSession\x12 .api.bom.v1.CreateSessionRequest\x1a\x1e.api.bom.v1.CreateSessionReply\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/api/v1/bom-sessions\x12s\n" +
 	"\n" +
-	"GetSession\x12\x1d.api.bom.v1.GetSessionRequest\x1a\x1b.api.bom.v1.GetSessionReply\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/bom-sessions/{session_id}\x12\x86\x01\n" +
+	"GetSession\x12\x1d.api.bom.v1.GetSessionRequest\x1a\x1b.api.bom.v1.GetSessionReply\")\x82\xd3\xe4\x93\x02#\x12!/api/v1/bom-sessions/{session_id}\x12l\n" +
+	"\fListSessions\x12\x1f.api.bom.v1.ListSessionsRequest\x1a\x1d.api.bom.v1.ListSessionsReply\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/api/v1/bom-sessions\x12z\n" +
+	"\fPatchSession\x12\x1f.api.bom.v1.PatchSessionRequest\x1a\x1b.api.bom.v1.GetSessionReply\",\x82\xd3\xe4\x93\x02&:\x01*2!/api/v1/bom-sessions/{session_id}\x12\x86\x01\n" +
 	"\fPutPlatforms\x12\x1f.api.bom.v1.PutPlatformsRequest\x1a\x1d.api.bom.v1.PutPlatformsReply\"6\x82\xd3\xe4\x93\x020:\x01*\x1a+/api/v1/bom-sessions/{session_id}/platforms\x12\x83\x01\n" +
 	"\fGetReadiness\x12\x1f.api.bom.v1.GetReadinessRequest\x1a\x1d.api.bom.v1.GetReadinessReply\"3\x82\xd3\xe4\x93\x02-\x12+/api/v1/bom-sessions/{session_id}/readiness\x12|\n" +
-	"\vGetBOMLines\x12\x1e.api.bom.v1.GetBOMLinesRequest\x1a\x1c.api.bom.v1.GetBOMLinesReply\"/\x82\xd3\xe4\x93\x02)\x12'/api/v1/bom-sessions/{session_id}/lines\x12\x9b\x01\n" +
+	"\vGetBOMLines\x12\x1e.api.bom.v1.GetBOMLinesRequest\x1a\x1c.api.bom.v1.GetBOMLinesReply\"/\x82\xd3\xe4\x93\x02)\x12'/api/v1/bom-sessions/{session_id}/lines\x12\xbf\x01\n" +
+	"\x1cGetSessionSearchTaskCoverage\x12/.api.bom.v1.GetSessionSearchTaskCoverageRequest\x1a-.api.bom.v1.GetSessionSearchTaskCoverageReply\"?\x82\xd3\xe4\x93\x029\x127/api/v1/bom-sessions/{session_id}/search-tasks/coverage\x12\x91\x01\n" +
+	"\x11CreateSessionLine\x12$.api.bom.v1.CreateSessionLineRequest\x1a\".api.bom.v1.CreateSessionLineReply\"2\x82\xd3\xe4\x93\x02,:\x01*\"'/api/v1/bom-sessions/{session_id}/lines\x12\x98\x01\n" +
+	"\x10PatchSessionLine\x12#.api.bom.v1.PatchSessionLineRequest\x1a!.api.bom.v1.PatchSessionLineReply\"<\x82\xd3\xe4\x93\x026:\x01*21/api/v1/bom-sessions/{session_id}/lines/{line_id}\x12\x98\x01\n" +
+	"\x11DeleteSessionLine\x12$.api.bom.v1.DeleteSessionLineRequest\x1a\".api.bom.v1.DeleteSessionLineReply\"9\x82\xd3\xe4\x93\x023*1/api/v1/bom-sessions/{session_id}/lines/{line_id}\x12\x9b\x01\n" +
 	"\x10RetrySearchTasks\x12#.api.bom.v1.RetrySearchTasksRequest\x1a!.api.bom.v1.RetrySearchTasksReply\"?\x82\xd3\xe4\x93\x029:\x01*\"4/api/v1/bom-sessions/{session_id}/search-tasks/retry\x12\xa6\x01\n" +
 	"\x15SubmitBomSearchResult\x12(.api.bom.v1.SubmitBomSearchResultRequest\x1a&.api.bom.v1.SubmitBomSearchResultReply\";\x82\xd3\xe4\x93\x025:\x01*\"0/api/v1/bom-sessions/{session_id}/search-results\x12\x83\x01\n" +
-	"\rExportSession\x12 .api.bom.v1.ExportSessionRequest\x1a\x1e.api.bom.v1.ExportSessionReply\"0\x82\xd3\xe4\x93\x02*\x12(/api/v1/bom-sessions/{session_id}/export\x12}\n" +
-	"\x10ListMatchHistory\x12#.api.bom.v1.ListMatchHistoryRequest\x1a!.api.bom.v1.ListMatchHistoryReply\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/api/v1/bom-match-history\x12\x8c\x01\n" +
-	"\x0fGetMatchHistory\x12\".api.bom.v1.GetMatchHistoryRequest\x1a .api.bom.v1.GetMatchHistoryReply\"3\x82\xd3\xe4\x93\x02-\x12+/api/v1/bom-match-history/{match_result_id}B\x17Z\x15caichip/api/bom/v1;v1b\x06proto3"
+	"\rExportSession\x12 .api.bom.v1.ExportSessionRequest\x1a\x1e.api.bom.v1.ExportSessionReply\"0\x82\xd3\xe4\x93\x02*\x12(/api/v1/bom-sessions/{session_id}/exportB\x17Z\x15caichip/api/bom/v1;v1b\x06proto3"
 
 var (
 	file_bom_v1_bom_proto_rawDescOnce sync.Once
@@ -2829,52 +3569,60 @@ func file_bom_v1_bom_proto_rawDescGZIP() []byte {
 	return file_bom_v1_bom_proto_rawDescData
 }
 
-var file_bom_v1_bom_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_bom_v1_bom_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_bom_v1_bom_proto_goTypes = []any{
-	(*UploadBOMRequest)(nil),             // 0: api.bom.v1.UploadBOMRequest
-	(*UploadBOMReply)(nil),               // 1: api.bom.v1.UploadBOMReply
-	(*ParsedItem)(nil),                   // 2: api.bom.v1.ParsedItem
-	(*SearchQuotesRequest)(nil),          // 3: api.bom.v1.SearchQuotesRequest
-	(*SearchQuotesReply)(nil),            // 4: api.bom.v1.SearchQuotesReply
-	(*ItemQuotes)(nil),                   // 5: api.bom.v1.ItemQuotes
-	(*PlatformQuote)(nil),                // 6: api.bom.v1.PlatformQuote
-	(*AutoMatchRequest)(nil),             // 7: api.bom.v1.AutoMatchRequest
-	(*AutoMatchReply)(nil),               // 8: api.bom.v1.AutoMatchReply
-	(*MatchItem)(nil),                    // 9: api.bom.v1.MatchItem
-	(*GetBOMRequest)(nil),                // 10: api.bom.v1.GetBOMRequest
-	(*GetBOMReply)(nil),                  // 11: api.bom.v1.GetBOMReply
-	(*GetMatchResultRequest)(nil),        // 12: api.bom.v1.GetMatchResultRequest
-	(*GetMatchResultReply)(nil),          // 13: api.bom.v1.GetMatchResultReply
-	(*DownloadTemplateRequest)(nil),      // 14: api.bom.v1.DownloadTemplateRequest
-	(*DownloadTemplateReply)(nil),        // 15: api.bom.v1.DownloadTemplateReply
-	(*CreateSessionRequest)(nil),         // 16: api.bom.v1.CreateSessionRequest
-	(*CreateSessionReply)(nil),           // 17: api.bom.v1.CreateSessionReply
-	(*GetSessionRequest)(nil),            // 18: api.bom.v1.GetSessionRequest
-	(*GetSessionReply)(nil),              // 19: api.bom.v1.GetSessionReply
-	(*PutPlatformsRequest)(nil),          // 20: api.bom.v1.PutPlatformsRequest
-	(*PutPlatformsReply)(nil),            // 21: api.bom.v1.PutPlatformsReply
-	(*GetReadinessRequest)(nil),          // 22: api.bom.v1.GetReadinessRequest
-	(*GetReadinessReply)(nil),            // 23: api.bom.v1.GetReadinessReply
-	(*GetBOMLinesRequest)(nil),           // 24: api.bom.v1.GetBOMLinesRequest
-	(*BOMLineRow)(nil),                   // 25: api.bom.v1.BOMLineRow
-	(*PlatformGap)(nil),                  // 26: api.bom.v1.PlatformGap
-	(*GetBOMLinesReply)(nil),             // 27: api.bom.v1.GetBOMLinesReply
-	(*RetrySearchTasksRequest)(nil),      // 28: api.bom.v1.RetrySearchTasksRequest
-	(*RetrySearchItem)(nil),              // 29: api.bom.v1.RetrySearchItem
-	(*RetrySearchTasksReply)(nil),        // 30: api.bom.v1.RetrySearchTasksReply
-	(*SubmitBomSearchResultRequest)(nil), // 31: api.bom.v1.SubmitBomSearchResultRequest
-	(*SubmitBomSearchResultReply)(nil),   // 32: api.bom.v1.SubmitBomSearchResultReply
-	(*ExportSessionRequest)(nil),         // 33: api.bom.v1.ExportSessionRequest
-	(*ExportSessionReply)(nil),           // 34: api.bom.v1.ExportSessionReply
-	(*ListMatchHistoryRequest)(nil),      // 35: api.bom.v1.ListMatchHistoryRequest
-	(*MatchHistoryItem)(nil),             // 36: api.bom.v1.MatchHistoryItem
-	(*ListMatchHistoryReply)(nil),        // 37: api.bom.v1.ListMatchHistoryReply
-	(*GetMatchHistoryRequest)(nil),       // 38: api.bom.v1.GetMatchHistoryRequest
-	(*GetMatchHistoryReply)(nil),         // 39: api.bom.v1.GetMatchHistoryReply
-	nil,                                  // 40: api.bom.v1.UploadBOMRequest.ColumnMappingEntry
+	(*UploadBOMRequest)(nil),                    // 0: api.bom.v1.UploadBOMRequest
+	(*UploadBOMReply)(nil),                      // 1: api.bom.v1.UploadBOMReply
+	(*ParsedItem)(nil),                          // 2: api.bom.v1.ParsedItem
+	(*SearchQuotesRequest)(nil),                 // 3: api.bom.v1.SearchQuotesRequest
+	(*SearchQuotesReply)(nil),                   // 4: api.bom.v1.SearchQuotesReply
+	(*ItemQuotes)(nil),                          // 5: api.bom.v1.ItemQuotes
+	(*PlatformQuote)(nil),                       // 6: api.bom.v1.PlatformQuote
+	(*AutoMatchRequest)(nil),                    // 7: api.bom.v1.AutoMatchRequest
+	(*AutoMatchReply)(nil),                      // 8: api.bom.v1.AutoMatchReply
+	(*MatchItem)(nil),                           // 9: api.bom.v1.MatchItem
+	(*GetBOMRequest)(nil),                       // 10: api.bom.v1.GetBOMRequest
+	(*GetBOMReply)(nil),                         // 11: api.bom.v1.GetBOMReply
+	(*GetMatchResultRequest)(nil),               // 12: api.bom.v1.GetMatchResultRequest
+	(*GetMatchResultReply)(nil),                 // 13: api.bom.v1.GetMatchResultReply
+	(*DownloadTemplateRequest)(nil),             // 14: api.bom.v1.DownloadTemplateRequest
+	(*DownloadTemplateReply)(nil),               // 15: api.bom.v1.DownloadTemplateReply
+	(*CreateSessionRequest)(nil),                // 16: api.bom.v1.CreateSessionRequest
+	(*CreateSessionReply)(nil),                  // 17: api.bom.v1.CreateSessionReply
+	(*GetSessionRequest)(nil),                   // 18: api.bom.v1.GetSessionRequest
+	(*GetSessionReply)(nil),                     // 19: api.bom.v1.GetSessionReply
+	(*ListSessionsRequest)(nil),                 // 20: api.bom.v1.ListSessionsRequest
+	(*SessionListItem)(nil),                     // 21: api.bom.v1.SessionListItem
+	(*ListSessionsReply)(nil),                   // 22: api.bom.v1.ListSessionsReply
+	(*PatchSessionRequest)(nil),                 // 23: api.bom.v1.PatchSessionRequest
+	(*PutPlatformsRequest)(nil),                 // 24: api.bom.v1.PutPlatformsRequest
+	(*PutPlatformsReply)(nil),                   // 25: api.bom.v1.PutPlatformsReply
+	(*GetReadinessRequest)(nil),                 // 26: api.bom.v1.GetReadinessRequest
+	(*GetReadinessReply)(nil),                   // 27: api.bom.v1.GetReadinessReply
+	(*GetBOMLinesRequest)(nil),                  // 28: api.bom.v1.GetBOMLinesRequest
+	(*BOMLineRow)(nil),                          // 29: api.bom.v1.BOMLineRow
+	(*PlatformGap)(nil),                         // 30: api.bom.v1.PlatformGap
+	(*GetSessionSearchTaskCoverageRequest)(nil), // 31: api.bom.v1.GetSessionSearchTaskCoverageRequest
+	(*SearchTaskMissingItem)(nil),               // 32: api.bom.v1.SearchTaskMissingItem
+	(*GetSessionSearchTaskCoverageReply)(nil),   // 33: api.bom.v1.GetSessionSearchTaskCoverageReply
+	(*GetBOMLinesReply)(nil),                    // 34: api.bom.v1.GetBOMLinesReply
+	(*CreateSessionLineRequest)(nil),            // 35: api.bom.v1.CreateSessionLineRequest
+	(*CreateSessionLineReply)(nil),              // 36: api.bom.v1.CreateSessionLineReply
+	(*PatchSessionLineRequest)(nil),             // 37: api.bom.v1.PatchSessionLineRequest
+	(*PatchSessionLineReply)(nil),               // 38: api.bom.v1.PatchSessionLineReply
+	(*DeleteSessionLineRequest)(nil),            // 39: api.bom.v1.DeleteSessionLineRequest
+	(*DeleteSessionLineReply)(nil),              // 40: api.bom.v1.DeleteSessionLineReply
+	(*RetrySearchTasksRequest)(nil),             // 41: api.bom.v1.RetrySearchTasksRequest
+	(*RetrySearchItem)(nil),                     // 42: api.bom.v1.RetrySearchItem
+	(*RetrySearchTasksReply)(nil),               // 43: api.bom.v1.RetrySearchTasksReply
+	(*SubmitBomSearchResultRequest)(nil),        // 44: api.bom.v1.SubmitBomSearchResultRequest
+	(*SubmitBomSearchResultReply)(nil),          // 45: api.bom.v1.SubmitBomSearchResultReply
+	(*ExportSessionRequest)(nil),                // 46: api.bom.v1.ExportSessionRequest
+	(*ExportSessionReply)(nil),                  // 47: api.bom.v1.ExportSessionReply
+	nil,                                         // 48: api.bom.v1.UploadBOMRequest.ColumnMappingEntry
 }
 var file_bom_v1_bom_proto_depIdxs = []int32{
-	40, // 0: api.bom.v1.UploadBOMRequest.column_mapping:type_name -> api.bom.v1.UploadBOMRequest.ColumnMappingEntry
+	48, // 0: api.bom.v1.UploadBOMRequest.column_mapping:type_name -> api.bom.v1.UploadBOMRequest.ColumnMappingEntry
 	2,  // 1: api.bom.v1.UploadBOMReply.items:type_name -> api.bom.v1.ParsedItem
 	5,  // 2: api.bom.v1.SearchQuotesReply.item_quotes:type_name -> api.bom.v1.ItemQuotes
 	6,  // 3: api.bom.v1.ItemQuotes.quotes:type_name -> api.bom.v1.PlatformQuote
@@ -2882,11 +3630,11 @@ var file_bom_v1_bom_proto_depIdxs = []int32{
 	6,  // 5: api.bom.v1.MatchItem.all_quotes:type_name -> api.bom.v1.PlatformQuote
 	2,  // 6: api.bom.v1.GetBOMReply.items:type_name -> api.bom.v1.ParsedItem
 	9,  // 7: api.bom.v1.GetMatchResultReply.items:type_name -> api.bom.v1.MatchItem
-	26, // 8: api.bom.v1.BOMLineRow.platform_gaps:type_name -> api.bom.v1.PlatformGap
-	25, // 9: api.bom.v1.GetBOMLinesReply.lines:type_name -> api.bom.v1.BOMLineRow
-	29, // 10: api.bom.v1.RetrySearchTasksRequest.items:type_name -> api.bom.v1.RetrySearchItem
-	36, // 11: api.bom.v1.ListMatchHistoryReply.items:type_name -> api.bom.v1.MatchHistoryItem
-	9,  // 12: api.bom.v1.GetMatchHistoryReply.items:type_name -> api.bom.v1.MatchItem
+	21, // 8: api.bom.v1.ListSessionsReply.items:type_name -> api.bom.v1.SessionListItem
+	30, // 9: api.bom.v1.BOMLineRow.platform_gaps:type_name -> api.bom.v1.PlatformGap
+	32, // 10: api.bom.v1.GetSessionSearchTaskCoverageReply.missing_tasks:type_name -> api.bom.v1.SearchTaskMissingItem
+	29, // 11: api.bom.v1.GetBOMLinesReply.lines:type_name -> api.bom.v1.BOMLineRow
+	42, // 12: api.bom.v1.RetrySearchTasksRequest.items:type_name -> api.bom.v1.RetrySearchItem
 	0,  // 13: api.bom.v1.BomService.UploadBOM:input_type -> api.bom.v1.UploadBOMRequest
 	3,  // 14: api.bom.v1.BomService.SearchQuotes:input_type -> api.bom.v1.SearchQuotesRequest
 	7,  // 15: api.bom.v1.BomService.AutoMatch:input_type -> api.bom.v1.AutoMatchRequest
@@ -2895,32 +3643,40 @@ var file_bom_v1_bom_proto_depIdxs = []int32{
 	12, // 18: api.bom.v1.BomService.GetMatchResult:input_type -> api.bom.v1.GetMatchResultRequest
 	16, // 19: api.bom.v1.BomService.CreateSession:input_type -> api.bom.v1.CreateSessionRequest
 	18, // 20: api.bom.v1.BomService.GetSession:input_type -> api.bom.v1.GetSessionRequest
-	20, // 21: api.bom.v1.BomService.PutPlatforms:input_type -> api.bom.v1.PutPlatformsRequest
-	22, // 22: api.bom.v1.BomService.GetReadiness:input_type -> api.bom.v1.GetReadinessRequest
-	24, // 23: api.bom.v1.BomService.GetBOMLines:input_type -> api.bom.v1.GetBOMLinesRequest
-	28, // 24: api.bom.v1.BomService.RetrySearchTasks:input_type -> api.bom.v1.RetrySearchTasksRequest
-	31, // 25: api.bom.v1.BomService.SubmitBomSearchResult:input_type -> api.bom.v1.SubmitBomSearchResultRequest
-	33, // 26: api.bom.v1.BomService.ExportSession:input_type -> api.bom.v1.ExportSessionRequest
-	35, // 27: api.bom.v1.BomService.ListMatchHistory:input_type -> api.bom.v1.ListMatchHistoryRequest
-	38, // 28: api.bom.v1.BomService.GetMatchHistory:input_type -> api.bom.v1.GetMatchHistoryRequest
-	1,  // 29: api.bom.v1.BomService.UploadBOM:output_type -> api.bom.v1.UploadBOMReply
-	4,  // 30: api.bom.v1.BomService.SearchQuotes:output_type -> api.bom.v1.SearchQuotesReply
-	8,  // 31: api.bom.v1.BomService.AutoMatch:output_type -> api.bom.v1.AutoMatchReply
-	15, // 32: api.bom.v1.BomService.DownloadTemplate:output_type -> api.bom.v1.DownloadTemplateReply
-	11, // 33: api.bom.v1.BomService.GetBOM:output_type -> api.bom.v1.GetBOMReply
-	13, // 34: api.bom.v1.BomService.GetMatchResult:output_type -> api.bom.v1.GetMatchResultReply
-	17, // 35: api.bom.v1.BomService.CreateSession:output_type -> api.bom.v1.CreateSessionReply
-	19, // 36: api.bom.v1.BomService.GetSession:output_type -> api.bom.v1.GetSessionReply
-	21, // 37: api.bom.v1.BomService.PutPlatforms:output_type -> api.bom.v1.PutPlatformsReply
-	23, // 38: api.bom.v1.BomService.GetReadiness:output_type -> api.bom.v1.GetReadinessReply
-	27, // 39: api.bom.v1.BomService.GetBOMLines:output_type -> api.bom.v1.GetBOMLinesReply
-	30, // 40: api.bom.v1.BomService.RetrySearchTasks:output_type -> api.bom.v1.RetrySearchTasksReply
-	32, // 41: api.bom.v1.BomService.SubmitBomSearchResult:output_type -> api.bom.v1.SubmitBomSearchResultReply
-	34, // 42: api.bom.v1.BomService.ExportSession:output_type -> api.bom.v1.ExportSessionReply
-	37, // 43: api.bom.v1.BomService.ListMatchHistory:output_type -> api.bom.v1.ListMatchHistoryReply
-	39, // 44: api.bom.v1.BomService.GetMatchHistory:output_type -> api.bom.v1.GetMatchHistoryReply
-	29, // [29:45] is the sub-list for method output_type
-	13, // [13:29] is the sub-list for method input_type
+	20, // 21: api.bom.v1.BomService.ListSessions:input_type -> api.bom.v1.ListSessionsRequest
+	23, // 22: api.bom.v1.BomService.PatchSession:input_type -> api.bom.v1.PatchSessionRequest
+	24, // 23: api.bom.v1.BomService.PutPlatforms:input_type -> api.bom.v1.PutPlatformsRequest
+	26, // 24: api.bom.v1.BomService.GetReadiness:input_type -> api.bom.v1.GetReadinessRequest
+	28, // 25: api.bom.v1.BomService.GetBOMLines:input_type -> api.bom.v1.GetBOMLinesRequest
+	31, // 26: api.bom.v1.BomService.GetSessionSearchTaskCoverage:input_type -> api.bom.v1.GetSessionSearchTaskCoverageRequest
+	35, // 27: api.bom.v1.BomService.CreateSessionLine:input_type -> api.bom.v1.CreateSessionLineRequest
+	37, // 28: api.bom.v1.BomService.PatchSessionLine:input_type -> api.bom.v1.PatchSessionLineRequest
+	39, // 29: api.bom.v1.BomService.DeleteSessionLine:input_type -> api.bom.v1.DeleteSessionLineRequest
+	41, // 30: api.bom.v1.BomService.RetrySearchTasks:input_type -> api.bom.v1.RetrySearchTasksRequest
+	44, // 31: api.bom.v1.BomService.SubmitBomSearchResult:input_type -> api.bom.v1.SubmitBomSearchResultRequest
+	46, // 32: api.bom.v1.BomService.ExportSession:input_type -> api.bom.v1.ExportSessionRequest
+	1,  // 33: api.bom.v1.BomService.UploadBOM:output_type -> api.bom.v1.UploadBOMReply
+	4,  // 34: api.bom.v1.BomService.SearchQuotes:output_type -> api.bom.v1.SearchQuotesReply
+	8,  // 35: api.bom.v1.BomService.AutoMatch:output_type -> api.bom.v1.AutoMatchReply
+	15, // 36: api.bom.v1.BomService.DownloadTemplate:output_type -> api.bom.v1.DownloadTemplateReply
+	11, // 37: api.bom.v1.BomService.GetBOM:output_type -> api.bom.v1.GetBOMReply
+	13, // 38: api.bom.v1.BomService.GetMatchResult:output_type -> api.bom.v1.GetMatchResultReply
+	17, // 39: api.bom.v1.BomService.CreateSession:output_type -> api.bom.v1.CreateSessionReply
+	19, // 40: api.bom.v1.BomService.GetSession:output_type -> api.bom.v1.GetSessionReply
+	22, // 41: api.bom.v1.BomService.ListSessions:output_type -> api.bom.v1.ListSessionsReply
+	19, // 42: api.bom.v1.BomService.PatchSession:output_type -> api.bom.v1.GetSessionReply
+	25, // 43: api.bom.v1.BomService.PutPlatforms:output_type -> api.bom.v1.PutPlatformsReply
+	27, // 44: api.bom.v1.BomService.GetReadiness:output_type -> api.bom.v1.GetReadinessReply
+	34, // 45: api.bom.v1.BomService.GetBOMLines:output_type -> api.bom.v1.GetBOMLinesReply
+	33, // 46: api.bom.v1.BomService.GetSessionSearchTaskCoverage:output_type -> api.bom.v1.GetSessionSearchTaskCoverageReply
+	36, // 47: api.bom.v1.BomService.CreateSessionLine:output_type -> api.bom.v1.CreateSessionLineReply
+	38, // 48: api.bom.v1.BomService.PatchSessionLine:output_type -> api.bom.v1.PatchSessionLineReply
+	40, // 49: api.bom.v1.BomService.DeleteSessionLine:output_type -> api.bom.v1.DeleteSessionLineReply
+	43, // 50: api.bom.v1.BomService.RetrySearchTasks:output_type -> api.bom.v1.RetrySearchTasksReply
+	45, // 51: api.bom.v1.BomService.SubmitBomSearchResult:output_type -> api.bom.v1.SubmitBomSearchResultReply
+	47, // 52: api.bom.v1.BomService.ExportSession:output_type -> api.bom.v1.ExportSessionReply
+	33, // [33:53] is the sub-list for method output_type
+	13, // [13:33] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
 	13, // [13:13] is the sub-list for extension extendee
 	0,  // [0:13] is the sub-list for field type_name
@@ -2931,13 +3687,16 @@ func file_bom_v1_bom_proto_init() {
 	if File_bom_v1_bom_proto != nil {
 		return
 	}
+	file_bom_v1_bom_proto_msgTypes[16].OneofWrappers = []any{}
+	file_bom_v1_bom_proto_msgTypes[23].OneofWrappers = []any{}
+	file_bom_v1_bom_proto_msgTypes[37].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bom_v1_bom_proto_rawDesc), len(file_bom_v1_bom_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   41,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

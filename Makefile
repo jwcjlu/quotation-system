@@ -5,6 +5,10 @@ init:
 	go install github.com/go-kratos/kratos/cmd/protoc-gen-go-http/v2@latest
 	go install github.com/google/wire/cmd/wire@latest
 
+.PHONY: conf
+conf:
+	protoc --proto_path=./internal/conf --go_out=paths=source_relative:./internal/conf ./internal/conf/conf.proto
+
 .PHONY: api
 api:
 	protoc --proto_path=./api --proto_path=./third_party \

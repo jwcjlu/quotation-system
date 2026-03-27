@@ -1,7 +1,7 @@
 -- Agent 信息表（MySQL 8+，InnoDB，utf8mb4）
 -- 与 docs/数据库设计-Agent信息.md 一致
 
-CREATE TABLE IF NOT EXISTS caichip_agent (
+CREATE TABLE IF NOT EXISTS t_caichip_agent (
     id                          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     agent_id                    VARCHAR(64) NOT NULL,
     queue                       VARCHAR(128) NOT NULL DEFAULT 'default',
@@ -20,15 +20,15 @@ CREATE TABLE IF NOT EXISTS caichip_agent (
     KEY idx_updated (updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS caichip_agent_tag (
+CREATE TABLE IF NOT EXISTS t_caichip_agent_tag (
     agent_id VARCHAR(64) NOT NULL,
     tag      VARCHAR(256) NOT NULL,
     PRIMARY KEY (agent_id, tag),
-    CONSTRAINT fk_agent_tag_agent FOREIGN KEY (agent_id) REFERENCES caichip_agent (agent_id) ON DELETE CASCADE,
+    CONSTRAINT fk_agent_tag_agent FOREIGN KEY (agent_id) REFERENCES t_caichip_agent (agent_id) ON DELETE CASCADE,
     KEY idx_tag (tag)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS caichip_agent_installed_script (
+CREATE TABLE IF NOT EXISTS t_caichip_agent_installed_script (
     agent_id         VARCHAR(64) NOT NULL,
     script_id        VARCHAR(128) NOT NULL,
     version          VARCHAR(64)  NOT NULL,
@@ -37,6 +37,6 @@ CREATE TABLE IF NOT EXISTS caichip_agent_installed_script (
     message          TEXT NULL,
     updated_at       DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (agent_id, script_id),
-    CONSTRAINT fk_agent_script_agent FOREIGN KEY (agent_id) REFERENCES caichip_agent (agent_id) ON DELETE CASCADE,
+    CONSTRAINT fk_agent_script_agent FOREIGN KEY (agent_id) REFERENCES t_caichip_agent (agent_id) ON DELETE CASCADE,
     KEY idx_env_status (env_status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

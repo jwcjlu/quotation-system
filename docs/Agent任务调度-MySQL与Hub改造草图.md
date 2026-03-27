@@ -2,7 +2,7 @@
 
 目标：**多台 server 进程共用同一待派发队列**，调度事实以 **MySQL** 为准，替代当前纯内存的 `pending` / `assign`。
 
-**实现状态（2026-03）**：配置 `agent.dispatch_store: mysql` 且已建表后，`internal/service` 使用 `dbTaskScheduler` + `DispatchTaskRepo` / `AgentRegistryRepo`；`memory` 仍为纯 `AgentHub`。BOM `EnsureTasksForSession`（MySQL）在 `dispatch_store=mysql` 时会往 `caichip_dispatch_task` 幂等入队（`bom_platform_script.script_id`，任务版本暂固定 `1.0.0`）。详见 `docs/superpowers/plans/2026-03-24-agent-dispatch-mysql-implementation.md`。
+**实现状态（2026-03）**：配置 `agent.dispatch_store: mysql` 且已建表后，`internal/service` 使用 `dbTaskScheduler` + `DispatchTaskRepo` / `AgentRegistryRepo`；`memory` 仍为纯 `AgentHub`。详见 `docs/superpowers/plans/2026-03-24-agent-dispatch-mysql-implementation.md`。
 
 ---
 

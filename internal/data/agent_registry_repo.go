@@ -2,13 +2,14 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
+	"time"
 
 	"caichip/internal/biz"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // AgentRegistryRepo Agent 元数据表（caichip_agent / tag / installed_script），供 DB 调度 match 与离线判断。
@@ -43,19 +44,30 @@ func (r *AgentRegistryRepo) UpsertTaskHeartbeat(ctx context.Context, agentID, qu
 		q = "default"
 	}
 	hostname = strings.TrimSpace(hostname)
-	err := r.db.WithContext(ctx).Exec(`
-INSERT INTO caichip_agent (agent_id, queue, hostname, last_task_heartbeat_at, updated_at)
-VALUES (?, ?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
-ON DUPLICATE KEY UPDATE
-  queue = VALUES(queue),
-  hostname = VALUES(hostname),
-  last_task_heartbeat_at = CURRENT_TIMESTAMP(3),
-  updated_at = CURRENT_TIMESTAMP(3)`,
-		agentID, q, nullIfEmpty(hostname)).Error
-	if err != nil {
+	var hp *string
+	if hostname != "" {
+		hp = &hostname
+	}
+	now := time.Now()
+	ag := CaichipAgent{
+		AgentID:             agentID,
+		Queue:               q,
+		Hostname:            hp,
+		LastTaskHeartbeatAt: &now,
+	}
+	if err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "agent_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"queue":                  q,
+			"hostname":               hp,
+			"last_task_heartbeat_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+			"updated_at":             gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		}),
+	}).Create(&ag).Error; err != nil {
 		return err
 	}
-	if err := r.db.WithContext(ctx).Exec(`DELETE FROM caichip_agent_tag WHERE agent_id = ?`, agentID).Error; err != nil {
+
+	if err := r.db.WithContext(ctx).Where("agent_id = ?", agentID).Delete(&CaichipAgentTag{}).Error; err != nil {
 		return err
 	}
 	for _, t := range tags {
@@ -63,7 +75,8 @@ ON DUPLICATE KEY UPDATE
 		if t == "" {
 			continue
 		}
-		if err := r.db.WithContext(ctx).Exec(`INSERT INTO caichip_agent_tag (agent_id, tag) VALUES (?, ?)`, agentID, t).Error; err != nil {
+		row := CaichipAgentTag{AgentID: agentID, Tag: t}
+		if err := r.db.WithContext(ctx).Create(&row).Error; err != nil {
 			return err
 		}
 	}
@@ -72,15 +85,21 @@ ON DUPLICATE KEY UPDATE
 		if sid == "" {
 			continue
 		}
-		err = r.db.WithContext(ctx).Exec(`
-INSERT INTO caichip_agent_installed_script (agent_id, script_id, version, env_status, updated_at)
-VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP(3))
-ON DUPLICATE KEY UPDATE
-  version = VALUES(version),
-  env_status = VALUES(env_status),
-  updated_at = CURRENT_TIMESTAMP(3)`,
-			agentID, sid, strings.TrimSpace(s.Version), strings.TrimSpace(s.EnvStatus)).Error
-		if err != nil {
+		row := CaichipAgentInstalledScript{
+			AgentID:   agentID,
+			ScriptID:  sid,
+			Version:   strings.TrimSpace(s.Version),
+			EnvStatus: strings.TrimSpace(s.EnvStatus),
+			UpdatedAt: time.Now(),
+		}
+		if err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "agent_id"}, {Name: "script_id"}},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"version":    strings.TrimSpace(s.Version),
+				"env_status": strings.TrimSpace(s.EnvStatus),
+				"updated_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+			}),
+		}).Create(&row).Error; err != nil {
 			return err
 		}
 	}
@@ -98,54 +117,41 @@ func (r *AgentRegistryRepo) LoadSchedulingMeta(ctx context.Context, agentID stri
 		Tags:    make(map[string]struct{}),
 		Scripts: make(map[string]biz.InstalledScript),
 	}
-	var queue sql.NullString
-	err := r.db.WithContext(ctx).Raw(`SELECT queue FROM caichip_agent WHERE agent_id = ?`, agentID).Row().Scan(&queue)
-	if err != nil && err != sql.ErrNoRows {
+	var ag CaichipAgent
+	err := r.db.WithContext(ctx).Where("agent_id = ?", agentID).First(&ag).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	if queue.Valid && strings.TrimSpace(queue.String) != "" {
-		out.Queue = strings.TrimSpace(queue.String)
+	if err == nil && strings.TrimSpace(ag.Queue) != "" {
+		out.Queue = strings.TrimSpace(ag.Queue)
 	}
-	tagRows, err := r.db.WithContext(ctx).Raw(`SELECT tag FROM caichip_agent_tag WHERE agent_id = ?`, agentID).Rows()
-	if err != nil {
+
+	var tagRows []CaichipAgentTag
+	if err := r.db.WithContext(ctx).Where("agent_id = ?", agentID).Find(&tagRows).Error; err != nil {
 		return nil, err
 	}
-	defer tagRows.Close()
-	for tagRows.Next() {
-		var tag string
-		if err = tagRows.Scan(&tag); err != nil {
-			return nil, err
-		}
-		tag = strings.TrimSpace(tag)
-		if tag != "" {
-			out.Tags[tag] = struct{}{}
+	for _, tr := range tagRows {
+		t := strings.TrimSpace(tr.Tag)
+		if t != "" {
+			out.Tags[t] = struct{}{}
 		}
 	}
-	if err = tagRows.Err(); err != nil {
+
+	var scriptRows []CaichipAgentInstalledScript
+	if err := r.db.WithContext(ctx).Where("agent_id = ?", agentID).Find(&scriptRows).Error; err != nil {
 		return nil, err
 	}
-	scriptRows, err := r.db.WithContext(ctx).Raw(`
-SELECT script_id, version, env_status FROM caichip_agent_installed_script WHERE agent_id = ?`, agentID).Rows()
-	if err != nil {
-		return nil, err
-	}
-	defer scriptRows.Close()
-	for scriptRows.Next() {
-		var s biz.InstalledScript
-		if err = scriptRows.Scan(&s.ScriptID, &s.Version, &s.EnvStatus); err != nil {
-			return nil, err
+	for _, sr := range scriptRows {
+		s := biz.InstalledScript{
+			ScriptID:  strings.TrimSpace(sr.ScriptID),
+			Version:   strings.TrimSpace(sr.Version),
+			EnvStatus: strings.TrimSpace(sr.EnvStatus),
 		}
-		s.ScriptID = strings.TrimSpace(s.ScriptID)
 		if s.ScriptID != "" {
 			out.Scripts[s.ScriptID] = s
 		}
 	}
-	return out, scriptRows.Err()
+	return out, nil
 }
 
-func nullIfEmpty(s string) interface{} {
-	if s == "" {
-		return nil
-	}
-	return s
-}
+var _ biz.AgentRegistryRepo = (*AgentRegistryRepo)(nil)

@@ -1,9 +1,9 @@
 -- 分布式采集 — 调度任务队列表（MySQL 8+，InnoDB，utf8mb4）
 -- 多实例 server 共用：pending 行可被任意节点 FOR UPDATE SKIP LOCKED 原子认领并转为 leased。
--- 与协议对齐字段见 docs/分布式采集Agent-API协议.md；与 BOM 对齐：task_id 可与 bom_search_task.caichip_task_id 一致。
--- 执行前请已存在 docs/schema/agent_mysql.sql 中的 caichip_agent（若使用下方可选外键）。
+-- 与协议对齐字段见 docs/分布式采集Agent-API协议.md；与 BOM 对齐：task_id 可与 t_bom_search_task.caichip_task_id 一致。
+-- 执行前请已存在 docs/schema/agent_mysql.sql 中的 t_caichip_agent（若使用下方可选外键）。
 
-CREATE TABLE IF NOT EXISTS caichip_dispatch_task (
+CREATE TABLE IF NOT EXISTS t_caichip_dispatch_task (
     id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     task_id                 VARCHAR(128) NOT NULL,
     queue                   VARCHAR(128) NOT NULL DEFAULT 'default',
@@ -33,13 +33,13 @@ CREATE TABLE IF NOT EXISTS caichip_dispatch_task (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 可选：与 caichip_agent 绑定外键（若认领前保证 agent 已注册；否则注释掉本段）
--- ALTER TABLE caichip_dispatch_task
+-- ALTER TABLE t_caichip_dispatch_task
 --     ADD CONSTRAINT fk_dispatch_leased_agent
---     FOREIGN KEY (leased_to_agent_id) REFERENCES caichip_agent (agent_id)
+--     FOREIGN KEY (leased_to_agent_id) REFERENCES t_caichip_agent (agent_id)
 --     ON DELETE SET NULL;
 
 -- 可选：仅审计「每次派发/换租约」，便于排障与对账（主表仍保留当前 lease 快照）
--- CREATE TABLE IF NOT EXISTS caichip_dispatch_task_lease_log (
+-- CREATE TABLE IF NOT EXISTS t_caichip_dispatch_task_lease_log (
 --     id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 --     task_id                 VARCHAR(128) NOT NULL,
 --     lease_id                VARCHAR(64)  NOT NULL,

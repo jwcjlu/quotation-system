@@ -10,7 +10,7 @@ import (
 
 func TestDispatchRowToQueued(t *testing.T) {
 	tags, _ := json.Marshal([]string{"r=cn"})
-	d := &dispatchTaskRow{
+	d := &CaichipDispatchTask{
 		TaskID:       "tid-1",
 		Queue:        "default",
 		ScriptID:     "demo",
@@ -20,7 +20,7 @@ func TestDispatchRowToQueued(t *testing.T) {
 		RequiredTags: tags,
 		EntryFile:    sql.NullString{String: "main.py", Valid: true},
 	}
-	q := dispatchRowToQueued(d)
+	q := dispatchModelToQueued(d)
 	if q.TaskID != "tid-1" || q.ScriptID != "demo" || len(q.RequiredTags) != 1 || q.RequiredTags[0] != "r=cn" {
 		t.Fatalf("unexpected queued task: %+v", q)
 	}

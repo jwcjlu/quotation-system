@@ -9,6 +9,7 @@ import (
 
 // detectMySQLSkipLocked 在连接建立后探测是否支持 FOR UPDATE SKIP LOCKED。
 // 解析失败或查询失败时返回 false，使用仅 FOR UPDATE 以兼容 MySQL 5.7 等。
+// 说明：无业务表可映射为 GORM Model 的 VERSION() 标量查询，此处保留最小 Scan。
 func detectMySQLSkipLocked(db *gorm.DB) bool {
 	if db == nil {
 		return false

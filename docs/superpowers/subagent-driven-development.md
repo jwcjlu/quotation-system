@@ -20,9 +20,10 @@
 
 | 文档 | 说明 |
 |------|------|
-| [plans/2025-03-24-bom-sourcing-implementation.md](./plans/2025-03-24-bom-sourcing-implementation.md) | BOM 货源搜索与配单落地计划（16 个 Task） |
-| [../BOM货源搜索-技术设计方案.md](../BOM货源搜索-技术设计方案.md) | 设计约束 |
-| [../BOM货源搜索-接口清单.md](../BOM货源搜索-接口清单.md) | HTTP/字段约定 |
+| [specs/2026-03-27-bom-sourcing-design.md](./specs/2026-03-27-bom-sourcing-design.md) | BOM 多平台询价与配单（规格 SSOT） |
+| [plans/2026-03-27-bom-sourcing-implementation.md](./plans/2026-03-27-bom-sourcing-implementation.md) | BOM 能力恢复与落地 Task |
+| [plans/2026-03-24-agent-dispatch-mysql-implementation.md](./plans/2026-03-24-agent-dispatch-mysql-implementation.md) | Agent MySQL 调度 |
+| [plans/2026-03-24-agent-script-packages-implementation.md](./plans/2026-03-24-agent-script-packages-implementation.md) | 脚本包分发 |
 
 ---
 

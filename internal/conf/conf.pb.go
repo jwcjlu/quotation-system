@@ -323,9 +323,11 @@ func (x *Data) GetRedis() *DataRedis {
 }
 
 type DataDatabase struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Driver        string                 `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty"`
-	Dsn           string                 `protobuf:"bytes,2,opt,name=dsn,proto3" json:"dsn,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Driver string                 `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty"`
+	Dsn    string                 `protobuf:"bytes,2,opt,name=dsn,proto3" json:"dsn,omitempty"`
+	// 未设置或 true：连接成功后执行 GORM AutoMigrate（建表/补列/补简单索引）；显式 false 时跳过（生产可用手工 SQL）。
+	AutoMigrate   *bool `protobuf:"varint,3,opt,name=auto_migrate,json=autoMigrate,proto3,oneof" json:"auto_migrate,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -372,6 +374,13 @@ func (x *DataDatabase) GetDsn() string {
 		return x.Dsn
 	}
 	return ""
+}
+
+func (x *DataDatabase) GetAutoMigrate() bool {
+	if x != nil && x.AutoMigrate != nil {
+		return *x.AutoMigrate
+	}
+	return false
 }
 
 type DataRedis struct {
@@ -876,10 +885,12 @@ const file_conf_proto_rawDesc = "" +
 	"\atimeout\x18\x02 \x01(\x05R\atimeout\"]\n" +
 	"\x04Data\x12.\n" +
 	"\bdatabase\x18\x01 \x01(\v2\x12.conf.DataDatabaseR\bdatabase\x12%\n" +
-	"\x05redis\x18\x02 \x01(\v2\x0f.conf.DataRedisR\x05redis\"8\n" +
+	"\x05redis\x18\x02 \x01(\v2\x0f.conf.DataRedisR\x05redis\"q\n" +
 	"\fDataDatabase\x12\x16\n" +
 	"\x06driver\x18\x01 \x01(\tR\x06driver\x12\x10\n" +
-	"\x03dsn\x18\x02 \x01(\tR\x03dsn\"g\n" +
+	"\x03dsn\x18\x02 \x01(\tR\x03dsn\x12&\n" +
+	"\fauto_migrate\x18\x03 \x01(\bH\x00R\vautoMigrate\x88\x01\x01B\x0f\n" +
+	"\r_auto_migrate\"g\n" +
 	"\tDataRedis\x12\x12\n" +
 	"\x04addr\x18\x01 \x01(\tR\x04addr\x12!\n" +
 	"\fread_timeout\x18\x02 \x01(\x05R\vreadTimeout\x12#\n" +
@@ -972,6 +983,7 @@ func file_conf_proto_init() {
 	if File_conf_proto != nil {
 		return
 	}
+	file_conf_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

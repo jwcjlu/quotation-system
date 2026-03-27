@@ -2,11 +2,12 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"caichip/internal/biz"
 
 	"gorm.io/gorm"
 )
@@ -19,7 +20,7 @@ func parseDateTimeForScan(s string) (time.Time, error) {
 	}
 	loc := time.Local
 	for _, layout := range []string{
-		"2006-01-02", // MySQL DATE、bom_date
+		"2006-01-02",
 		"2006-01-02 15:04:05.000000",
 		"2006-01-02 15:04:05.000",
 		"2006-01-02 15:04:05",
@@ -39,19 +40,21 @@ func parseDateTimeForScan(s string) (time.Time, error) {
 // ErrScriptStoreUnavailable 未配置数据库或 DB 为 nil。
 var ErrScriptStoreUnavailable = errors.New("script store: database unavailable")
 
-// AgentScriptPackage 一行元数据（与 agent_script_package 表对齐；分发觉以 script_id 为唯一条目键）。
+// AgentScriptPackage 一行元数据（GORM 模型，与 t_agent_script_package 表对齐）。
 type AgentScriptPackage struct {
-	ID             int64
-	ScriptID       string
-	Version        string
-	SHA256         string
-	StorageRelPath string
-	Filename       string
-	Status         string
-	ReleaseNotes   string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID             int64     `gorm:"column:id;primaryKey;autoIncrement"`
+	ScriptID       string    `gorm:"column:script_id;size:128;not null"`
+	Version        string    `gorm:"column:version;size:64;not null"`
+	SHA256         string    `gorm:"column:sha256;size:64;not null"`
+	StorageRelPath string    `gorm:"column:storage_rel_path;size:512;not null"`
+	Filename       string    `gorm:"column:filename;size:255;not null"`
+	Status         string    `gorm:"column:status;size:32;not null;default:uploaded"`
+	ReleaseNotes   string    `gorm:"column:release_notes;type:text"`
+	CreatedAt      time.Time `gorm:"column:created_at;precision:3"`
+	UpdatedAt      time.Time `gorm:"column:updated_at;precision:3"`
 }
+
+func (AgentScriptPackage) TableName() string { return TableAgentScriptPackage }
 
 // AgentScriptPackageRepo 脚本包持久化。
 type AgentScriptPackageRepo struct {
@@ -85,27 +88,13 @@ func (r *AgentScriptPackageRepo) Insert(ctx context.Context, p *AgentScriptPacka
 	if p.Status == "" {
 		p.Status = "uploaded"
 	}
-	notes := strings.TrimSpace(p.ReleaseNotes)
-	q := `INSERT INTO agent_script_package
-(script_id, version, sha256, storage_rel_path, filename, status, release_notes)
-VALUES (?,?,?,?,?,?,?)`
-	var notesArg any
-	if notes == "" {
-		notesArg = nil
-	} else {
-		notesArg = notes
-	}
-	sqlDB, err := r.db.DB()
-	if err != nil {
+	p.ReleaseNotes = strings.TrimSpace(p.ReleaseNotes)
+	row := *p
+	row.ID = 0
+	if err := r.db.WithContext(ctx).Create(&row).Error; err != nil {
 		return 0, err
 	}
-	res, err := sqlDB.ExecContext(ctx, q,
-		p.ScriptID, p.Version, p.SHA256, p.StorageRelPath, p.Filename, p.Status, notesArg,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return res.LastInsertId()
+	return row.ID, nil
 }
 
 // SetPublished 将 id 对应行设为 published，同 script_id 的其它 published 行改为 archived。
@@ -119,34 +108,38 @@ func (r *AgentScriptPackageRepo) SetPublished(ctx context.Context, id int64) err
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	row, err := r.getByIDTx(ctx, tx, id)
-	if err != nil {
+	var row AgentScriptPackage
+	if err := tx.Where("id = ?", id).First(&row).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("package id %d not found", id)
+		}
 		return err
-	}
-	if row == nil {
-		return fmt.Errorf("package id %d not found", id)
 	}
 	if strings.EqualFold(strings.TrimSpace(row.Status), "published") {
 		return tx.Commit().Error
 	}
 
-	if err := tx.Exec(`
-UPDATE agent_script_package SET status = 'archived'
-WHERE script_id = ? AND status = 'published' AND id <> ?`,
-		row.ScriptID, id).Error; err != nil {
+	if err := tx.Model(&AgentScriptPackage{}).
+		Where("script_id = ? AND status = ? AND id <> ?", row.ScriptID, "published", id).
+		Update("status", "archived").Error; err != nil {
 		return err
 	}
-	if err := tx.Exec(`UPDATE agent_script_package SET status = 'published' WHERE id = ?`, id).Error; err != nil {
+	if err := tx.Model(&AgentScriptPackage{}).Where("id = ?", id).Update("status", "published").Error; err != nil {
 		return err
 	}
 	return tx.Commit().Error
 }
 
 func (r *AgentScriptPackageRepo) getByIDTx(ctx context.Context, tx *gorm.DB, id int64) (*AgentScriptPackage, error) {
-	return scanOnePkg(tx.WithContext(ctx).Raw(`
-SELECT id, script_id, version, sha256, storage_rel_path, filename, status,
-       IFNULL(release_notes,''), created_at, updated_at
-FROM agent_script_package WHERE id = ?`, id).Row())
+	var p AgentScriptPackage
+	err := tx.WithContext(ctx).Where("id = ?", id).First(&p).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 // GetByID ...
@@ -154,10 +147,7 @@ func (r *AgentScriptPackageRepo) GetByID(ctx context.Context, id int64) (*AgentS
 	if r.db == nil {
 		return nil, ErrScriptStoreUnavailable
 	}
-	return scanOnePkg(r.db.WithContext(ctx).Raw(`
-SELECT id, script_id, version, sha256, storage_rel_path, filename, status,
-       IFNULL(release_notes,''), created_at, updated_at
-FROM agent_script_package WHERE id = ?`, id).Row())
+	return r.getByIDTx(ctx, r.db, id)
 }
 
 // GetPublished 当前发布的包（按 script_id）。
@@ -166,11 +156,17 @@ func (r *AgentScriptPackageRepo) GetPublished(ctx context.Context, scriptID stri
 		return nil, ErrScriptStoreUnavailable
 	}
 	scriptID = strings.TrimSpace(scriptID)
-	return scanOnePkg(r.db.WithContext(ctx).Raw(`
-SELECT id, script_id, version, sha256, storage_rel_path, filename, status,
-       IFNULL(release_notes,''), created_at, updated_at
-FROM agent_script_package
-WHERE script_id = ? AND status = 'published'`, scriptID).Row())
+	var p AgentScriptPackage
+	err := r.db.WithContext(ctx).
+		Where("script_id = ? AND status = ?", scriptID, "published").
+		First(&p).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
 }
 
 // ListAllPublished 全部 published 包（每个 script_id 至多一行）。
@@ -178,25 +174,37 @@ func (r *AgentScriptPackageRepo) ListAllPublished(ctx context.Context) ([]*Agent
 	if r.db == nil {
 		return nil, ErrScriptStoreUnavailable
 	}
-	rows, err := r.db.WithContext(ctx).Raw(`
-SELECT id, script_id, version, sha256, storage_rel_path, filename, status,
-       IFNULL(release_notes,''), created_at, updated_at
-FROM agent_script_package
-WHERE status = 'published'
-ORDER BY script_id`).Rows()
+	var list []*AgentScriptPackage
+	err := r.db.WithContext(ctx).
+		Where("status = ?", "published").
+		Order("script_id").
+		Find(&list).Error
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var list []*AgentScriptPackage
-	for rows.Next() {
-		p, err := scanPkgRows(rows)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, p)
+	return list, nil
+}
+
+// ListPublishedScripts 实现 biz.AgentScriptPublishedLister，供 Agent 同步比对。
+func (r *AgentScriptPackageRepo) ListPublishedScripts(ctx context.Context) ([]biz.PublishedScriptMeta, error) {
+	ps, err := r.ListAllPublished(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return list, rows.Err()
+	out := make([]biz.PublishedScriptMeta, 0, len(ps))
+	for _, p := range ps {
+		if p == nil {
+			continue
+		}
+		out = append(out, biz.PublishedScriptMeta{
+			ScriptID:       p.ScriptID,
+			Version:        p.Version,
+			SHA256:         p.SHA256,
+			StorageRelPath: p.StorageRelPath,
+			Status:         p.Status,
+		})
+	}
+	return out, nil
 }
 
 // ListPackages 分页列举（按 id 降序）。
@@ -213,80 +221,16 @@ func (r *AgentScriptPackageRepo) ListPackages(ctx context.Context, offset, limit
 	if offset < 0 {
 		offset = 0
 	}
-	rows, err := r.db.WithContext(ctx).Raw(`
-SELECT id, script_id, version, sha256, storage_rel_path, filename, status,
-       IFNULL(release_notes,''), created_at, updated_at
-FROM agent_script_package
-ORDER BY id DESC
-LIMIT ? OFFSET ?`, limit, offset).Rows()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 	var list []*AgentScriptPackage
-	for rows.Next() {
-		p, err := scanPkgRows(rows)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, p)
-	}
-	return list, rows.Err()
-}
-
-func scanOnePkg(row *sql.Row) (*AgentScriptPackage, error) {
-	var p AgentScriptPackage
-	var cStr, uStr sql.NullString
-	err := row.Scan(
-		&p.ID, &p.ScriptID, &p.Version, &p.SHA256,
-		&p.StorageRelPath, &p.Filename, &p.Status, &p.ReleaseNotes, &cStr, &uStr,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
+	err := r.db.WithContext(ctx).
+		Order("id DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&list).Error
 	if err != nil {
 		return nil, err
 	}
-	if cStr.Valid {
-		t, err := parseDateTimeForScan(cStr.String)
-		if err != nil {
-			return nil, fmt.Errorf("created_at: %w", err)
-		}
-		p.CreatedAt = t
-	}
-	if uStr.Valid {
-		t, err := parseDateTimeForScan(uStr.String)
-		if err != nil {
-			return nil, fmt.Errorf("updated_at: %w", err)
-		}
-		p.UpdatedAt = t
-	}
-	return &p, nil
+	return list, nil
 }
 
-func scanPkgRows(rows *sql.Rows) (*AgentScriptPackage, error) {
-	var p AgentScriptPackage
-	var cStr, uStr sql.NullString
-	err := rows.Scan(
-		&p.ID, &p.ScriptID, &p.Version, &p.SHA256,
-		&p.StorageRelPath, &p.Filename, &p.Status, &p.ReleaseNotes, &cStr, &uStr,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if cStr.Valid {
-		t, err := parseDateTimeForScan(cStr.String)
-		if err != nil {
-			return nil, fmt.Errorf("created_at: %w", err)
-		}
-		p.CreatedAt = t
-	}
-	if uStr.Valid {
-		t, err := parseDateTimeForScan(uStr.String)
-		if err != nil {
-			return nil, fmt.Errorf("updated_at: %w", err)
-		}
-		p.UpdatedAt = t
-	}
-	return &p, nil
-}
+var _ biz.AgentScriptPublishedLister = (*AgentScriptPackageRepo)(nil)

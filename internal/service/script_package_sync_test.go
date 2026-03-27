@@ -4,11 +4,11 @@ import (
 	"testing"
 
 	v1 "caichip/api/agent/v1"
-	"caichip/internal/data"
+	"caichip/internal/biz"
 )
 
 func TestNeedsScriptSync(t *testing.T) {
-	pub := &data.AgentScriptPackage{Version: "1.2.3", SHA256: "aa"}
+	pub := &biz.PublishedScriptMeta{Version: "1.2.3", SHA256: "aa"}
 	if !needsScriptSync(pub, nil) {
 		t.Fatal("nil row should need sync")
 	}

@@ -35,6 +35,24 @@ func NewData(c *conf.Bootstrap) (*Data, func(), error) {
 	mysqlSL := false
 	if db != nil {
 		mysqlSL = detectMySQLSkipLocked(db)
+		if autoMigrateEnabled(c) {
+			if err := AutoMigrateSchema(db); err != nil {
+				cleanup()
+				return nil, nil, err
+			}
+		}
 	}
 	return &Data{DB: db, dbDriver: driver, mysqlSkipLocked: mysqlSL}, cleanup, nil
+}
+
+// autoMigrateEnabled：未配置 auto_migrate 时默认开启；配置为 false 时关闭（生产用手工迁移）。
+func autoMigrateEnabled(bc *conf.Bootstrap) bool {
+	if bc == nil || bc.Data == nil || bc.Data.Database == nil {
+		return true
+	}
+	p := bc.Data.Database.AutoMigrate
+	if p == nil {
+		return true
+	}
+	return *p
 }

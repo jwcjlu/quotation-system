@@ -109,13 +109,13 @@ func TestResolveEntry(t *testing.T) {
 func TestRunTask_Skipped(t *testing.T) {
 	log := discardLogger()
 
-	file := "ickey_crawler.py"
-	st, code, _, msg := RunTask("D:\\tmp", &v1.TaskObject{
+	file := "szlcsc_crawler.py"
+	st, code, stdout, msg := RunTask("D:\\tmp", &v1.TaskObject{
 		TaskId:         "111111",
-		ScriptId:       "ickey",
+		ScriptId:       "szlcsc",
 		Version:        "0.0.1",
 		EntryFile:      &file,
-		Argv:           []string{"--model", "LAN8720AI-CP-TR", "--parse-workers", "8"},
+		Argv:           []string{"--model", "TS5A3159DCKR", "--parse-workers", "8"},
 		Params:         nil,
 		TimeoutSec:     300,
 		LeaseId:        "",
@@ -123,7 +123,7 @@ func TestRunTask_Skipped(t *testing.T) {
 		TraceId:        "",
 	}, "python", log)
 	if st != "skipped" || code != nil || msg != "missing script_id/version" {
-		t.Fatalf("got %v %v %q", st, code, msg)
+		t.Fatalf("got %v %v %q,%v", st, code, msg, stdout)
 	}
 
 }

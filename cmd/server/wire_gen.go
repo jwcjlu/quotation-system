@@ -32,7 +32,7 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 	bomSessionRepo := data.NewBomSessionRepo(dataData)
 	agentService := service.NewAgentService(agentHub, taskScheduler, dispatchTaskRepo, agentRegistryRepo, agentScriptPackageRepo, bomSearchTaskRepo, bomSessionRepo, bootstrap, logger)
 	scriptPackageAdmin := service.NewScriptPackageAdmin(bootstrap, agentScriptPackageRepo, logger)
-	bomMergeDispatch := data.NewBomMergeDispatch(dataData, dispatchTaskRepo, bomSearchTaskRepo, bomSessionRepo)
+	bomMergeDispatch := data.NewBomMergeDispatch(dataData, dispatchTaskRepo, bomSearchTaskRepo, bomSessionRepo, agentScriptPackageRepo)
 	bomService := service.NewBomService(bomSessionRepo, bomSearchTaskRepo, bomMergeDispatch, logger)
 	httpServer := server.NewHTTPServer(bootstrap, logger, agentService, scriptPackageAdmin, bomService)
 	app := newApp(bootstrap, logger, httpServer)

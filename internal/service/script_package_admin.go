@@ -158,6 +158,13 @@ func (a *ScriptPackageAdmin) UploadPackage(ctx context.Context, r *http.Request)
 	}
 	storageRel := filepath.ToSlash(filepath.Join(relDir, filename))
 
+	entryFile := strings.TrimSpace(r.FormValue("entry_file"))
+	if entryFile == "" {
+		entryFile = fmt.Sprintf("%s_crawler.py", scriptID)
+	} else {
+		entryFile = filepath.Base(entryFile)
+	}
+
 	notes := strings.TrimSpace(r.FormValue("release_notes"))
 	rec := &data.AgentScriptPackage{
 		ScriptID:       scriptID,
@@ -165,6 +172,7 @@ func (a *ScriptPackageAdmin) UploadPackage(ctx context.Context, r *http.Request)
 		SHA256:         gotSHA,
 		StorageRelPath: storageRel,
 		Filename:       filename,
+		EntryFile:      entryFile,
 		Status:         "uploaded",
 		ReleaseNotes:   notes,
 	}

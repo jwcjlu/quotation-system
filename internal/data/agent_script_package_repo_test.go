@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS t_agent_script_package (
     sha256             CHAR(64)     NOT NULL,
     storage_rel_path   VARCHAR(512) NOT NULL,
     filename           VARCHAR(255) NOT NULL,
+    entry_file         VARCHAR(255) NOT NULL DEFAULT '',
     status             VARCHAR(32)  NOT NULL DEFAULT 'uploaded',
     release_notes      TEXT         NULL,
     created_at         DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -73,6 +74,7 @@ func TestAgentScriptPackageRepo_PublishRoundTrip(t *testing.T) {
 		SHA256:         "ab" + strings.Repeat("0", 62),
 		StorageRelPath: "findchips/1.0.0/pkg.zip",
 		Filename:       "pkg.zip",
+		EntryFile:      "find_chips_crawler.py",
 		Status:         "uploaded",
 	})
 	if err != nil {
@@ -93,6 +95,9 @@ func TestAgentScriptPackageRepo_PublishRoundTrip(t *testing.T) {
 	}
 	if got.Version != "1.0.0" {
 		t.Fatalf("version: got %q", got.Version)
+	}
+	if got.EntryFile != "find_chips_crawler.py" {
+		t.Fatalf("entry_file: got %q", got.EntryFile)
 	}
 	if !strings.EqualFold(got.Status, "published") {
 		t.Fatalf("status: %q", got.Status)

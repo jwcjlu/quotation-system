@@ -106,6 +106,7 @@ func adminCurrentPackage(admin *service.ScriptPackageAdmin) func(ctx khttp.Conte
 			"sha256":           p.SHA256,
 			"storage_rel_path": p.StorageRelPath,
 			"filename":         p.Filename,
+			"entry_file":       p.EntryFile,
 			"status":           p.Status,
 			"public_path":      pubPath,
 		})
@@ -135,6 +136,7 @@ func adminListPackages(admin *service.ScriptPackageAdmin) func(ctx khttp.Context
 				"id": p.ID, "script_id": p.ScriptID,
 				"version": p.Version, "sha256": p.SHA256, "status": p.Status,
 				"storage_rel_path": p.StorageRelPath, "filename": p.Filename,
+				"entry_file": p.EntryFile,
 			})
 		}
 		return ctx.Result(200, map[string]any{"packages": out})

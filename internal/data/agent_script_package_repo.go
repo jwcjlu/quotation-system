@@ -48,6 +48,7 @@ type AgentScriptPackage struct {
 	SHA256         string    `gorm:"column:sha256;size:64;not null"`
 	StorageRelPath string    `gorm:"column:storage_rel_path;size:512;not null"`
 	Filename       string    `gorm:"column:filename;size:255;not null"`
+	EntryFile      string    `gorm:"column:entry_file;size:255;not null;default:''"`
 	Status         string    `gorm:"column:status;size:32;not null;default:uploaded"`
 	ReleaseNotes   string    `gorm:"column:release_notes;type:text"`
 	CreatedAt      time.Time `gorm:"column:created_at;precision:3"`
@@ -84,6 +85,7 @@ func (r *AgentScriptPackageRepo) Insert(ctx context.Context, p *AgentScriptPacka
 	p.SHA256 = strings.ToLower(strings.TrimSpace(p.SHA256))
 	p.StorageRelPath = strings.TrimSpace(p.StorageRelPath)
 	p.Filename = strings.TrimSpace(p.Filename)
+	p.EntryFile = strings.TrimSpace(p.EntryFile)
 	p.Status = strings.TrimSpace(p.Status)
 	if p.Status == "" {
 		p.Status = "uploaded"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,10 +22,11 @@ type BomMergeDispatch struct {
 	dispatch *DispatchTaskRepo
 	search   *BOMSearchTaskRepo
 	session  *BomSessionRepo
+	scripts  *AgentScriptPackageRepo
 }
 
 // NewBomMergeDispatch ...
-func NewBomMergeDispatch(d *Data, disp *DispatchTaskRepo, search *BOMSearchTaskRepo, session *BomSessionRepo) *BomMergeDispatch {
+func NewBomMergeDispatch(d *Data, disp *DispatchTaskRepo, search *BOMSearchTaskRepo, session *BomSessionRepo, scripts *AgentScriptPackageRepo) *BomMergeDispatch {
 	if d == nil || d.DB == nil {
 		return &BomMergeDispatch{}
 	}
@@ -33,6 +35,7 @@ func NewBomMergeDispatch(d *Data, disp *DispatchTaskRepo, search *BOMSearchTaskR
 		dispatch: disp,
 		search:   search,
 		session:  session,
+		scripts:  scripts,
 	}
 }
 
@@ -78,6 +81,17 @@ func (m *BomMergeDispatch) buildQueuedTask(ctx context.Context, taskID, mpnNorm,
 	}
 	version := "0.0.1"
 	file := fmt.Sprintf("%s_crawler.py", pid)
+	if m.scripts != nil && m.scripts.DBOk() {
+		pkg, err := m.scripts.GetPublished(ctx, scriptID)
+		if err == nil && pkg != nil {
+			if v := strings.TrimSpace(pkg.Version); v != "" {
+				version = v
+			}
+			if ef := strings.TrimSpace(pkg.EntryFile); ef != "" {
+				file = filepath.Base(ef)
+			}
+		}
+	}
 	return &biz.QueuedTask{
 		TaskMessage: biz.TaskMessage{
 			TaskID:   taskID,

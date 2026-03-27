@@ -1,17 +1,15 @@
 """
-华秋商城 hqchip.com 搜索页商品解析。
+华秋商城 hqchip.com 搜索页商品解析（DrissionPage）。
+
+CLI 模式（与 ickey_crawler.py 一致，供 Go / Agent 调用）:
+  python hqchip_crawler.py --model SN74HC595PWR
+  python hqchip_crawler.py --model A,B,C   # 多型号逗号分隔，串流依次搜索
+  成功：stdout 仅输出 JSON 数组（UTF-8）；失败：stderr 输出 {"error":"...","results":[]}
 
 DOM 参考（与保存的 .mhtml 一致）:
-  #resultTabBox / .res_tab_box
-    .self_res / .other_res
-      .self_res_box / .other_res_box
-        div.tr[goods-id][data-suppname][goods-name]
-          .col1  图/链接
-          .col2  型号(em.light)、品牌、封装、描述(span.desc)…
-          .col6 或 .col3 .dt_box  现货库存(strong)
-          .col3 .price_list      梯度价(td.num / td.price)
+  #resultTabBox / .res_tab_box → div.tr[goods-id] …
 
-验证: python hqchip.py --validate-mhtml path/to/snapshot.mhtml
+离线验证: python hqchip_crawler.py --validate-mhtml path/to/snapshot.mhtml
 """
 
 from __future__ import annotations
@@ -30,12 +28,12 @@ from urllib.parse import quote
 from DrissionPage import ChromiumPage, ChromiumOptions
 
 try:
-    from crawler_cli import emit_json_stderr_error, emit_json_stdout
+    from crawler_cli import UNIFIED_RESULT_KEYS
 except ImportError:
     _root = os.path.dirname(os.path.abspath(__file__))
     if _root not in sys.path:
         sys.path.insert(0, _root)
-    from crawler_cli import emit_json_stderr_error, emit_json_stdout
+    from crawler_cli import UNIFIED_RESULT_KEYS
 
 
 def setup_browser(headless: bool = False) -> ChromiumPage:
@@ -58,23 +56,82 @@ def hqchip_search_url(model: str) -> str:
     return f"https://www.hqchip.com/search/{quote(model, safe='')}.html"
 
 
+def _normalize_stock_for_ickey_json(stock_txt: str) -> str:
+    """尽量输出纯数字，对齐 ickey data-stock，便于 Go strconv.ParseInt。"""
+    s = (stock_txt or "").strip().replace("\n", " ")
+    if not s or s.upper() in ("N/A", "—", "-"):
+        return "0"
+    if re.fullmatch(r"\d+", s):
+        return s
+    m = re.search(r"([\d][\d,\s]*)", s.replace("，", ","))
+    if m:
+        digits = re.sub(r"[^\d]", "", m.group(1))
+        if digits:
+            return digits
+    return "0"
+
+
+def _moq_from_price_gradient_str(price_str: str) -> str:
+    """从梯度串中取最小起订量（如 1+、10+），与 ickey moq 语义接近。"""
+    ps = (price_str or "").strip()
+    if not ps:
+        return "N/A"
+    mins: list[int] = []
+    for m in re.finditer(r"(\d+)\s*\+", ps):
+        try:
+            mins.append(int(m.group(1)))
+        except ValueError:
+            continue
+    if mins:
+        return str(min(mins))
+    m = re.search(r"(?:^|\|)\s*(\d+)\s+(?:[￥¥$]|\d)", ps)
+    if m:
+        return m.group(1)
+    return "N/A"
+
+
+def _normalize_price_tier_segment(num_txt: str, price_txt: str) -> str:
+    """
+    单档拼接为与 ickey / Go parseFirstPriceFromTiers 兼容的片段。
+    num 常见「1+」「10+」；price 常见「¥0.12」「￥0.12」「$0.5」。
+    """
+    n = (num_txt or "").strip()
+    p = (price_txt or "").strip()
+    if not n and not p:
+        return ""
+    p_clean = re.sub(r"\s+", " ", p)
+    # 已有 ￥¥$ 则直接拼接
+    if re.search(r"[￥¥$]", p_clean):
+        return f"{n} {p_clean}".strip()
+    # 纯数字价，默认按人民币档写（华秋大陆站常见）
+    if re.fullmatch(r"[\d.]+", p_clean):
+        return f"{n} ￥{p_clean}"
+    return f"{n} {p_clean}".strip()
+
+
 def _hqchip_raw_to_unified(item: dict[str, Any], seq: int, query_model: str) -> dict[str, Any]:
-    """与 ickey_crawler 输出字段一致。"""
-    pt = (item.get("价格梯度") or "").strip() or "N/A"
-    return {
+    """转为与 ickey_crawler.py 完全一致键名与顺序的 JSON 对象。"""
+    raw_pt = (item.get("价格梯度") or "").strip()
+    # 若原始梯度未预格式化，保持原样；否则已在 parse 里用 _normalize_price_tier_segment 拼好
+    pt = raw_pt or "N/A"
+    desc = (item.get("描述") or "").strip() or "N/A"
+    if len(desc) > 200:
+        desc = desc[:200]
+    row = {
         "seq": seq,
-        "model": item.get("型号") or "N/A",
-        "manufacturer": item.get("品牌") or "N/A",
-        "package": (item.get("封装") or "N/A").strip() or "N/A",
-        "desc": (item.get("描述") or "N/A")[:100],
-        "stock": item.get("库存") or "N/A",
-        "moq": "N/A",
+        "model": (item.get("型号") or "N/A") or "N/A",
+        "manufacturer": (item.get("品牌") or "N/A") or "N/A",
+        "package": (str(item.get("封装") or "N/A").strip() or "N/A"),
+        "desc": desc,
+        "stock": _normalize_stock_for_ickey_json(str(item.get("库存") or "")),
+        "moq": _moq_from_price_gradient_str(raw_pt),
         "price_tiers": pt,
         "hk_price": "N/A",
         "mainland_price": pt,
         "lead_time": "N/A",
         "query_model": query_model,
     }
+    return {k: row[k] for k in UNIFIED_RESULT_KEYS}
 
 
 def _attr(el, name: str, default: str = "") -> str:
@@ -227,7 +284,9 @@ def parse_hqchip_row_fields(row) -> dict[str, Any] | None:
                     n = tr.ele("css:td.num", timeout=0.15)
                     p = tr.ele("css:td.price", timeout=0.15)
                     if n and p:
-                        tiers.append(f"{_text(n)} {_text(p)}")
+                        seg = _normalize_price_tier_segment(_text(n), _text(p))
+                        if seg:
+                            tiers.append(seg)
                 except Exception:
                     continue
     except Exception:
@@ -341,6 +400,7 @@ def run_search_batch(
     quiet: bool = False,
     parse_workers: int = 8,
 ) -> list[dict]:
+    """多型号串流搜索；parse_workers 与 ickey 参数兼容（本脚本以串行解析为主）。"""
     _ = parse_workers
     if not models:
         return []
@@ -427,7 +487,11 @@ def _parse_hqchip_row_bs4(div) -> dict[str, Any] | None:
         n = tr.select_one("td.num")
         p = tr.select_one("td.price")
         if n and p:
-            tiers.append(f"{n.get_text(strip=True)} {p.get_text(strip=True)}")
+            seg = _normalize_price_tier_segment(
+                n.get_text(strip=True), p.get_text(strip=True)
+            )
+            if seg:
+                tiers.append(seg)
     price_str = " | ".join(tiers)
 
     item_link = ""
@@ -487,19 +551,21 @@ def validate_mhtml(path: str) -> list[dict]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="华秋商城搜索页爬虫")
+    parser = argparse.ArgumentParser(
+        description="华秋商城搜索页爬虫（CLI JSON 与 ickey_crawler.py 对齐）"
+    )
     parser.add_argument(
         "--model",
         "-m",
         type=str,
-        help="搜索型号，逗号分隔；输出与 ickey_crawler 一致的 JSON 到 stdout",
+        help="搜索型号，逗号分隔可传多个，串流依次搜索",
     )
     parser.add_argument(
         "--parse-workers",
         "-w",
         type=int,
         default=8,
-        help="预留，与 ickey 对齐",
+        help="与 ickey 一致；当前以串行解析为主，参数保留兼容",
     )
     parser.add_argument(
         "--validate-mhtml",
@@ -514,6 +580,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.model:
+        # 与 ickey_crawler.py main 一致：stdout 仅 JSON，错误写 stderr
         try:
             models = [m.strip() for m in args.model.split(",") if m.strip()]
             if not models:
@@ -524,9 +591,18 @@ def main() -> None:
                 quiet=True,
                 parse_workers=args.parse_workers,
             )
-            emit_json_stdout(results)
+            out = json.dumps(results, ensure_ascii=False, indent=0)
+            try:
+                sys.stdout.reconfigure(encoding="utf-8")
+            except AttributeError:
+                pass
+            sys.stdout.buffer.write((out + "\n").encode("utf-8"))
         except Exception as e:
-            emit_json_stderr_error(str(e))
+            err = json.dumps({"error": str(e), "results": []}, ensure_ascii=False)
+            try:
+                sys.stderr.buffer.write((err + "\n").encode("utf-8"))
+            except Exception:
+                sys.stderr.write(err + "\n")
             sys.exit(1)
         return
 

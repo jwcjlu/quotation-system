@@ -46,6 +46,8 @@ export async function uploadAgentScriptPackage(
     scriptId: string
     version: string
     file: File
+    /** Python 入口文件名（zip 内），留空则后端默认 `{script_id}_crawler.py` */
+    entryFile?: string
     releaseNotes?: string
     packageSha256?: string
   },
@@ -54,6 +56,9 @@ export async function uploadAgentScriptPackage(
   fd.append('script_id', params.scriptId.trim())
   fd.append('version', params.version.trim())
   fd.append('file', params.file)
+  if (params.entryFile?.trim()) {
+    fd.append('entry_file', params.entryFile.trim())
+  }
   if (params.releaseNotes?.trim()) {
     fd.append('release_notes', params.releaseNotes.trim())
   }
@@ -88,6 +93,7 @@ export interface CurrentPackageReply {
   sha256: string
   storage_rel_path: string
   filename: string
+  entry_file: string
   status: string
   public_path: string
 }
@@ -108,6 +114,7 @@ export interface PackageListItem {
   status: string
   storage_rel_path: string
   filename: string
+  entry_file: string
 }
 
 export interface ListPackagesReply {

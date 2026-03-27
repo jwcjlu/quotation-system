@@ -1,3 +1,16 @@
+"""
+FindChips 搜索页爬虫（SupplyFrame）- DrissionPage
+
+CLI 模式（与 ickey_crawler.py 一致，供 Go / Agent 调用）:
+  python find_chips_crawler.py --model SN74HC595PWR
+  python find_chips_crawler.py --model A,B,C   # 多型号逗号分隔，串流依次搜索
+  成功：stdout 仅输出 JSON 数组（UTF-8）；失败：stderr 输出 {"error":"...","results":[]}
+
+要求：
+  1. 型号串流执行（依次搜索，不并行开多 Tab）
+  2. 每条记录字段与 ickey_crawler 输出一致（含 query_model）
+"""
+
 from DrissionPage import ChromiumPage, ChromiumOptions
 from DrissionPage.errors import PageDisconnectedError
 from datetime import datetime
@@ -8,16 +21,16 @@ import os
 import re
 import sys
 import time
+from typing import Optional
 from urllib.parse import quote
 
 try:
-    from crawler_cli import emit_json_stderr_error, emit_json_stdout
+    from crawler_cli import UNIFIED_RESULT_KEYS
 except ImportError:
-    # 允许从项目根或 scripts 目录运行
     _root = os.path.dirname(os.path.abspath(__file__))
     if _root not in sys.path:
         sys.path.insert(0, _root)
-    from crawler_cli import emit_json_stderr_error, emit_json_stdout
+    from crawler_cli import UNIFIED_RESULT_KEYS
 
 FINDCHIPS_ORIGIN = "https://www.findchips.com"
 
@@ -50,7 +63,15 @@ def _parse_data_price_json(raw: str) -> tuple[str, list[dict]]:
     for it in arr:
         if isinstance(it, (list, tuple)) and len(it) >= 3:
             qty, cur, price = it[0], it[1], it[2]
-            parts.append(f"{qty}+ {cur} {price}")
+            cur_s = str(cur).strip().upper()
+            ps = str(price).strip()
+            # 与 ickey 梯度字符串风格一致，且便于 Go parseFirstPriceFromTiers（\d+\+\s*[￥¥$]?\s*[\d.]+）
+            if cur_s in ("USD", "US$", "$"):
+                parts.append(f"{qty}+ ${ps}")
+            elif cur_s in ("CNY", "RMB", "CNH", "CNY.", "人民币"):
+                parts.append(f"{qty}+ ￥{ps}")
+            else:
+                parts.append(f"{qty}+ {cur} {ps}")
             breaks.append(
                 {"起订量": qty, "币种": cur, "单价": str(price).strip()}
             )
@@ -355,8 +376,42 @@ def findchips_search_url(keyword: str) -> str:
     return f"https://www.findchips.com/search/{quote(keyword, safe='')}"
 
 
+def _normalize_stock_for_ickey_json(stock_txt: str) -> str:
+    """尽量输出纯数字，对齐 ickey data-stock，便于 Go strconv.ParseInt。"""
+    s = (stock_txt or "").strip().replace("\n", " ")
+    if not s or s.upper() in ("N/A", "—", "-"):
+        return "0"
+    if re.fullmatch(r"\d+", s):
+        return s
+    m = re.search(r"([\d][\d,\s]*)", s.replace("，", ","))
+    if m:
+        digits = re.sub(r"[^\d]", "", m.group(1))
+        if digits:
+            return digits
+    return "0"
+
+
+def _moq_from_price_breaks(raw: dict) -> str:
+    """从 data-price 解析出的档位中取最小起订量，无则 N/A（与 ickey moq 语义接近）。"""
+    br = raw.get("价格档位")
+    if not isinstance(br, list) or not br:
+        return "N/A"
+    qmin: Optional[int] = None
+    for b in br:
+        if not isinstance(b, dict):
+            continue
+        q = b.get("起订量")
+        try:
+            n = int(q)
+            if qmin is None or n < qmin:
+                qmin = n
+        except (TypeError, ValueError):
+            continue
+    return str(qmin) if qmin is not None else "N/A"
+
+
 def _findchips_raw_to_unified(raw: dict, seq: int, query_model: str) -> dict:
-    """将 parse_findchips_table_row 结果转为与 ickey_crawler 一致的 JSON 字段。"""
+    """将 parse_findchips_table_row 结果转为与 ickey_crawler.py 完全一致键名的 JSON 对象。"""
     desc = (raw.get("说明") or "").strip()
     dist = (raw.get("分销商") or "").strip()
     if dist:
@@ -364,20 +419,21 @@ def _findchips_raw_to_unified(raw: dict, seq: int, query_model: str) -> dict:
     pt = raw.get("价格梯度") or raw.get("价格") or "N/A"
     if not isinstance(pt, str):
         pt = str(pt)
-    return {
+    row = {
         "seq": seq,
-        "model": raw.get("部件编号") or "N/A",
-        "manufacturer": raw.get("制造商") or "N/A",
+        "model": (raw.get("部件编号") or "N/A") or "N/A",
+        "manufacturer": (raw.get("制造商") or "N/A") or "N/A",
         "package": "N/A",
         "desc": (desc[:200] if desc else "N/A"),
-        "stock": str(raw.get("库存") or "N/A").replace("\n", " ")[:80],
-        "moq": "N/A",
+        "stock": _normalize_stock_for_ickey_json(str(raw.get("库存") or "")),
+        "moq": _moq_from_price_breaks(raw),
         "price_tiers": pt,
         "hk_price": "N/A",
         "mainland_price": pt,
         "lead_time": "N/A",
         "query_model": query_model,
     }
+    return {k: row[k] for k in UNIFIED_RESULT_KEYS}
 
 
 def _fetch_findchips_once(page: ChromiumPage, url: str, quiet: bool = False) -> list:
@@ -529,7 +585,7 @@ def run_search_batch(
     quiet: bool = False,
     parse_workers: int = 8,
 ) -> list[dict]:
-    """多型号串流搜索；parse_workers 预留与 ickey 对齐（当前未用并行解析）。"""
+    """多型号串流搜索，返回与 ickey run_search_batch 相同结构的列表。parse_workers 与 ickey 参数兼容（本站点表格解析以串行 DOM 为主）。"""
     _ = parse_workers
     if not models:
         return []
@@ -716,19 +772,19 @@ def parse_findchips_html_file(path: str) -> list[dict]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="FindChips 搜索页爬虫")
+    parser = argparse.ArgumentParser(description="FindChips 搜索页爬虫（CLI JSON 与 ickey_crawler.py 对齐）")
     parser.add_argument(
         "--model",
         "-m",
         type=str,
-        help="搜索型号，逗号分隔多个，串流依次搜索；输出与 ickey_crawler 一致的 JSON 到 stdout",
+        help="搜索型号，逗号分隔可传多个，串流依次搜索",
     )
     parser.add_argument(
         "--parse-workers",
         "-w",
         type=int,
         default=8,
-        help="预留，与 ickey 对齐（当前未使用）",
+        help="解析并行度，与 ickey 一致；FindChips 当前以串行解析为主，参数保留兼容",
     )
     parser.add_argument(
         "--validate-html",
@@ -743,6 +799,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.model:
+        # 与 ickey_crawler.py main 一致：stdout 仅 JSON，错误写 stderr
         try:
             models = [m.strip() for m in args.model.split(",") if m.strip()]
             if not models:
@@ -753,9 +810,18 @@ def main() -> None:
                 quiet=True,
                 parse_workers=args.parse_workers,
             )
-            emit_json_stdout(results)
+            out = json.dumps(results, ensure_ascii=False, indent=0)
+            try:
+                sys.stdout.reconfigure(encoding="utf-8")
+            except AttributeError:
+                pass
+            sys.stdout.buffer.write((out + "\n").encode("utf-8"))
         except Exception as e:
-            emit_json_stderr_error(str(e))
+            err = json.dumps({"error": str(e), "results": []}, ensure_ascii=False)
+            try:
+                sys.stderr.buffer.write((err + "\n").encode("utf-8"))
+            except Exception:
+                sys.stderr.write(err + "\n")
             sys.exit(1)
         return
 

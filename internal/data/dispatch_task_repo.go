@@ -254,9 +254,14 @@ func (r *DispatchTaskRepo) PullAndLeaseForAgent(ctx context.Context, queue, agen
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// 每个 script_id 只取一条待领取任务（该脚本下 id 最小 = FIFO），避免一次拉取里出现同一脚本多条候选。
+	perScript := tx.Model(&CaichipDispatchTask{}).
+		Select("MIN(id)").
+		Where("queue = ? AND state = ?", queue, dispatchStatePending).
+		Group("script_id")
 	q := tx.Model(&CaichipDispatchTask{}).
 		Select("id").
-		Where("queue = ? AND state = ?", queue, dispatchStatePending).
+		Where("id IN (?)", perScript).
 		Order("id ASC").
 		Limit(claimLimit)
 	if r.skipLocked {

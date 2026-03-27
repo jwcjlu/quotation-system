@@ -17,6 +17,7 @@ export function AgentScriptsPage() {
   const [scriptId, setScriptId] = useState('')
   const [version, setVersion] = useState('')
   const [file, setFile] = useState<File | null>(null)
+  const [entryFile, setEntryFile] = useState('')
   const [releaseNotes, setReleaseNotes] = useState('')
   const [packageSha256, setPackageSha256] = useState('')
 
@@ -71,6 +72,7 @@ export function AgentScriptsPage() {
         scriptId: scriptId.trim(),
         version: version.trim(),
         file,
+        entryFile: entryFile.trim() || undefined,
         releaseNotes: releaseNotes.trim() || undefined,
         packageSha256: packageSha256.trim() || undefined,
       })
@@ -205,6 +207,17 @@ export function AgentScriptsPage() {
             <input className={inputCls} value={version} onChange={(e) => setVersion(e.target.value)} />
           </div>
           <div className="sm:col-span-2">
+            <label className="block text-sm text-slate-600 mb-1">
+              入口文件名 entry_file（可选，留空为 <code className="bg-slate-100 px-1 rounded text-xs">{`{script_id}_crawler.py`}</code>）
+            </label>
+            <input
+              className={inputCls}
+              placeholder="例如 szlcsc_crawler.py"
+              value={entryFile}
+              onChange={(e) => setEntryFile(e.target.value)}
+            />
+          </div>
+          <div className="sm:col-span-2">
             <label className="block text-sm text-slate-600 mb-1">zip 文件</label>
             <input
               type="file"
@@ -306,6 +319,8 @@ export function AgentScriptsPage() {
             <dd className="font-mono break-all">{current.public_path}</dd>
             <dt className="text-slate-500">filename</dt>
             <dd>{current.filename}</dd>
+            <dt className="text-slate-500">entry_file</dt>
+            <dd className="font-mono">{current.entry_file}</dd>
             <dt className="text-slate-500">status</dt>
             <dd>{current.status}</dd>
           </dl>
@@ -348,6 +363,7 @@ export function AgentScriptsPage() {
                 <th className="py-2 pr-4">id</th>
                 <th className="py-2 pr-4">script_id</th>
                 <th className="py-2 pr-4">version</th>
+                <th className="py-2 pr-4">entry_file</th>
                 <th className="py-2 pr-4">status</th>
                 <th className="py-2">sha256</th>
               </tr>
@@ -355,7 +371,7 @@ export function AgentScriptsPage() {
             <tbody>
               {packages.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-slate-500 text-center">
+                  <td colSpan={6} className="py-6 text-slate-500 text-center">
                     暂无数据，点击「刷新首页」加载
                   </td>
                 </tr>
@@ -365,6 +381,7 @@ export function AgentScriptsPage() {
                     <td className="py-2 pr-4 font-mono">{p.id}</td>
                     <td className="py-2 pr-4">{p.script_id}</td>
                     <td className="py-2 pr-4">{p.version}</td>
+                    <td className="py-2 pr-4 font-mono text-xs">{p.entry_file}</td>
                     <td className="py-2 pr-4">{p.status}</td>
                     <td className="py-2 font-mono text-xs break-all max-w-xs">{p.sha256}</td>
                   </tr>

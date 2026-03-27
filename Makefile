@@ -16,7 +16,8 @@ api:
 		--go-http_out=paths=source_relative:./api \
 		--go-grpc_out=paths=source_relative:./api \
 		api/bom/v1/bom.proto \
-		api/agent/v1/agent.proto
+		api/agent/v1/agent.proto \
+		api/admin/v1/agent_admin.proto
 	protoc --proto_path=./api --proto_path=./third_party \
 		--go_out=paths=source_relative:./api \
 		api/conf/v1/conf.proto

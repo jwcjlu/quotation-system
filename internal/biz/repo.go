@@ -12,6 +12,31 @@ var ErrDispatchLeaseMismatch = errors.New("dispatch: lease mismatch or task not 
 // ErrBOMSessionRevisionMismatch PutPlatforms 时 expected_revision 与库内不一致。
 var ErrBOMSessionRevisionMismatch = errors.New("bom_session: selection_revision mismatch")
 
+// AgentRegistrySummary 运维列表用 Agent 一行快照。
+type AgentRegistrySummary struct {
+	AgentID             string
+	Queue               string
+	Hostname            string
+	LastTaskHeartbeatAt *time.Time
+}
+
+// AgentInstalledScriptRow 某 Agent 已安装脚本一行（含更新时间）。
+type AgentInstalledScriptRow struct {
+	ScriptID  string
+	Version   string
+	EnvStatus string
+	UpdatedAt time.Time
+}
+
+// LeasedDispatchTaskRow 某 Agent 当前租约中的调度任务摘要。
+type LeasedDispatchTaskRow struct {
+	TaskID          string
+	ScriptID        string
+	Version         string
+	LeasedAt        *time.Time
+	LeaseDeadlineAt *time.Time
+}
+
 // DispatchTaskRepo 调度队列表持久化（caichip_dispatch_task）。
 type DispatchTaskRepo interface {
 	DBOk() bool
@@ -20,6 +45,7 @@ type DispatchTaskRepo interface {
 	ReclaimStaleLeases(ctx context.Context, now, offlineBefore time.Time) (int64, error)
 	FinishLeased(ctx context.Context, taskID, leaseID, resultStatus string) error
 	PullAndLeaseForAgent(ctx context.Context, queue, agentID string, meta *AgentSchedulingMeta, running []RunningTaskReport, max int, leaseExtraSec int32) ([]TaskMessage, error)
+	ListLeasedTasksByAgent(ctx context.Context, agentID string) ([]LeasedDispatchTaskRow, error)
 }
 
 // AgentRegistryRepo Agent 元数据（心跳、match 用快照）。
@@ -27,6 +53,8 @@ type AgentRegistryRepo interface {
 	DBOk() bool
 	UpsertTaskHeartbeat(ctx context.Context, agentID, queue, hostname string, scripts []InstalledScript, tags []string) error
 	LoadSchedulingMeta(ctx context.Context, agentID string) (*AgentSchedulingMeta, error)
+	ListAgentRegistrySummaries(ctx context.Context) ([]AgentRegistrySummary, error)
+	ListInstalledScriptsForAgent(ctx context.Context, agentID string) ([]AgentInstalledScriptRow, error)
 }
 
 // BOMSearchTaskLookup 按 caichip_task_id 定位到的 bom_search_task 业务键。

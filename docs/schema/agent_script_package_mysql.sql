@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS t_agent_script_package (
     sha256             CHAR(64)     NOT NULL COMMENT 'lowercase hex',
     storage_rel_path   VARCHAR(512) NOT NULL COMMENT 'relative to script_store.root',
     filename           VARCHAR(255) NOT NULL,
+    entry_file         VARCHAR(255) NOT NULL DEFAULT '' COMMENT 'entry python filename inside package',
     status             VARCHAR(32)  NOT NULL DEFAULT 'uploaded',
     release_notes      TEXT         NULL,
     created_at         DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

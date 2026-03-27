@@ -72,6 +72,14 @@ func ParseBomImportRowsWithColumnMapping(r io.Reader, partial bool, columnMappin
 	if len(fileErrs) > 0 {
 		return nil, fileErrs
 	}
+	return ParseBomImportRowsFromMatrix(rows, partial, columnMapping)
+}
+
+// ParseBomImportRowsFromMatrix 在已读入的首个工作表矩阵上解析（首行为表头）。用于 LLM 推断列映射后与本地解析复用同一套规则。
+func ParseBomImportRowsFromMatrix(rows [][]string, partial bool, columnMapping map[string]string) ([]BomImportLine, []BomImportError) {
+	if len(rows) == 0 {
+		return nil, []BomImportError{{Row: 1, Field: "header", Reason: "empty sheet"}}
+	}
 
 	var colMap map[string]int
 	if len(columnMapping) > 0 {
@@ -136,6 +144,11 @@ func mapHeaderRow(header []string) map[string]int {
 		}
 	}
 	return colMap
+}
+
+// ReadBomImportFirstSheetFromReader 读取首个工作表全部行（首行表头）。UploadBOM 在 llm 模式下先读表再推断列映射。
+func ReadBomImportFirstSheetFromReader(r io.Reader) ([][]string, []BomImportError) {
+	return readBomImportFirstSheetRows(r)
 }
 
 func readBomImportFirstSheetRows(r io.Reader) ([][]string, []BomImportError) {

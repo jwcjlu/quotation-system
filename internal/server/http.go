@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	v1admin "caichip/api/admin/v1"
 	v1bom "caichip/api/bom/v1"
 	"caichip/internal/conf"
 	"caichip/internal/service"
@@ -12,8 +13,8 @@ import (
 	"github.com/go-kratos/kratos/v2/transport/http"
 )
 
-// NewHTTPServer 创建 HTTP 服务（Agent、脚本包、BOM 会话 API）。
-func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.AgentService, scriptAdmin *service.ScriptPackageAdmin, bomSvc *service.BomService) *http.Server {
+// NewHTTPServer 创建 HTTP 服务（Agent、脚本包、BOM 会话、Agent 运维 API）。
+func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.AgentService, scriptAdmin *service.ScriptPackageAdmin, bomSvc *service.BomService, agentAdmin *service.AgentAdminService) *http.Server {
 	addr := ":8000"
 	timeout := 30 * time.Second
 	if c != nil && c.Server != nil && c.Server.Http != nil {
@@ -41,6 +42,9 @@ func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.Agent
 	RegisterScriptPackageAdminRoutes(srv, scriptAdmin)
 	if bomSvc != nil {
 		v1bom.RegisterBomServiceHTTPServer(srv, bomSvc)
+	}
+	if agentAdmin != nil && agentAdmin.Enabled() {
+		v1admin.RegisterAgentAdminServiceHTTPServer(srv, agentAdmin)
 	}
 
 	if c != nil && c.ScriptStore != nil && c.ScriptStore.Enabled && strings.TrimSpace(c.ScriptStore.Root) != "" {

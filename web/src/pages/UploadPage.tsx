@@ -5,6 +5,7 @@ import { validateSessionHeaderFields, type ReadinessMode } from '../utils/sessio
 
 const PARSE_MODES = [
   { value: 'auto', label: '通用模式', desc: '自动识别表头' },
+  { value: 'llm', label: '大模型解析', desc: '服务端 OpenAI 读全表并输出结构化行（需 openai.api_key）' },
   { value: 'custom', label: '自定义映射', desc: '手动指定列映射' },
 ] as const
 
@@ -310,6 +311,11 @@ export function UploadPage({ onSuccess, embedded }: UploadPageProps) {
                 </label>
               ))}
             </div>
+            {parseMode === 'llm' && (
+              <p className="mt-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                此模式由后端把整张表交给大模型解析为 JSON 行；未配置密钥将失败（BOM_LLM_DISABLED），行数/体积过大将失败（BOM_LLM）。
+              </p>
+            )}
           </div>
 
           {parseMode === 'custom' && (

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -23,15 +24,17 @@ type BomService struct {
 	session biz.BOMSessionRepo
 	search  biz.BOMSearchTaskRepo
 	merge   biz.MergeDispatchExecutor
+	openai  *data.OpenAIChat
 	log     *log.Helper
 }
 
 // NewBomService ...
-func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, logger log.Logger) *BomService {
+func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, openai *data.OpenAIChat, logger log.Logger) *BomService {
 	return &BomService{
 		session: session,
 		search:  search,
 		merge:   merge,
+		openai:  openai,
 		log:     log.NewHelper(logger),
 	}
 }
@@ -656,14 +659,41 @@ func (s *BomService) UploadBOM(ctx context.Context, req *v1.UploadBOMRequest) (*
 	if !s.dbOK() {
 		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
 	}
-	r := bytes.NewReader(req.GetFile())
-	lines, ierrs := biz.ParseBomImportRowsWithColumnMapping(r, false, req.GetColumnMapping())
+	parseModeRaw := strings.TrimSpace(req.GetParseMode())
+	pmLower := strings.ToLower(parseModeRaw)
+	var lines []biz.BomImportLine
+	var ierrs []biz.BomImportError
+	switch pmLower {
+	case "llm":
+		if s.openai == nil {
+			return nil, kerrors.BadRequest("BOM_LLM_DISABLED", "parse_mode=llm 需要在配置中设置 openai.api_key")
+		}
+		rows, ferrs := biz.ReadBomImportFirstSheetFromReader(bytes.NewReader(req.GetFile()))
+		if len(ferrs) > 0 {
+			return nil, kerrors.BadRequest("BOM_IMPORT", ferrs[0].Error())
+		}
+		if len(rows) > biz.MaxBomLLMSheetRows {
+			return nil, kerrors.BadRequest("BOM_LLM", fmt.Sprintf("工作表行数超过 llm 模式上限 %d，请拆分文件", biz.MaxBomLLMSheetRows))
+		}
+		user := biz.BuildBomLLMUserPrompt(rows)
+		if len(user) > biz.MaxBomLLMPromptBytes {
+			return nil, kerrors.BadRequest("BOM_LLM", fmt.Sprintf("工作表体积超过 llm 模式上限（约 %d 字节），请拆分或删减列", biz.MaxBomLLMPromptBytes))
+		}
+		raw, err := s.openai.Chat(context.WithoutCancel(ctx), biz.BomLLMSystemPrompt(), user)
+		if err != nil {
+			return nil, kerrors.BadRequest("BOM_LLM", err.Error())
+		}
+		lines, ierrs = biz.ParseBomImportLinesFromLLMJSON(raw)
+	default:
+		r := bytes.NewReader(req.GetFile())
+		lines, ierrs = biz.ParseBomImportRowsWithColumnMapping(r, false, req.GetColumnMapping())
+	}
 	if len(ierrs) > 0 {
 		return nil, kerrors.BadRequest("BOM_IMPORT", ierrs[0].Error())
 	}
 	var pmPtr *string
-	if pm := strings.TrimSpace(req.GetParseMode()); pm != "" {
-		pmPtr = &pm
+	if parseModeRaw != "" {
+		pmPtr = &parseModeRaw
 	}
 	if _, err := s.session.ReplaceSessionLines(ctx, sid, lines, pmPtr); err != nil {
 		return nil, err

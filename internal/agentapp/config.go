@@ -1,8 +1,10 @@
 package agentapp
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -48,6 +50,9 @@ func LoadConfig() (*Config, error) {
 	base = strings.TrimRight(base, "/")
 
 	agentID := strings.TrimSpace(os.Getenv("AGENT_ID"))
+	if agentID == "" {
+		agentID = defaultAgentIDFromMAC()
+	}
 	if agentID == "" {
 		agentID = uuid.NewString()
 	}
@@ -122,6 +127,36 @@ func LoadConfig() (*Config, error) {
 		SkipPythonCheck:   skipPy,
 		AutoInstallPython: autoPy,
 	}, nil
+}
+
+// defaultAgentIDFromMAC 取第一块非回环、带硬件地址且非全 0 的网卡 MAC，格式 mac-<12 位十六进制>（无冒号）。
+// 取不到时返回空串，由调用方回退 UUID。
+func defaultAgentIDFromMAC() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		hw := iface.HardwareAddr
+		if len(hw) < 6 {
+			continue
+		}
+		allZero := true
+		for _, b := range hw {
+			if b != 0 {
+				allZero = false
+				break
+			}
+		}
+		if allZero {
+			continue
+		}
+		return "mac-" + hex.EncodeToString(hw)
+	}
+	return ""
 }
 
 func getenvBoolDefault(key string, def bool) bool {

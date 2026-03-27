@@ -13,6 +13,7 @@ const (
 	ParseModeIckey  ParseMode = "ickey"  // 云汉芯城
 	ParseModeAuto   ParseMode = "auto"   // 自动识别
 	ParseModeCustom ParseMode = "custom" // 自定义列映射
+	// 注意：会话 BOM 上传（UploadBOM → bom_session_line）在 internal/biz 解析，parse_mode=llm 由服务端 OpenAI 解析全表为结构化行，不经过本包。
 )
 
 // ParsedItem 解析后的物料项

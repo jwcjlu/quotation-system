@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { MatchResultPage } from './pages/MatchResultPage'
 import { BomSessionListPage } from './pages/BomSessionListPage'
 import { AgentScriptsPage } from './pages/AgentScriptsPage'
+import { AgentAdminPage } from './pages/AgentAdminPage'
 
 const LAST_BOM_KEY = 'bom_last_bom_id'
 
-type Page = 'bom-list' | 'result' | 'agent-scripts'
+type Page = 'bom-list' | 'result' | 'agent-scripts' | 'agent-admin'
 
 function App() {
   const [page, setPage] = useState<Page>('bom-list')
@@ -48,6 +49,13 @@ function App() {
             >
               脚本包
             </button>
+            <button
+              type="button"
+              onClick={() => setPage('agent-admin')}
+              className={`px-3 py-1 rounded text-sm ${page === 'agent-admin' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
+            >
+              Agent 运维
+            </button>
           </nav>
         </div>
       </header>
@@ -64,6 +72,7 @@ function App() {
         )}
         {page === 'result' && effectiveBomId && <MatchResultPage bomId={effectiveBomId} />}
         {page === 'agent-scripts' && <AgentScriptsPage />}
+        {page === 'agent-admin' && <AgentAdminPage />}
       </main>
     </div>
   )

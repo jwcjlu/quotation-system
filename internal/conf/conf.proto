@@ -14,6 +14,19 @@ message Bootstrap {
   ScriptAdmin script_admin = 6;
   // BOM 货源搜索任务回传（SubmitBomSearchResult），独立于 agent.api_keys
   BomSearchCallback bom_search_callback = 7;
+  // Agent 运维查询 API（ListAgents / 租约任务 / 已装脚本），独立于 agent.api_keys
+  AgentAdmin agent_admin = 8;
+  // OpenAI：BOM Upload parse_mode=llm 时推断列映射（github.com/sashabaranov/go-openai）
+  OpenAI openai = 9;
+}
+
+// OpenAI 聊天补全（api_key 为空时不创建客户端，llm 模式将报错提示配置）
+message OpenAI {
+  string api_key = 1;
+  // 可选，兼容代理或 Azure OpenAI 风格网关；空则官方 https://api.openai.com/v1
+  string base_url = 2;
+  // 默认 gpt-4o-mini
+  string model = 3;
 }
 
 message Server {
@@ -75,6 +88,11 @@ message ScriptStore {
 
 // ScriptAdmin 管理端上传/发布接口鉴权（独立于 agent.api_keys）
 message ScriptAdmin {
+  repeated string api_keys = 1;
+}
+
+// AgentAdmin Agent 运维只读 API（api/admin/v1）鉴权，与 agent.api_keys、script_admin 分离
+message AgentAdmin {
   repeated string api_keys = 1;
 }
 

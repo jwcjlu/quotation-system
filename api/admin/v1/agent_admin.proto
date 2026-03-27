@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package api.admin.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "caichip/api/admin/v1;v1";
+
+// AgentAdminService 运维查询：Agent 在线状态、租约中任务、已安装脚本（鉴权见 bootstrap.agent_admin.api_keys，与 Agent 采集 API 分离）。
+service AgentAdminService {
+  rpc ListAgents(ListAgentsRequest) returns (ListAgentsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/agents"
+    };
+  }
+  rpc ListAgentLeasedTasks(ListAgentLeasedTasksRequest) returns (ListAgentLeasedTasksReply) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/agents/{agent_id}/leased-tasks"
+    };
+  }
+  rpc ListAgentInstalledScripts(ListAgentInstalledScriptsRequest) returns (ListAgentInstalledScriptsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/agents/{agent_id}/installed-scripts"
+    };
+  }
+}
+
+message ListAgentsRequest {}
+
+message AgentSummary {
+  string agent_id = 1;
+  string queue = 2;
+  string hostname = 3;
+  google.protobuf.Timestamp last_task_heartbeat_at = 4;
+  bool online = 5;
+}
+
+message ListAgentsReply {
+  repeated AgentSummary agents = 1;
+}
+
+message ListAgentLeasedTasksRequest {
+  string agent_id = 1;
+}
+
+message LeasedTaskRow {
+  string task_id = 1;
+  string script_id = 2;
+  string version = 3;
+  google.protobuf.Timestamp leased_at = 4;
+  google.protobuf.Timestamp lease_deadline_at = 5;
+}
+
+message ListAgentLeasedTasksReply {
+  repeated LeasedTaskRow tasks = 1;
+}
+
+message ListAgentInstalledScriptsRequest {
+  string agent_id = 1;
+}
+
+message InstalledScriptRow {
+  string script_id = 1;
+  string version = 2;
+  string env_status = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message ListAgentInstalledScriptsReply {
+  repeated InstalledScriptRow scripts = 1;
+}

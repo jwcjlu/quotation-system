@@ -154,4 +154,53 @@ func (r *AgentRegistryRepo) LoadSchedulingMeta(ctx context.Context, agentID stri
 	return out, nil
 }
 
+// ListAgentRegistrySummaries 全部 Agent 行（按 agent_id 排序），供运维列表。
+func (r *AgentRegistryRepo) ListAgentRegistrySummaries(ctx context.Context) ([]biz.AgentRegistrySummary, error) {
+	if !r.DBOk() {
+		return nil, ErrDispatchTaskNoDB
+	}
+	var rows []CaichipAgent
+	if err := r.db.WithContext(ctx).Order("agent_id ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]biz.AgentRegistrySummary, 0, len(rows))
+	for _, ag := range rows {
+		s := biz.AgentRegistrySummary{
+			AgentID:             strings.TrimSpace(ag.AgentID),
+			Queue:               strings.TrimSpace(ag.Queue),
+			LastTaskHeartbeatAt: ag.LastTaskHeartbeatAt,
+		}
+		if ag.Hostname != nil {
+			s.Hostname = strings.TrimSpace(*ag.Hostname)
+		}
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+// ListInstalledScriptsForAgent 某 Agent 已安装脚本快照。
+func (r *AgentRegistryRepo) ListInstalledScriptsForAgent(ctx context.Context, agentID string) ([]biz.AgentInstalledScriptRow, error) {
+	if !r.DBOk() {
+		return nil, ErrDispatchTaskNoDB
+	}
+	agentID = strings.TrimSpace(agentID)
+	if agentID == "" {
+		return nil, errors.New("agent registry: agent_id required")
+	}
+	var rows []CaichipAgentInstalledScript
+	if err := r.db.WithContext(ctx).Where("agent_id = ?", agentID).Order("script_id ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make([]biz.AgentInstalledScriptRow, 0, len(rows))
+	for _, sr := range rows {
+		out = append(out, biz.AgentInstalledScriptRow{
+			ScriptID:  strings.TrimSpace(sr.ScriptID),
+			Version:   strings.TrimSpace(sr.Version),
+			EnvStatus: strings.TrimSpace(sr.EnvStatus),
+			UpdatedAt: sr.UpdatedAt,
+		})
+	}
+	return out, nil
+}
+
 var _ biz.AgentRegistryRepo = (*AgentRegistryRepo)(nil)

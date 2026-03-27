@@ -254,9 +254,14 @@ func (r *DispatchTaskRepo) PullAndLeaseForAgent(ctx context.Context, queue, agen
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// 每个 script_id 只取一条待领取任务（该脚本下 id 最小 = FIFO），避免一次拉取里出现同一脚本多条候选。
+	perScript := tx.Model(&CaichipDispatchTask{}).
+		Select("MIN(id)").
+		Where("queue = ? AND state = ?", queue, dispatchStatePending).
+		Group("script_id")
 	q := tx.Model(&CaichipDispatchTask{}).
 		Select("id").
-		Where("queue = ? AND state = ?", queue, dispatchStatePending).
+		Where("id IN (?)", perScript).
 		Order("id ASC").
 		Limit(claimLimit)
 	if r.skipLocked {
@@ -394,6 +399,36 @@ func dispatchModelToQueued(d *CaichipDispatchTask) *biz.QueuedTask {
 		_ = json.Unmarshal(d.RequiredTags, &t.RequiredTags)
 	}
 	return t
+}
+
+// ListLeasedTasksByAgent 当前租约在该 Agent 上的任务（state=leased）。
+func (r *DispatchTaskRepo) ListLeasedTasksByAgent(ctx context.Context, agentID string) ([]biz.LeasedDispatchTaskRow, error) {
+	if !r.DBOk() {
+		return nil, ErrDispatchTaskNoDB
+	}
+	agentID = strings.TrimSpace(agentID)
+	if agentID == "" {
+		return nil, errors.New("dispatch: agent_id required")
+	}
+	var rows []CaichipDispatchTask
+	err := r.db.WithContext(ctx).
+		Where("state = ? AND leased_to_agent_id = ?", dispatchStateLeased, agentID).
+		Order("id ASC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]biz.LeasedDispatchTaskRow, 0, len(rows))
+	for _, d := range rows {
+		out = append(out, biz.LeasedDispatchTaskRow{
+			TaskID:          strings.TrimSpace(d.TaskID),
+			ScriptID:        strings.TrimSpace(d.ScriptID),
+			Version:         strings.TrimSpace(d.Version),
+			LeasedAt:        d.LeasedAt,
+			LeaseDeadlineAt: d.LeaseDeadlineAt,
+		})
+	}
+	return out, nil
 }
 
 var _ biz.DispatchTaskRepo = (*DispatchTaskRepo)(nil)

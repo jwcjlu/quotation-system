@@ -13,6 +13,7 @@ message Bootstrap {
   ScriptStore script_store = 5;
   ScriptAdmin script_admin = 6;
   BomSearchCallback bom_search_callback = 7;
+  AgentAdmin agent_admin = 8;
 }
 
 message Server {
@@ -74,6 +75,10 @@ message ScriptAdmin {
 }
 
 message BomSearchCallback {
+  repeated string api_keys = 1;
+}
+
+message AgentAdmin {
   repeated string api_keys = 1;
 }
 

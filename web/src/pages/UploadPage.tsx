@@ -313,7 +313,8 @@ export function UploadPage({ onSuccess, embedded }: UploadPageProps) {
             </div>
             {parseMode === 'llm' && (
               <p className="mt-2 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                此模式由后端把整张表交给大模型解析为 JSON 行；未配置密钥将失败（BOM_LLM_DISABLED），行数/体积过大将失败（BOM_LLM）。
+                此模式由后端把整张表交给大模型解析为 JSON 行；未配置密钥将失败（BOM_LLM_DISABLED），行数/体积过大将失败（BOM_LLM）,
+                建议一批导入50条以内，否则有超过上下文限制失败。
               </p>
             )}
           </div>

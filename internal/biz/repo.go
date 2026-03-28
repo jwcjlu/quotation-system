@@ -52,6 +52,8 @@ type DispatchTaskRepo interface {
 type AgentRegistryRepo interface {
 	DBOk() bool
 	UpsertTaskHeartbeat(ctx context.Context, agentID, queue, hostname string, scripts []InstalledScript, tags []string) error
+	// MarkAgentsOfflineBefore 将「无任务心跳或心跳早于 cutoff」的 Agent 标为 offline（运维列表与库内状态一致）。
+	MarkAgentsOfflineBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	LoadSchedulingMeta(ctx context.Context, agentID string) (*AgentSchedulingMeta, error)
 	ListAgentRegistrySummaries(ctx context.Context) ([]AgentRegistrySummary, error)
 	ListInstalledScriptsForAgent(ctx context.Context, agentID string) ([]AgentInstalledScriptRow, error)

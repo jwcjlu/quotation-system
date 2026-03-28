@@ -54,6 +54,7 @@ func (r *AgentRegistryRepo) UpsertTaskHeartbeat(ctx context.Context, agentID, qu
 		Queue:               q,
 		Hostname:            hp,
 		LastTaskHeartbeatAt: &now,
+		AgentStatus:         biz.AgentStatusOnline,
 	}
 	if err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "agent_id"}},
@@ -61,6 +62,7 @@ func (r *AgentRegistryRepo) UpsertTaskHeartbeat(ctx context.Context, agentID, qu
 			"queue":                  q,
 			"hostname":               hp,
 			"last_task_heartbeat_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+			"agent_status":           biz.AgentStatusOnline,
 			"updated_at":             gorm.Expr("CURRENT_TIMESTAMP(3)"),
 		}),
 	}).Create(&ag).Error; err != nil {
@@ -176,6 +178,23 @@ func (r *AgentRegistryRepo) ListAgentRegistrySummaries(ctx context.Context) ([]b
 		out = append(out, s)
 	}
 	return out, nil
+}
+
+// MarkAgentsOfflineBefore 将任务心跳早于 cutoff（或从未有心跳）的 Agent 标为 offline。
+func (r *AgentRegistryRepo) MarkAgentsOfflineBefore(ctx context.Context, cutoff time.Time) (int64, error) {
+	if !r.DBOk() {
+		return 0, ErrDispatchTaskNoDB
+	}
+	res := r.db.WithContext(ctx).Model(&CaichipAgent{}).
+		Where("last_task_heartbeat_at IS NOT NULL AND last_task_heartbeat_at < ?", cutoff).
+		Updates(map[string]interface{}{
+			"agent_status": biz.AgentStatusOffline,
+			"updated_at":   gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		})
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	return res.RowsAffected, nil
 }
 
 // ListInstalledScriptsForAgent 某 Agent 已安装脚本快照。

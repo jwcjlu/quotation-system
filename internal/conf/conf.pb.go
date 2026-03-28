@@ -34,9 +34,11 @@ type Bootstrap struct {
 	// Agent 运维查询 API（ListAgents / 租约任务 / 已装脚本），独立于 agent.api_keys
 	AgentAdmin *AgentAdmin `protobuf:"bytes,8,opt,name=agent_admin,json=agentAdmin,proto3" json:"agent_admin,omitempty"`
 	// OpenAI：BOM Upload parse_mode=llm 时推断列映射（github.com/sashabaranov/go-openai）
-	Openai        *OpenAI `protobuf:"bytes,9,opt,name=openai,proto3" json:"openai,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Openai *OpenAI `protobuf:"bytes,9,opt,name=openai,proto3" json:"openai,omitempty"`
+	// Agent 脚本登录凭据 AES-256-GCM 密钥（也可用环境变量 CAICHIP_AGENT_SCRIPT_AUTH_KEY）
+	AgentScriptAuth *AgentScriptAuth `protobuf:"bytes,10,opt,name=agent_script_auth,json=agentScriptAuth,proto3" json:"agent_script_auth,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Bootstrap) Reset() {
@@ -132,6 +134,59 @@ func (x *Bootstrap) GetOpenai() *OpenAI {
 	return nil
 }
 
+func (x *Bootstrap) GetAgentScriptAuth() *AgentScriptAuth {
+	if x != nil {
+		return x.AgentScriptAuth
+	}
+	return nil
+}
+
+// AgentScriptAuth 调度下发 platform_auth 时解密密码；未配置密钥时不可 Upsert，Pull 不注入。
+type AgentScriptAuth struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 32 字节原始密钥的 base64；与 env 二选一，env 优先
+	AesKeyBase64  string `protobuf:"bytes,1,opt,name=aes_key_base64,json=aesKeyBase64,proto3" json:"aes_key_base64,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentScriptAuth) Reset() {
+	*x = AgentScriptAuth{}
+	mi := &file_conf_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentScriptAuth) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentScriptAuth) ProtoMessage() {}
+
+func (x *AgentScriptAuth) ProtoReflect() protoreflect.Message {
+	mi := &file_conf_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentScriptAuth.ProtoReflect.Descriptor instead.
+func (*AgentScriptAuth) Descriptor() ([]byte, []int) {
+	return file_conf_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AgentScriptAuth) GetAesKeyBase64() string {
+	if x != nil {
+		return x.AesKeyBase64
+	}
+	return ""
+}
+
 // OpenAI 聊天补全（api_key 为空时不创建客户端，llm 模式将报错提示配置）
 type OpenAI struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
@@ -146,7 +201,7 @@ type OpenAI struct {
 
 func (x *OpenAI) Reset() {
 	*x = OpenAI{}
-	mi := &file_conf_proto_msgTypes[1]
+	mi := &file_conf_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -158,7 +213,7 @@ func (x *OpenAI) String() string {
 func (*OpenAI) ProtoMessage() {}
 
 func (x *OpenAI) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[1]
+	mi := &file_conf_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -171,7 +226,7 @@ func (x *OpenAI) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenAI.ProtoReflect.Descriptor instead.
 func (*OpenAI) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{1}
+	return file_conf_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *OpenAI) GetApiKey() string {
@@ -205,7 +260,7 @@ type Server struct {
 
 func (x *Server) Reset() {
 	*x = Server{}
-	mi := &file_conf_proto_msgTypes[2]
+	mi := &file_conf_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -217,7 +272,7 @@ func (x *Server) String() string {
 func (*Server) ProtoMessage() {}
 
 func (x *Server) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[2]
+	mi := &file_conf_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -230,7 +285,7 @@ func (x *Server) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server.ProtoReflect.Descriptor instead.
 func (*Server) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{2}
+	return file_conf_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Server) GetHttp() *ServerHTTP {
@@ -257,7 +312,7 @@ type ServerHTTP struct {
 
 func (x *ServerHTTP) Reset() {
 	*x = ServerHTTP{}
-	mi := &file_conf_proto_msgTypes[3]
+	mi := &file_conf_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -269,7 +324,7 @@ func (x *ServerHTTP) String() string {
 func (*ServerHTTP) ProtoMessage() {}
 
 func (x *ServerHTTP) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[3]
+	mi := &file_conf_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -282,7 +337,7 @@ func (x *ServerHTTP) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerHTTP.ProtoReflect.Descriptor instead.
 func (*ServerHTTP) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{3}
+	return file_conf_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ServerHTTP) GetAddr() string {
@@ -309,7 +364,7 @@ type ServerGRPC struct {
 
 func (x *ServerGRPC) Reset() {
 	*x = ServerGRPC{}
-	mi := &file_conf_proto_msgTypes[4]
+	mi := &file_conf_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -321,7 +376,7 @@ func (x *ServerGRPC) String() string {
 func (*ServerGRPC) ProtoMessage() {}
 
 func (x *ServerGRPC) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[4]
+	mi := &file_conf_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -334,7 +389,7 @@ func (x *ServerGRPC) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerGRPC.ProtoReflect.Descriptor instead.
 func (*ServerGRPC) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{4}
+	return file_conf_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ServerGRPC) GetAddr() string {
@@ -361,7 +416,7 @@ type Data struct {
 
 func (x *Data) Reset() {
 	*x = Data{}
-	mi := &file_conf_proto_msgTypes[5]
+	mi := &file_conf_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -373,7 +428,7 @@ func (x *Data) String() string {
 func (*Data) ProtoMessage() {}
 
 func (x *Data) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[5]
+	mi := &file_conf_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -386,7 +441,7 @@ func (x *Data) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data.ProtoReflect.Descriptor instead.
 func (*Data) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{5}
+	return file_conf_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Data) GetDatabase() *DataDatabase {
@@ -408,14 +463,18 @@ type DataDatabase struct {
 	Driver string                 `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty"`
 	Dsn    string                 `protobuf:"bytes,2,opt,name=dsn,proto3" json:"dsn,omitempty"`
 	// 未设置或 true：连接成功后执行 GORM AutoMigrate（建表/补列/补简单索引）；显式 false 时跳过（生产可用手工 SQL）。
-	AutoMigrate   *bool `protobuf:"varint,3,opt,name=auto_migrate,json=autoMigrate,proto3,oneof" json:"auto_migrate,omitempty"`
+	AutoMigrate *bool `protobuf:"varint,3,opt,name=auto_migrate,json=autoMigrate,proto3,oneof" json:"auto_migrate,omitempty"`
+	// 为 true 时 GORM 将执行的 SQL 打印到标准输出（也可用环境变量 CAICHIP_GORM_LOG_SQL=1）
+	LogSql *bool `protobuf:"varint,4,opt,name=log_sql,json=logSql,proto3,oneof" json:"log_sql,omitempty"`
+	// go-sql-driver 的 loc：解析/写入 DATETIME 时使用的 IANA 时区，如 Asia/Shanghai、UTC。空则不在 DSN 追加 loc（驱动默认按 UTC 解析墙钟，易与「库内存本地时间」差 8h）。也可用环境变量 CAICHIP_MYSQL_LOC。
+	MysqlLoc      *string `protobuf:"bytes,5,opt,name=mysql_loc,json=mysqlLoc,proto3,oneof" json:"mysql_loc,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DataDatabase) Reset() {
 	*x = DataDatabase{}
-	mi := &file_conf_proto_msgTypes[6]
+	mi := &file_conf_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -427,7 +486,7 @@ func (x *DataDatabase) String() string {
 func (*DataDatabase) ProtoMessage() {}
 
 func (x *DataDatabase) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[6]
+	mi := &file_conf_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -440,7 +499,7 @@ func (x *DataDatabase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataDatabase.ProtoReflect.Descriptor instead.
 func (*DataDatabase) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{6}
+	return file_conf_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *DataDatabase) GetDriver() string {
@@ -464,6 +523,20 @@ func (x *DataDatabase) GetAutoMigrate() bool {
 	return false
 }
 
+func (x *DataDatabase) GetLogSql() bool {
+	if x != nil && x.LogSql != nil {
+		return *x.LogSql
+	}
+	return false
+}
+
+func (x *DataDatabase) GetMysqlLoc() string {
+	if x != nil && x.MysqlLoc != nil {
+		return *x.MysqlLoc
+	}
+	return ""
+}
+
 type DataRedis struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Addr          string                 `protobuf:"bytes,1,opt,name=addr,proto3" json:"addr,omitempty"`
@@ -475,7 +548,7 @@ type DataRedis struct {
 
 func (x *DataRedis) Reset() {
 	*x = DataRedis{}
-	mi := &file_conf_proto_msgTypes[7]
+	mi := &file_conf_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -487,7 +560,7 @@ func (x *DataRedis) String() string {
 func (*DataRedis) ProtoMessage() {}
 
 func (x *DataRedis) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[7]
+	mi := &file_conf_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -500,7 +573,7 @@ func (x *DataRedis) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataRedis.ProtoReflect.Descriptor instead.
 func (*DataRedis) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{7}
+	return file_conf_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DataRedis) GetAddr() string {
@@ -544,7 +617,7 @@ type Agent struct {
 
 func (x *Agent) Reset() {
 	*x = Agent{}
-	mi := &file_conf_proto_msgTypes[8]
+	mi := &file_conf_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -556,7 +629,7 @@ func (x *Agent) String() string {
 func (*Agent) ProtoMessage() {}
 
 func (x *Agent) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[8]
+	mi := &file_conf_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -569,7 +642,7 @@ func (x *Agent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Agent.ProtoReflect.Descriptor instead.
 func (*Agent) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{8}
+	return file_conf_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Agent) GetEnabled() bool {
@@ -649,7 +722,7 @@ type ScriptStore struct {
 
 func (x *ScriptStore) Reset() {
 	*x = ScriptStore{}
-	mi := &file_conf_proto_msgTypes[9]
+	mi := &file_conf_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -661,7 +734,7 @@ func (x *ScriptStore) String() string {
 func (*ScriptStore) ProtoMessage() {}
 
 func (x *ScriptStore) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[9]
+	mi := &file_conf_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -674,7 +747,7 @@ func (x *ScriptStore) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScriptStore.ProtoReflect.Descriptor instead.
 func (*ScriptStore) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{9}
+	return file_conf_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ScriptStore) GetEnabled() bool {
@@ -722,7 +795,7 @@ type ScriptAdmin struct {
 
 func (x *ScriptAdmin) Reset() {
 	*x = ScriptAdmin{}
-	mi := &file_conf_proto_msgTypes[10]
+	mi := &file_conf_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -734,7 +807,7 @@ func (x *ScriptAdmin) String() string {
 func (*ScriptAdmin) ProtoMessage() {}
 
 func (x *ScriptAdmin) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[10]
+	mi := &file_conf_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -747,7 +820,7 @@ func (x *ScriptAdmin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScriptAdmin.ProtoReflect.Descriptor instead.
 func (*ScriptAdmin) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{10}
+	return file_conf_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ScriptAdmin) GetApiKeys() []string {
@@ -767,7 +840,7 @@ type AgentAdmin struct {
 
 func (x *AgentAdmin) Reset() {
 	*x = AgentAdmin{}
-	mi := &file_conf_proto_msgTypes[11]
+	mi := &file_conf_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -779,7 +852,7 @@ func (x *AgentAdmin) String() string {
 func (*AgentAdmin) ProtoMessage() {}
 
 func (x *AgentAdmin) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[11]
+	mi := &file_conf_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -792,7 +865,7 @@ func (x *AgentAdmin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentAdmin.ProtoReflect.Descriptor instead.
 func (*AgentAdmin) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{11}
+	return file_conf_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AgentAdmin) GetApiKeys() []string {
@@ -812,7 +885,7 @@ type BomSearchCallback struct {
 
 func (x *BomSearchCallback) Reset() {
 	*x = BomSearchCallback{}
-	mi := &file_conf_proto_msgTypes[12]
+	mi := &file_conf_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -824,7 +897,7 @@ func (x *BomSearchCallback) String() string {
 func (*BomSearchCallback) ProtoMessage() {}
 
 func (x *BomSearchCallback) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[12]
+	mi := &file_conf_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -837,7 +910,7 @@ func (x *BomSearchCallback) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BomSearchCallback.ProtoReflect.Descriptor instead.
 func (*BomSearchCallback) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{12}
+	return file_conf_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *BomSearchCallback) GetApiKeys() []string {
@@ -858,7 +931,7 @@ type Platform struct {
 
 func (x *Platform) Reset() {
 	*x = Platform{}
-	mi := &file_conf_proto_msgTypes[13]
+	mi := &file_conf_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -870,7 +943,7 @@ func (x *Platform) String() string {
 func (*Platform) ProtoMessage() {}
 
 func (x *Platform) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[13]
+	mi := &file_conf_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -883,7 +956,7 @@ func (x *Platform) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Platform.ProtoReflect.Descriptor instead.
 func (*Platform) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{13}
+	return file_conf_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Platform) GetIckey() *PlatformConf {
@@ -920,7 +993,7 @@ type PlatformConf struct {
 
 func (x *PlatformConf) Reset() {
 	*x = PlatformConf{}
-	mi := &file_conf_proto_msgTypes[14]
+	mi := &file_conf_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -932,7 +1005,7 @@ func (x *PlatformConf) String() string {
 func (*PlatformConf) ProtoMessage() {}
 
 func (x *PlatformConf) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_proto_msgTypes[14]
+	mi := &file_conf_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -945,7 +1018,7 @@ func (x *PlatformConf) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlatformConf.ProtoReflect.Descriptor instead.
 func (*PlatformConf) Descriptor() ([]byte, []int) {
-	return file_conf_proto_rawDescGZIP(), []int{14}
+	return file_conf_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PlatformConf) GetSearchUrl() string {
@@ -988,7 +1061,7 @@ var File_conf_proto protoreflect.FileDescriptor
 const file_conf_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"conf.proto\x12\x04conf\"\xae\x03\n" +
+	"conf.proto\x12\x04conf\"\xf1\x03\n" +
 	"\tBootstrap\x12$\n" +
 	"\x06server\x18\x01 \x01(\v2\f.conf.ServerR\x06server\x12\x1e\n" +
 	"\x04data\x18\x02 \x01(\v2\n" +
@@ -1000,7 +1073,11 @@ const file_conf_proto_rawDesc = "" +
 	"\x13bom_search_callback\x18\a \x01(\v2\x17.conf.BomSearchCallbackR\x11bomSearchCallback\x121\n" +
 	"\vagent_admin\x18\b \x01(\v2\x10.conf.AgentAdminR\n" +
 	"agentAdmin\x12$\n" +
-	"\x06openai\x18\t \x01(\v2\f.conf.OpenAIR\x06openai\"R\n" +
+	"\x06openai\x18\t \x01(\v2\f.conf.OpenAIR\x06openai\x12A\n" +
+	"\x11agent_script_auth\x18\n" +
+	" \x01(\v2\x15.conf.AgentScriptAuthR\x0fagentScriptAuth\"7\n" +
+	"\x0fAgentScriptAuth\x12$\n" +
+	"\x0eaes_key_base64\x18\x01 \x01(\tR\faesKeyBase64\"R\n" +
 	"\x06OpenAI\x12\x17\n" +
 	"\aapi_key\x18\x01 \x01(\tR\x06apiKey\x12\x19\n" +
 	"\bbase_url\x18\x02 \x01(\tR\abaseUrl\x12\x14\n" +
@@ -1018,12 +1095,18 @@ const file_conf_proto_rawDesc = "" +
 	"\atimeout\x18\x02 \x01(\x05R\atimeout\"]\n" +
 	"\x04Data\x12.\n" +
 	"\bdatabase\x18\x01 \x01(\v2\x12.conf.DataDatabaseR\bdatabase\x12%\n" +
-	"\x05redis\x18\x02 \x01(\v2\x0f.conf.DataRedisR\x05redis\"q\n" +
+	"\x05redis\x18\x02 \x01(\v2\x0f.conf.DataRedisR\x05redis\"\xcb\x01\n" +
 	"\fDataDatabase\x12\x16\n" +
 	"\x06driver\x18\x01 \x01(\tR\x06driver\x12\x10\n" +
 	"\x03dsn\x18\x02 \x01(\tR\x03dsn\x12&\n" +
-	"\fauto_migrate\x18\x03 \x01(\bH\x00R\vautoMigrate\x88\x01\x01B\x0f\n" +
-	"\r_auto_migrate\"g\n" +
+	"\fauto_migrate\x18\x03 \x01(\bH\x00R\vautoMigrate\x88\x01\x01\x12\x1c\n" +
+	"\alog_sql\x18\x04 \x01(\bH\x01R\x06logSql\x88\x01\x01\x12 \n" +
+	"\tmysql_loc\x18\x05 \x01(\tH\x02R\bmysqlLoc\x88\x01\x01B\x0f\n" +
+	"\r_auto_migrateB\n" +
+	"\n" +
+	"\b_log_sqlB\f\n" +
+	"\n" +
+	"_mysql_loc\"g\n" +
 	"\tDataRedis\x12\x12\n" +
 	"\x04addr\x18\x01 \x01(\tR\x04addr\x12!\n" +
 	"\fread_timeout\x18\x02 \x01(\x05R\vreadTimeout\x12#\n" +
@@ -1076,46 +1159,48 @@ func file_conf_proto_rawDescGZIP() []byte {
 	return file_conf_proto_rawDescData
 }
 
-var file_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_conf_proto_goTypes = []any{
 	(*Bootstrap)(nil),         // 0: conf.Bootstrap
-	(*OpenAI)(nil),            // 1: conf.OpenAI
-	(*Server)(nil),            // 2: conf.Server
-	(*ServerHTTP)(nil),        // 3: conf.ServerHTTP
-	(*ServerGRPC)(nil),        // 4: conf.ServerGRPC
-	(*Data)(nil),              // 5: conf.Data
-	(*DataDatabase)(nil),      // 6: conf.DataDatabase
-	(*DataRedis)(nil),         // 7: conf.DataRedis
-	(*Agent)(nil),             // 8: conf.Agent
-	(*ScriptStore)(nil),       // 9: conf.ScriptStore
-	(*ScriptAdmin)(nil),       // 10: conf.ScriptAdmin
-	(*AgentAdmin)(nil),        // 11: conf.AgentAdmin
-	(*BomSearchCallback)(nil), // 12: conf.BomSearchCallback
-	(*Platform)(nil),          // 13: conf.Platform
-	(*PlatformConf)(nil),      // 14: conf.PlatformConf
+	(*AgentScriptAuth)(nil),   // 1: conf.AgentScriptAuth
+	(*OpenAI)(nil),            // 2: conf.OpenAI
+	(*Server)(nil),            // 3: conf.Server
+	(*ServerHTTP)(nil),        // 4: conf.ServerHTTP
+	(*ServerGRPC)(nil),        // 5: conf.ServerGRPC
+	(*Data)(nil),              // 6: conf.Data
+	(*DataDatabase)(nil),      // 7: conf.DataDatabase
+	(*DataRedis)(nil),         // 8: conf.DataRedis
+	(*Agent)(nil),             // 9: conf.Agent
+	(*ScriptStore)(nil),       // 10: conf.ScriptStore
+	(*ScriptAdmin)(nil),       // 11: conf.ScriptAdmin
+	(*AgentAdmin)(nil),        // 12: conf.AgentAdmin
+	(*BomSearchCallback)(nil), // 13: conf.BomSearchCallback
+	(*Platform)(nil),          // 14: conf.Platform
+	(*PlatformConf)(nil),      // 15: conf.PlatformConf
 }
 var file_conf_proto_depIdxs = []int32{
-	2,  // 0: conf.Bootstrap.server:type_name -> conf.Server
-	5,  // 1: conf.Bootstrap.data:type_name -> conf.Data
-	13, // 2: conf.Bootstrap.platform:type_name -> conf.Platform
-	8,  // 3: conf.Bootstrap.agent:type_name -> conf.Agent
-	9,  // 4: conf.Bootstrap.script_store:type_name -> conf.ScriptStore
-	10, // 5: conf.Bootstrap.script_admin:type_name -> conf.ScriptAdmin
-	12, // 6: conf.Bootstrap.bom_search_callback:type_name -> conf.BomSearchCallback
-	11, // 7: conf.Bootstrap.agent_admin:type_name -> conf.AgentAdmin
-	1,  // 8: conf.Bootstrap.openai:type_name -> conf.OpenAI
-	3,  // 9: conf.Server.http:type_name -> conf.ServerHTTP
-	4,  // 10: conf.Server.grpc:type_name -> conf.ServerGRPC
-	6,  // 11: conf.Data.database:type_name -> conf.DataDatabase
-	7,  // 12: conf.Data.redis:type_name -> conf.DataRedis
-	14, // 13: conf.Platform.ickey:type_name -> conf.PlatformConf
-	14, // 14: conf.Platform.szlcsc:type_name -> conf.PlatformConf
-	14, // 15: conf.Platform.icgoo:type_name -> conf.PlatformConf
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	3,  // 0: conf.Bootstrap.server:type_name -> conf.Server
+	6,  // 1: conf.Bootstrap.data:type_name -> conf.Data
+	14, // 2: conf.Bootstrap.platform:type_name -> conf.Platform
+	9,  // 3: conf.Bootstrap.agent:type_name -> conf.Agent
+	10, // 4: conf.Bootstrap.script_store:type_name -> conf.ScriptStore
+	11, // 5: conf.Bootstrap.script_admin:type_name -> conf.ScriptAdmin
+	13, // 6: conf.Bootstrap.bom_search_callback:type_name -> conf.BomSearchCallback
+	12, // 7: conf.Bootstrap.agent_admin:type_name -> conf.AgentAdmin
+	2,  // 8: conf.Bootstrap.openai:type_name -> conf.OpenAI
+	1,  // 9: conf.Bootstrap.agent_script_auth:type_name -> conf.AgentScriptAuth
+	4,  // 10: conf.Server.http:type_name -> conf.ServerHTTP
+	5,  // 11: conf.Server.grpc:type_name -> conf.ServerGRPC
+	7,  // 12: conf.Data.database:type_name -> conf.DataDatabase
+	8,  // 13: conf.Data.redis:type_name -> conf.DataRedis
+	15, // 14: conf.Platform.ickey:type_name -> conf.PlatformConf
+	15, // 15: conf.Platform.szlcsc:type_name -> conf.PlatformConf
+	15, // 16: conf.Platform.icgoo:type_name -> conf.PlatformConf
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_conf_proto_init() }
@@ -1123,14 +1208,14 @@ func file_conf_proto_init() {
 	if File_conf_proto != nil {
 		return
 	}
-	file_conf_proto_msgTypes[6].OneofWrappers = []any{}
+	file_conf_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_conf_proto_rawDesc), len(file_conf_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

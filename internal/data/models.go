@@ -39,8 +39,10 @@ type CaichipAgent struct {
 	Queue               string     `gorm:"column:queue;size:128;not null;default:default"`
 	Hostname            *string    `gorm:"column:hostname;size:256"` // 空串不入库时用 nil
 	LastTaskHeartbeatAt *time.Time `gorm:"column:last_task_heartbeat_at;precision:3"`
-	CreatedAt           time.Time  `gorm:"column:created_at;precision:3;autoCreateTime"`
-	UpdatedAt           time.Time  `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+	// AgentStatus 任务心跳维度：online / offline / unknown（列名 agent_status，避免与 SQL 保留字 status 冲突）
+	AgentStatus string    `gorm:"column:agent_status;size:16;not null;default:unknown"`
+	CreatedAt   time.Time `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt   time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
 }
 
 func (CaichipAgent) TableName() string { return TableCaichipAgent }
@@ -63,6 +65,19 @@ type CaichipAgentInstalledScript struct {
 }
 
 func (CaichipAgentInstalledScript) TableName() string { return TableCaichipAgentInstalledScript }
+
+// CaichipAgentScriptAuth Agent × script_id 站点登录凭据（密码密文）。
+type CaichipAgentScriptAuth struct {
+	ID             uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	AgentID        string    `gorm:"column:agent_id;size:64;not null;uniqueIndex:uk_agent_script_auth,priority:1"`
+	ScriptID       string    `gorm:"column:script_id;size:128;not null;uniqueIndex:uk_agent_script_auth,priority:2"`
+	Username       string    `gorm:"column:username;size:256;not null"`
+	PasswordCipher string    `gorm:"column:password_cipher;type:text;not null"`
+	CreatedAt      time.Time `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt      time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (CaichipAgentScriptAuth) TableName() string { return TableCaichipAgentScriptAuth }
 
 // BomSearchTask 对应 t_bom_search_task。
 type BomSearchTask struct {

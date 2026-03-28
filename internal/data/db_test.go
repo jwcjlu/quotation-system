@@ -24,6 +24,22 @@ func TestMysqlDSNWithParseTime(t *testing.T) {
 	}
 }
 
+func TestMysqlDSNWithLoc(t *testing.T) {
+	tests := []struct {
+		dsn, loc, want string
+	}{
+		{"", "Asia/Shanghai", ""},
+		{"u:p@tcp(h:3306)/db?parseTime=true", "", "u:p@tcp(h:3306)/db?parseTime=true"},
+		{"u:p@tcp(h:3306)/db?parseTime=true", "Asia/Shanghai", "u:p@tcp(h:3306)/db?parseTime=true&loc=Asia%2FShanghai"},
+		{"u:p@tcp(h:3306)/db?parseTime=true&loc=UTC", "Asia/Shanghai", "u:p@tcp(h:3306)/db?parseTime=true&loc=UTC"},
+	}
+	for _, tt := range tests {
+		if got := mysqlDSNWithLoc(tt.dsn, tt.loc); got != tt.want {
+			t.Errorf("mysqlDSNWithLoc(%q,%q) = %q, want %q", tt.dsn, tt.loc, got, tt.want)
+		}
+	}
+}
+
 func TestMysqlDSNWithReadWriteTimeout(t *testing.T) {
 	tests := []struct {
 		in, want string

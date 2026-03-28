@@ -24,7 +24,8 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 	if err != nil {
 		return nil, nil, err
 	}
-	dispatchTaskRepo := data.NewDispatchTaskRepo(dataData)
+	agentScriptAuthRepo := data.NewAgentScriptAuthRepo(bootstrap, dataData)
+	dispatchTaskRepo := data.NewDispatchTaskRepo(dataData, agentScriptAuthRepo)
 	agentRegistryRepo := data.NewAgentRegistryRepo(dataData)
 	taskScheduler := biz.NewAgentTaskScheduler(agentHub, dispatchTaskRepo, agentRegistryRepo, bootstrap)
 	agentScriptPackageRepo := data.NewAgentScriptPackageRepo(dataData)
@@ -35,7 +36,7 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 	bomMergeDispatch := data.NewBomMergeDispatch(dataData, dispatchTaskRepo, bomSearchTaskRepo, bomSessionRepo, agentScriptPackageRepo)
 	openAIChat := data.NewOpenAIChat(bootstrap)
 	bomService := service.NewBomService(bomSessionRepo, bomSearchTaskRepo, bomMergeDispatch, openAIChat, logger)
-	agentAdminService := service.NewAgentAdminService(bootstrap, agentRegistryRepo, dispatchTaskRepo, logger)
+	agentAdminService := service.NewAgentAdminService(bootstrap, agentRegistryRepo, dispatchTaskRepo, agentScriptAuthRepo, logger)
 	httpServer := server.NewHTTPServer(bootstrap, logger, agentService, scriptPackageAdmin, bomService, agentAdminService)
 	app := newApp(bootstrap, logger, httpServer)
 	return app, func() {

@@ -22,6 +22,9 @@ const (
 	AgentAdminService_ListAgents_FullMethodName                = "/api.admin.v1.AgentAdminService/ListAgents"
 	AgentAdminService_ListAgentLeasedTasks_FullMethodName      = "/api.admin.v1.AgentAdminService/ListAgentLeasedTasks"
 	AgentAdminService_ListAgentInstalledScripts_FullMethodName = "/api.admin.v1.AgentAdminService/ListAgentInstalledScripts"
+	AgentAdminService_ListAgentScriptAuths_FullMethodName      = "/api.admin.v1.AgentAdminService/ListAgentScriptAuths"
+	AgentAdminService_UpsertAgentScriptAuth_FullMethodName     = "/api.admin.v1.AgentAdminService/UpsertAgentScriptAuth"
+	AgentAdminService_DeleteAgentScriptAuth_FullMethodName     = "/api.admin.v1.AgentAdminService/DeleteAgentScriptAuth"
 )
 
 // AgentAdminServiceClient is the client API for AgentAdminService service.
@@ -33,6 +36,10 @@ type AgentAdminServiceClient interface {
 	ListAgents(ctx context.Context, in *ListAgentsRequest, opts ...grpc.CallOption) (*ListAgentsReply, error)
 	ListAgentLeasedTasks(ctx context.Context, in *ListAgentLeasedTasksRequest, opts ...grpc.CallOption) (*ListAgentLeasedTasksReply, error)
 	ListAgentInstalledScripts(ctx context.Context, in *ListAgentInstalledScriptsRequest, opts ...grpc.CallOption) (*ListAgentInstalledScriptsReply, error)
+	// Agent × script_id 登录凭据（密码不落库明文；下发见 TaskObject.params.platform_auth）
+	ListAgentScriptAuths(ctx context.Context, in *ListAgentScriptAuthsRequest, opts ...grpc.CallOption) (*ListAgentScriptAuthsReply, error)
+	UpsertAgentScriptAuth(ctx context.Context, in *UpsertAgentScriptAuthRequest, opts ...grpc.CallOption) (*UpsertAgentScriptAuthReply, error)
+	DeleteAgentScriptAuth(ctx context.Context, in *DeleteAgentScriptAuthRequest, opts ...grpc.CallOption) (*DeleteAgentScriptAuthReply, error)
 }
 
 type agentAdminServiceClient struct {
@@ -73,6 +80,36 @@ func (c *agentAdminServiceClient) ListAgentInstalledScripts(ctx context.Context,
 	return out, nil
 }
 
+func (c *agentAdminServiceClient) ListAgentScriptAuths(ctx context.Context, in *ListAgentScriptAuthsRequest, opts ...grpc.CallOption) (*ListAgentScriptAuthsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListAgentScriptAuthsReply)
+	err := c.cc.Invoke(ctx, AgentAdminService_ListAgentScriptAuths_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentAdminServiceClient) UpsertAgentScriptAuth(ctx context.Context, in *UpsertAgentScriptAuthRequest, opts ...grpc.CallOption) (*UpsertAgentScriptAuthReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpsertAgentScriptAuthReply)
+	err := c.cc.Invoke(ctx, AgentAdminService_UpsertAgentScriptAuth_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentAdminServiceClient) DeleteAgentScriptAuth(ctx context.Context, in *DeleteAgentScriptAuthRequest, opts ...grpc.CallOption) (*DeleteAgentScriptAuthReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteAgentScriptAuthReply)
+	err := c.cc.Invoke(ctx, AgentAdminService_DeleteAgentScriptAuth_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AgentAdminServiceServer is the server API for AgentAdminService service.
 // All implementations must embed UnimplementedAgentAdminServiceServer
 // for forward compatibility.
@@ -82,6 +119,10 @@ type AgentAdminServiceServer interface {
 	ListAgents(context.Context, *ListAgentsRequest) (*ListAgentsReply, error)
 	ListAgentLeasedTasks(context.Context, *ListAgentLeasedTasksRequest) (*ListAgentLeasedTasksReply, error)
 	ListAgentInstalledScripts(context.Context, *ListAgentInstalledScriptsRequest) (*ListAgentInstalledScriptsReply, error)
+	// Agent × script_id 登录凭据（密码不落库明文；下发见 TaskObject.params.platform_auth）
+	ListAgentScriptAuths(context.Context, *ListAgentScriptAuthsRequest) (*ListAgentScriptAuthsReply, error)
+	UpsertAgentScriptAuth(context.Context, *UpsertAgentScriptAuthRequest) (*UpsertAgentScriptAuthReply, error)
+	DeleteAgentScriptAuth(context.Context, *DeleteAgentScriptAuthRequest) (*DeleteAgentScriptAuthReply, error)
 	mustEmbedUnimplementedAgentAdminServiceServer()
 }
 
@@ -100,6 +141,15 @@ func (UnimplementedAgentAdminServiceServer) ListAgentLeasedTasks(context.Context
 }
 func (UnimplementedAgentAdminServiceServer) ListAgentInstalledScripts(context.Context, *ListAgentInstalledScriptsRequest) (*ListAgentInstalledScriptsReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListAgentInstalledScripts not implemented")
+}
+func (UnimplementedAgentAdminServiceServer) ListAgentScriptAuths(context.Context, *ListAgentScriptAuthsRequest) (*ListAgentScriptAuthsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAgentScriptAuths not implemented")
+}
+func (UnimplementedAgentAdminServiceServer) UpsertAgentScriptAuth(context.Context, *UpsertAgentScriptAuthRequest) (*UpsertAgentScriptAuthReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertAgentScriptAuth not implemented")
+}
+func (UnimplementedAgentAdminServiceServer) DeleteAgentScriptAuth(context.Context, *DeleteAgentScriptAuthRequest) (*DeleteAgentScriptAuthReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteAgentScriptAuth not implemented")
 }
 func (UnimplementedAgentAdminServiceServer) mustEmbedUnimplementedAgentAdminServiceServer() {}
 func (UnimplementedAgentAdminServiceServer) testEmbeddedByValue()                           {}
@@ -176,6 +226,60 @@ func _AgentAdminService_ListAgentInstalledScripts_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentAdminService_ListAgentScriptAuths_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListAgentScriptAuthsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentAdminServiceServer).ListAgentScriptAuths(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentAdminService_ListAgentScriptAuths_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentAdminServiceServer).ListAgentScriptAuths(ctx, req.(*ListAgentScriptAuthsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentAdminService_UpsertAgentScriptAuth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertAgentScriptAuthRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentAdminServiceServer).UpsertAgentScriptAuth(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentAdminService_UpsertAgentScriptAuth_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentAdminServiceServer).UpsertAgentScriptAuth(ctx, req.(*UpsertAgentScriptAuthRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentAdminService_DeleteAgentScriptAuth_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteAgentScriptAuthRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentAdminServiceServer).DeleteAgentScriptAuth(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentAdminService_DeleteAgentScriptAuth_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentAdminServiceServer).DeleteAgentScriptAuth(ctx, req.(*DeleteAgentScriptAuthRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AgentAdminService_ServiceDesc is the grpc.ServiceDesc for AgentAdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -194,6 +298,18 @@ var AgentAdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListAgentInstalledScripts",
 			Handler:    _AgentAdminService_ListAgentInstalledScripts_Handler,
+		},
+		{
+			MethodName: "ListAgentScriptAuths",
+			Handler:    _AgentAdminService_ListAgentScriptAuths_Handler,
+		},
+		{
+			MethodName: "UpsertAgentScriptAuth",
+			Handler:    _AgentAdminService_UpsertAgentScriptAuth_Handler,
+		},
+		{
+			MethodName: "DeleteAgentScriptAuth",
+			Handler:    _AgentAdminService_DeleteAgentScriptAuth_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

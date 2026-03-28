@@ -42,10 +42,15 @@ export interface AgentSummary {
   /** protobuf Timestamp JSON：RFC3339 */
   lastTaskHeartbeatAt?: string
   online: boolean
+  /** online | offline | unknown（无 last_task_heartbeat_at） */
+  status?: string
 }
 
 export interface ListAgentsReply {
   agents: AgentSummary[]
+  /** 离线判定窗口（秒），与 agent.offline_min_sec 等一致 */
+  offlineWindowSec?: number
+  offline_window_sec?: number
 }
 
 export async function listAgents(apiKey: string): Promise<ListAgentsReply> {
@@ -95,4 +100,90 @@ export async function listAgentInstalledScripts(
     headers: authHeaders(apiKey),
   })
   return readJson<ListAgentInstalledScriptsReply>(res)
+}
+
+/** 平台登录凭据（密码仅 Upsert 时提交，列表不返回密码） */
+export interface AgentScriptAuthRow {
+  scriptId: string
+  username: string
+  updatedAt?: string
+}
+
+export interface ListAgentScriptAuthsReply {
+  rows?: AgentScriptAuthRow[]
+}
+
+function normalizeScriptAuthRows(raw: ListAgentScriptAuthsReply): AgentScriptAuthRow[] {
+  const rows = raw.rows
+  if (!Array.isArray(rows)) return []
+  return rows.map((r) => {
+    const o = r as unknown as Record<string, unknown>
+    const scriptId =
+      typeof o.scriptId === 'string'
+        ? o.scriptId
+        : typeof o.script_id === 'string'
+          ? o.script_id
+          : ''
+    const username =
+      typeof o.username === 'string'
+        ? o.username
+        : typeof o.userName === 'string'
+          ? o.userName
+          : ''
+    let updatedAt: string | undefined
+    const u = o.updatedAt ?? o.updated_at
+    if (typeof u === 'string') updatedAt = u
+    else if (u && typeof u === 'object' && 'seconds' in u) {
+      const sec = (u as { seconds?: string | number }).seconds
+      const nano = (u as { nanos?: number }).nanos ?? 0
+      if (sec != null) {
+        const t = Number(sec) * 1000 + Math.floor(nano / 1e6)
+        updatedAt = new Date(t).toISOString()
+      }
+    }
+    return { scriptId, username, updatedAt }
+  })
+}
+
+export async function listAgentScriptAuths(
+  apiKey: string,
+  agentId: string,
+): Promise<{ rows: AgentScriptAuthRow[] }> {
+  const id = encodeURIComponent(agentId.trim())
+  const res = await fetch(`/api/v1/admin/agents/${id}/script-auths`, {
+    headers: authHeaders(apiKey),
+  })
+  const raw = await readJson<ListAgentScriptAuthsReply>(res)
+  return { rows: normalizeScriptAuthRows(raw) }
+}
+
+export async function upsertAgentScriptAuth(
+  apiKey: string,
+  params: { agentId: string; scriptId: string; username: string; password: string },
+): Promise<void> {
+  const aid = encodeURIComponent(params.agentId.trim())
+  const sid = encodeURIComponent(params.scriptId.trim())
+  const res = await fetch(`/api/v1/admin/agents/${aid}/script-auths/${sid}`, {
+    method: 'PUT',
+    headers: { ...authHeaders(apiKey), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: params.username.trim(),
+      password: params.password,
+    }),
+  })
+  await readJson<Record<string, unknown>>(res)
+}
+
+export async function deleteAgentScriptAuth(
+  apiKey: string,
+  agentId: string,
+  scriptId: string,
+): Promise<void> {
+  const aid = encodeURIComponent(agentId.trim())
+  const sid = encodeURIComponent(scriptId.trim())
+  const res = await fetch(`/api/v1/admin/agents/${aid}/script-auths/${sid}`, {
+    method: 'DELETE',
+    headers: authHeaders(apiKey),
+  })
+  await readJson<Record<string, unknown>>(res)
 }

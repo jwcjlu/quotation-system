@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS t_caichip_agent (
     agent_version               VARCHAR(64) NULL,
     last_reported_at          DATETIME(3) NULL,
     last_task_heartbeat_at    DATETIME(3) NULL,
+    agent_status                VARCHAR(16) NOT NULL DEFAULT 'unknown' COMMENT 'online | offline | unknown（任务心跳）',
     last_script_sync_heartbeat_at DATETIME(3) NULL,
     created_at                  DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     updated_at                  DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),

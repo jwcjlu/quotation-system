@@ -30,14 +30,15 @@ const (
 type DispatchTaskRepo struct {
 	db         *gorm.DB
 	skipLocked bool
+	scriptAuth biz.AgentScriptAuthRepo
 }
 
-// NewDispatchTaskRepo 无 DB　时返回零值 Repo（DBOk()==false）。
-func NewDispatchTaskRepo(d *Data) *DispatchTaskRepo {
+// NewDispatchTaskRepo 无 DB　时返回零值 Repo（DBOk()==false）。scriptAuth 可为 nil，则不注入 platform_auth。
+func NewDispatchTaskRepo(d *Data, scriptAuth biz.AgentScriptAuthRepo) *DispatchTaskRepo {
 	if d == nil || d.DB == nil {
-		return &DispatchTaskRepo{}
+		return &DispatchTaskRepo{scriptAuth: scriptAuth}
 	}
-	return &DispatchTaskRepo{db: d.DB, skipLocked: d.mysqlSkipLocked}
+	return &DispatchTaskRepo{db: d.DB, skipLocked: d.mysqlSkipLocked, scriptAuth: scriptAuth}
 }
 
 // DBOk 是否已连接数据库。
@@ -324,6 +325,11 @@ func (r *DispatchTaskRepo) PullAndLeaseForAgent(ctx context.Context, queue, agen
 		if up.RowsAffected != 1 {
 			continue
 		}
+		params := decodeDispatchParamsJSON(d.ParamsJSON)
+		if params == nil {
+			params = make(map[string]interface{})
+		}
+		r.mergeScriptAuthIntoParams(ctx, agentID, d.ScriptID, params)
 		msg := biz.TaskMessage{
 			TaskID:     d.TaskID,
 			ScriptID:   d.ScriptID,
@@ -331,7 +337,7 @@ func (r *DispatchTaskRepo) PullAndLeaseForAgent(ctx context.Context, queue, agen
 			TimeoutSec: timeoutSec,
 			LeaseID:    leaseID,
 			Attempt:    d.Attempt,
-			Params:     decodeDispatchParamsJSON(d.ParamsJSON),
+			Params:     params,
 		}
 		if d.EntryFile.Valid && d.EntryFile.String != "" {
 			s := d.EntryFile.String
@@ -346,6 +352,20 @@ func (r *DispatchTaskRepo) PullAndLeaseForAgent(ctx context.Context, queue, agen
 		return nil, err
 	}
 	return out, nil
+}
+
+func (r *DispatchTaskRepo) mergeScriptAuthIntoParams(ctx context.Context, agentID, scriptID string, params map[string]interface{}) {
+	if r == nil || r.scriptAuth == nil || !r.scriptAuth.CipherConfigured() {
+		return
+	}
+	u, p, ok, err := r.scriptAuth.GetPlatformAuth(ctx, agentID, scriptID)
+	if err != nil || !ok {
+		return
+	}
+	params["platform_auth"] = map[string]interface{}{
+		"username": u,
+		"password": p,
+	}
 }
 
 func decodeDispatchParamsJSON(raw []byte) map[string]interface{} {

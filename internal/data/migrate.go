@@ -23,6 +23,7 @@ func AutoMigrateSchema(db *gorm.DB) error {
 		&CaichipAgent{},
 		&CaichipAgentTag{},
 		&CaichipAgentInstalledScript{},
+		&CaichipAgentScriptAuth{},
 		&CaichipDispatchTask{},
 		&AgentScriptPackage{},
 	); err != nil {

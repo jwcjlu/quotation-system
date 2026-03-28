@@ -66,8 +66,10 @@ type AgentSummary struct {
 	Hostname            string                 `protobuf:"bytes,3,opt,name=hostname,proto3" json:"hostname,omitempty"`
 	LastTaskHeartbeatAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_task_heartbeat_at,json=lastTaskHeartbeatAt,proto3" json:"last_task_heartbeat_at,omitempty"`
 	Online              bool                   `protobuf:"varint,5,opt,name=online,proto3" json:"online,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// 展示用：online | offline | unknown（无 last_task_heartbeat_at）
+	Status        string `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AgentSummary) Reset() {
@@ -135,11 +137,20 @@ func (x *AgentSummary) GetOnline() bool {
 	return false
 }
 
+func (x *AgentSummary) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
 type ListAgentsReply struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Agents        []*AgentSummary        `protobuf:"bytes,1,rep,name=agents,proto3" json:"agents,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Agents []*AgentSummary        `protobuf:"bytes,1,rep,name=agents,proto3" json:"agents,omitempty"`
+	// 离线判定窗口（秒），与 bootstrap agent.offline_min_sec、default_task_heartbeat_sec、offline_heartbeat_multiplier 一致
+	OfflineWindowSec int32 `protobuf:"varint,2,opt,name=offline_window_sec,json=offlineWindowSec,proto3" json:"offline_window_sec,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ListAgentsReply) Reset() {
@@ -177,6 +188,13 @@ func (x *ListAgentsReply) GetAgents() []*AgentSummary {
 		return x.Agents
 	}
 	return nil
+}
+
+func (x *ListAgentsReply) GetOfflineWindowSec() int32 {
+	if x != nil {
+		return x.OfflineWindowSec
+	}
+	return 0
 }
 
 type ListAgentLeasedTasksRequest struct {
@@ -499,20 +517,362 @@ func (x *ListAgentInstalledScriptsReply) GetScripts() []*InstalledScriptRow {
 	return nil
 }
 
+type ListAgentScriptAuthsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentScriptAuthsRequest) Reset() {
+	*x = ListAgentScriptAuthsRequest{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentScriptAuthsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentScriptAuthsRequest) ProtoMessage() {}
+
+func (x *ListAgentScriptAuthsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentScriptAuthsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentScriptAuthsRequest) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListAgentScriptAuthsRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+type AgentScriptAuthRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScriptId      string                 `protobuf:"bytes,1,opt,name=script_id,json=scriptId,proto3" json:"script_id,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentScriptAuthRow) Reset() {
+	*x = AgentScriptAuthRow{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentScriptAuthRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentScriptAuthRow) ProtoMessage() {}
+
+func (x *AgentScriptAuthRow) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentScriptAuthRow.ProtoReflect.Descriptor instead.
+func (*AgentScriptAuthRow) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AgentScriptAuthRow) GetScriptId() string {
+	if x != nil {
+		return x.ScriptId
+	}
+	return ""
+}
+
+func (x *AgentScriptAuthRow) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *AgentScriptAuthRow) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type ListAgentScriptAuthsReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rows          []*AgentScriptAuthRow  `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentScriptAuthsReply) Reset() {
+	*x = ListAgentScriptAuthsReply{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentScriptAuthsReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentScriptAuthsReply) ProtoMessage() {}
+
+func (x *ListAgentScriptAuthsReply) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentScriptAuthsReply.ProtoReflect.Descriptor instead.
+func (*ListAgentScriptAuthsReply) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListAgentScriptAuthsReply) GetRows() []*AgentScriptAuthRow {
+	if x != nil {
+		return x.Rows
+	}
+	return nil
+}
+
+type UpsertAgentScriptAuthRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	ScriptId      string                 `protobuf:"bytes,2,opt,name=script_id,json=scriptId,proto3" json:"script_id,omitempty"`
+	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
+	Password      string                 `protobuf:"bytes,4,opt,name=password,proto3" json:"password,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertAgentScriptAuthRequest) Reset() {
+	*x = UpsertAgentScriptAuthRequest{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAgentScriptAuthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAgentScriptAuthRequest) ProtoMessage() {}
+
+func (x *UpsertAgentScriptAuthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAgentScriptAuthRequest.ProtoReflect.Descriptor instead.
+func (*UpsertAgentScriptAuthRequest) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *UpsertAgentScriptAuthRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *UpsertAgentScriptAuthRequest) GetScriptId() string {
+	if x != nil {
+		return x.ScriptId
+	}
+	return ""
+}
+
+func (x *UpsertAgentScriptAuthRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *UpsertAgentScriptAuthRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+type UpsertAgentScriptAuthReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertAgentScriptAuthReply) Reset() {
+	*x = UpsertAgentScriptAuthReply{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertAgentScriptAuthReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertAgentScriptAuthReply) ProtoMessage() {}
+
+func (x *UpsertAgentScriptAuthReply) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertAgentScriptAuthReply.ProtoReflect.Descriptor instead.
+func (*UpsertAgentScriptAuthReply) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{13}
+}
+
+type DeleteAgentScriptAuthRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	ScriptId      string                 `protobuf:"bytes,2,opt,name=script_id,json=scriptId,proto3" json:"script_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAgentScriptAuthRequest) Reset() {
+	*x = DeleteAgentScriptAuthRequest{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAgentScriptAuthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAgentScriptAuthRequest) ProtoMessage() {}
+
+func (x *DeleteAgentScriptAuthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAgentScriptAuthRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAgentScriptAuthRequest) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *DeleteAgentScriptAuthRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *DeleteAgentScriptAuthRequest) GetScriptId() string {
+	if x != nil {
+		return x.ScriptId
+	}
+	return ""
+}
+
+type DeleteAgentScriptAuthReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAgentScriptAuthReply) Reset() {
+	*x = DeleteAgentScriptAuthReply{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAgentScriptAuthReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAgentScriptAuthReply) ProtoMessage() {}
+
+func (x *DeleteAgentScriptAuthReply) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAgentScriptAuthReply.ProtoReflect.Descriptor instead.
+func (*DeleteAgentScriptAuthReply) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{15}
+}
+
 var File_admin_v1_agent_admin_proto protoreflect.FileDescriptor
 
 const file_admin_v1_agent_admin_proto_rawDesc = "" +
 	"\n" +
 	"\x1aadmin/v1/agent_admin.proto\x12\fapi.admin.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x13\n" +
-	"\x11ListAgentsRequest\"\xc4\x01\n" +
+	"\x11ListAgentsRequest\"\xdc\x01\n" +
 	"\fAgentSummary\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x14\n" +
 	"\x05queue\x18\x02 \x01(\tR\x05queue\x12\x1a\n" +
 	"\bhostname\x18\x03 \x01(\tR\bhostname\x12O\n" +
 	"\x16last_task_heartbeat_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x13lastTaskHeartbeatAt\x12\x16\n" +
-	"\x06online\x18\x05 \x01(\bR\x06online\"E\n" +
+	"\x06online\x18\x05 \x01(\bR\x06online\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\"s\n" +
 	"\x0fListAgentsReply\x122\n" +
-	"\x06agents\x18\x01 \x03(\v2\x1a.api.admin.v1.AgentSummaryR\x06agents\"8\n" +
+	"\x06agents\x18\x01 \x03(\v2\x1a.api.admin.v1.AgentSummaryR\x06agents\x12,\n" +
+	"\x12offline_window_sec\x18\x02 \x01(\x05R\x10offlineWindowSec\"8\n" +
 	"\x1bListAgentLeasedTasksRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\xe0\x01\n" +
 	"\rLeasedTaskRow\x12\x17\n" +
@@ -533,12 +893,34 @@ const file_admin_v1_agent_admin_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\\\n" +
 	"\x1eListAgentInstalledScriptsReply\x12:\n" +
-	"\ascripts\x18\x01 \x03(\v2 .api.admin.v1.InstalledScriptRowR\ascripts2\xd9\x03\n" +
+	"\ascripts\x18\x01 \x03(\v2 .api.admin.v1.InstalledScriptRowR\ascripts\"8\n" +
+	"\x1bListAgentScriptAuthsRequest\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\x88\x01\n" +
+	"\x12AgentScriptAuthRow\x12\x1b\n" +
+	"\tscript_id\x18\x01 \x01(\tR\bscriptId\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x129\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"Q\n" +
+	"\x19ListAgentScriptAuthsReply\x124\n" +
+	"\x04rows\x18\x01 \x03(\v2 .api.admin.v1.AgentScriptAuthRowR\x04rows\"\x8e\x01\n" +
+	"\x1cUpsertAgentScriptAuthRequest\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1b\n" +
+	"\tscript_id\x18\x02 \x01(\tR\bscriptId\x12\x1a\n" +
+	"\busername\x18\x03 \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\x04 \x01(\tR\bpassword\"\x1c\n" +
+	"\x1aUpsertAgentScriptAuthReply\"V\n" +
+	"\x1cDeleteAgentScriptAuthRequest\x12\x19\n" +
+	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1b\n" +
+	"\tscript_id\x18\x02 \x01(\tR\bscriptId\"\x1c\n" +
+	"\x1aDeleteAgentScriptAuthReply2\xe3\a\n" +
 	"\x11AgentAdminService\x12j\n" +
 	"\n" +
 	"ListAgents\x12\x1f.api.admin.v1.ListAgentsRequest\x1a\x1d.api.admin.v1.ListAgentsReply\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/api/v1/admin/agents\x12\xa0\x01\n" +
 	"\x14ListAgentLeasedTasks\x12).api.admin.v1.ListAgentLeasedTasksRequest\x1a'.api.admin.v1.ListAgentLeasedTasksReply\"4\x82\xd3\xe4\x93\x02.\x12,/api/v1/admin/agents/{agent_id}/leased-tasks\x12\xb4\x01\n" +
-	"\x19ListAgentInstalledScripts\x12..api.admin.v1.ListAgentInstalledScriptsRequest\x1a,.api.admin.v1.ListAgentInstalledScriptsReply\"9\x82\xd3\xe4\x93\x023\x121/api/v1/admin/agents/{agent_id}/installed-scriptsB\x19Z\x17caichip/api/admin/v1;v1b\x06proto3"
+	"\x19ListAgentInstalledScripts\x12..api.admin.v1.ListAgentInstalledScriptsRequest\x1a,.api.admin.v1.ListAgentInstalledScriptsReply\"9\x82\xd3\xe4\x93\x023\x121/api/v1/admin/agents/{agent_id}/installed-scripts\x12\xa0\x01\n" +
+	"\x14ListAgentScriptAuths\x12).api.admin.v1.ListAgentScriptAuthsRequest\x1a'.api.admin.v1.ListAgentScriptAuthsReply\"4\x82\xd3\xe4\x93\x02.\x12,/api/v1/admin/agents/{agent_id}/script-auths\x12\xb2\x01\n" +
+	"\x15UpsertAgentScriptAuth\x12*.api.admin.v1.UpsertAgentScriptAuthRequest\x1a(.api.admin.v1.UpsertAgentScriptAuthReply\"C\x82\xd3\xe4\x93\x02=:\x01*\x1a8/api/v1/admin/agents/{agent_id}/script-auths/{script_id}\x12\xaf\x01\n" +
+	"\x15DeleteAgentScriptAuth\x12*.api.admin.v1.DeleteAgentScriptAuthRequest\x1a(.api.admin.v1.DeleteAgentScriptAuthReply\"@\x82\xd3\xe4\x93\x02:*8/api/v1/admin/agents/{agent_id}/script-auths/{script_id}B\x19Z\x17caichip/api/admin/v1;v1b\x06proto3"
 
 var (
 	file_admin_v1_agent_admin_proto_rawDescOnce sync.Once
@@ -552,7 +934,7 @@ func file_admin_v1_agent_admin_proto_rawDescGZIP() []byte {
 	return file_admin_v1_agent_admin_proto_rawDescData
 }
 
-var file_admin_v1_agent_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_admin_v1_agent_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_admin_v1_agent_admin_proto_goTypes = []any{
 	(*ListAgentsRequest)(nil),                // 0: api.admin.v1.ListAgentsRequest
 	(*AgentSummary)(nil),                     // 1: api.admin.v1.AgentSummary
@@ -563,27 +945,42 @@ var file_admin_v1_agent_admin_proto_goTypes = []any{
 	(*ListAgentInstalledScriptsRequest)(nil), // 6: api.admin.v1.ListAgentInstalledScriptsRequest
 	(*InstalledScriptRow)(nil),               // 7: api.admin.v1.InstalledScriptRow
 	(*ListAgentInstalledScriptsReply)(nil),   // 8: api.admin.v1.ListAgentInstalledScriptsReply
-	(*timestamppb.Timestamp)(nil),            // 9: google.protobuf.Timestamp
+	(*ListAgentScriptAuthsRequest)(nil),      // 9: api.admin.v1.ListAgentScriptAuthsRequest
+	(*AgentScriptAuthRow)(nil),               // 10: api.admin.v1.AgentScriptAuthRow
+	(*ListAgentScriptAuthsReply)(nil),        // 11: api.admin.v1.ListAgentScriptAuthsReply
+	(*UpsertAgentScriptAuthRequest)(nil),     // 12: api.admin.v1.UpsertAgentScriptAuthRequest
+	(*UpsertAgentScriptAuthReply)(nil),       // 13: api.admin.v1.UpsertAgentScriptAuthReply
+	(*DeleteAgentScriptAuthRequest)(nil),     // 14: api.admin.v1.DeleteAgentScriptAuthRequest
+	(*DeleteAgentScriptAuthReply)(nil),       // 15: api.admin.v1.DeleteAgentScriptAuthReply
+	(*timestamppb.Timestamp)(nil),            // 16: google.protobuf.Timestamp
 }
 var file_admin_v1_agent_admin_proto_depIdxs = []int32{
-	9,  // 0: api.admin.v1.AgentSummary.last_task_heartbeat_at:type_name -> google.protobuf.Timestamp
+	16, // 0: api.admin.v1.AgentSummary.last_task_heartbeat_at:type_name -> google.protobuf.Timestamp
 	1,  // 1: api.admin.v1.ListAgentsReply.agents:type_name -> api.admin.v1.AgentSummary
-	9,  // 2: api.admin.v1.LeasedTaskRow.leased_at:type_name -> google.protobuf.Timestamp
-	9,  // 3: api.admin.v1.LeasedTaskRow.lease_deadline_at:type_name -> google.protobuf.Timestamp
+	16, // 2: api.admin.v1.LeasedTaskRow.leased_at:type_name -> google.protobuf.Timestamp
+	16, // 3: api.admin.v1.LeasedTaskRow.lease_deadline_at:type_name -> google.protobuf.Timestamp
 	4,  // 4: api.admin.v1.ListAgentLeasedTasksReply.tasks:type_name -> api.admin.v1.LeasedTaskRow
-	9,  // 5: api.admin.v1.InstalledScriptRow.updated_at:type_name -> google.protobuf.Timestamp
+	16, // 5: api.admin.v1.InstalledScriptRow.updated_at:type_name -> google.protobuf.Timestamp
 	7,  // 6: api.admin.v1.ListAgentInstalledScriptsReply.scripts:type_name -> api.admin.v1.InstalledScriptRow
-	0,  // 7: api.admin.v1.AgentAdminService.ListAgents:input_type -> api.admin.v1.ListAgentsRequest
-	3,  // 8: api.admin.v1.AgentAdminService.ListAgentLeasedTasks:input_type -> api.admin.v1.ListAgentLeasedTasksRequest
-	6,  // 9: api.admin.v1.AgentAdminService.ListAgentInstalledScripts:input_type -> api.admin.v1.ListAgentInstalledScriptsRequest
-	2,  // 10: api.admin.v1.AgentAdminService.ListAgents:output_type -> api.admin.v1.ListAgentsReply
-	5,  // 11: api.admin.v1.AgentAdminService.ListAgentLeasedTasks:output_type -> api.admin.v1.ListAgentLeasedTasksReply
-	8,  // 12: api.admin.v1.AgentAdminService.ListAgentInstalledScripts:output_type -> api.admin.v1.ListAgentInstalledScriptsReply
-	10, // [10:13] is the sub-list for method output_type
-	7,  // [7:10] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	16, // 7: api.admin.v1.AgentScriptAuthRow.updated_at:type_name -> google.protobuf.Timestamp
+	10, // 8: api.admin.v1.ListAgentScriptAuthsReply.rows:type_name -> api.admin.v1.AgentScriptAuthRow
+	0,  // 9: api.admin.v1.AgentAdminService.ListAgents:input_type -> api.admin.v1.ListAgentsRequest
+	3,  // 10: api.admin.v1.AgentAdminService.ListAgentLeasedTasks:input_type -> api.admin.v1.ListAgentLeasedTasksRequest
+	6,  // 11: api.admin.v1.AgentAdminService.ListAgentInstalledScripts:input_type -> api.admin.v1.ListAgentInstalledScriptsRequest
+	9,  // 12: api.admin.v1.AgentAdminService.ListAgentScriptAuths:input_type -> api.admin.v1.ListAgentScriptAuthsRequest
+	12, // 13: api.admin.v1.AgentAdminService.UpsertAgentScriptAuth:input_type -> api.admin.v1.UpsertAgentScriptAuthRequest
+	14, // 14: api.admin.v1.AgentAdminService.DeleteAgentScriptAuth:input_type -> api.admin.v1.DeleteAgentScriptAuthRequest
+	2,  // 15: api.admin.v1.AgentAdminService.ListAgents:output_type -> api.admin.v1.ListAgentsReply
+	5,  // 16: api.admin.v1.AgentAdminService.ListAgentLeasedTasks:output_type -> api.admin.v1.ListAgentLeasedTasksReply
+	8,  // 17: api.admin.v1.AgentAdminService.ListAgentInstalledScripts:output_type -> api.admin.v1.ListAgentInstalledScriptsReply
+	11, // 18: api.admin.v1.AgentAdminService.ListAgentScriptAuths:output_type -> api.admin.v1.ListAgentScriptAuthsReply
+	13, // 19: api.admin.v1.AgentAdminService.UpsertAgentScriptAuth:output_type -> api.admin.v1.UpsertAgentScriptAuthReply
+	15, // 20: api.admin.v1.AgentAdminService.DeleteAgentScriptAuth:output_type -> api.admin.v1.DeleteAgentScriptAuthReply
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_admin_v1_agent_admin_proto_init() }
@@ -597,7 +994,7 @@ func file_admin_v1_agent_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_admin_v1_agent_admin_proto_rawDesc), len(file_admin_v1_agent_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

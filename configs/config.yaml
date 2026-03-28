@@ -12,6 +12,10 @@ data:
     # 默认启动时 GORM AutoMigrate（建表/补列）；生产若只信手工迁移可设 auto_migrate: false
     driver: mysql
     dsn: viu_root:myviu_4359@tcp(172.26.50.161:23306)/bom_match?charset=utf8mb4
+    # 为 true 时 GORM 将 SQL 打到标准输出；也可不设此项，用环境变量 CAICHIP_GORM_LOG_SQL=1
+    log_sql: true
+    # DATETIME 若按中国本地墙钟存，驱动默认按 UTC 解析会差约 8h；可设 Asia/Shanghai 或环境变量 CAICHIP_MYSQL_LOC
+    mysql_loc: Asia/Shanghai
   redis:
     addr: 127.0.0.1:6379
     read_timeout: 1
@@ -43,12 +47,27 @@ script_store:
 
 script_admin:
   api_keys:
-    - "change-me-admin-key"
+    - "123456"
+
+# Agent 运维只读 API：GET /api/v1/admin/agents 等（Header: X-API-Key 或 Authorization: Bearer）
+agent_admin:
+  api_keys:
+    - "123456"
+
+# Agent × script_id 凭据加密（32 字节 AES 密钥的 base64）；亦可设环境变量 CAICHIP_AGENT_SCRIPT_AUTH_KEY（优先）
+# agent_script_auth:
+#   aes_key_base64: ""
 
 # BOM 搜索任务回传 POST /api/v1/bom-sessions/{id}/search-results（Header: X-API-Key 或 Authorization: Bearer）
 bom_search_callback:
   api_keys:
     - "change-me-bom-search-callback"
+
+# BOM 上传 parse_mode: llm 时调用 OpenAI 推断列映射（见 internal/conf/conf.proto OpenAI）
+openai:
+   api_key: "sk-cebf97382d7a4b0f85c60edf2fbcfa9e"
+   base_url: "https://api.deepseek.com/v1"   # 可选，代理/Azure 网关
+   model: "deepseek-chat"
 
 platform:
   ickey:

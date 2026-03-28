@@ -24,6 +24,23 @@ service AgentAdminService {
       get: "/api/v1/admin/agents/{agent_id}/installed-scripts"
     };
   }
+  // Agent × script_id 登录凭据（密码不落库明文；下发见 TaskObject.params.platform_auth）
+  rpc ListAgentScriptAuths(ListAgentScriptAuthsRequest) returns (ListAgentScriptAuthsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/agents/{agent_id}/script-auths"
+    };
+  }
+  rpc UpsertAgentScriptAuth(UpsertAgentScriptAuthRequest) returns (UpsertAgentScriptAuthReply) {
+    option (google.api.http) = {
+      put: "/api/v1/admin/agents/{agent_id}/script-auths/{script_id}"
+      body: "*"
+    };
+  }
+  rpc DeleteAgentScriptAuth(DeleteAgentScriptAuthRequest) returns (DeleteAgentScriptAuthReply) {
+    option (google.api.http) = {
+      delete: "/api/v1/admin/agents/{agent_id}/script-auths/{script_id}"
+    };
+  }
 }
 
 message ListAgentsRequest {}
@@ -34,10 +51,14 @@ message AgentSummary {
   string hostname = 3;
   google.protobuf.Timestamp last_task_heartbeat_at = 4;
   bool online = 5;
+  // 展示用：online | offline | unknown（无 last_task_heartbeat_at）
+  string status = 6;
 }
 
 message ListAgentsReply {
   repeated AgentSummary agents = 1;
+  // 离线判定窗口（秒），与 bootstrap agent.offline_min_sec、default_task_heartbeat_sec、offline_heartbeat_multiplier 一致
+  int32 offline_window_sec = 2 [json_name = "offlineWindowSec"];
 }
 
 message ListAgentLeasedTasksRequest {
@@ -70,3 +91,33 @@ message InstalledScriptRow {
 message ListAgentInstalledScriptsReply {
   repeated InstalledScriptRow scripts = 1;
 }
+
+message ListAgentScriptAuthsRequest {
+  string agent_id = 1;
+}
+
+message AgentScriptAuthRow {
+  string script_id = 1;
+  string username = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message ListAgentScriptAuthsReply {
+  repeated AgentScriptAuthRow rows = 1;
+}
+
+message UpsertAgentScriptAuthRequest {
+  string agent_id = 1;
+  string script_id = 2;
+  string username = 3;
+  string password = 4;
+}
+
+message UpsertAgentScriptAuthReply {}
+
+message DeleteAgentScriptAuthRequest {
+  string agent_id = 1;
+  string script_id = 2;
+}
+
+message DeleteAgentScriptAuthReply {}

@@ -19,14 +19,21 @@ var _ = binding.EncodeURL
 
 const _ = http.SupportPackageIsVersion1
 
+const OperationAgentAdminServiceDeleteAgentScriptAuth = "/api.admin.v1.AgentAdminService/DeleteAgentScriptAuth"
 const OperationAgentAdminServiceListAgentInstalledScripts = "/api.admin.v1.AgentAdminService/ListAgentInstalledScripts"
 const OperationAgentAdminServiceListAgentLeasedTasks = "/api.admin.v1.AgentAdminService/ListAgentLeasedTasks"
+const OperationAgentAdminServiceListAgentScriptAuths = "/api.admin.v1.AgentAdminService/ListAgentScriptAuths"
 const OperationAgentAdminServiceListAgents = "/api.admin.v1.AgentAdminService/ListAgents"
+const OperationAgentAdminServiceUpsertAgentScriptAuth = "/api.admin.v1.AgentAdminService/UpsertAgentScriptAuth"
 
 type AgentAdminServiceHTTPServer interface {
+	DeleteAgentScriptAuth(context.Context, *DeleteAgentScriptAuthRequest) (*DeleteAgentScriptAuthReply, error)
 	ListAgentInstalledScripts(context.Context, *ListAgentInstalledScriptsRequest) (*ListAgentInstalledScriptsReply, error)
 	ListAgentLeasedTasks(context.Context, *ListAgentLeasedTasksRequest) (*ListAgentLeasedTasksReply, error)
+	// ListAgentScriptAuths Agent × script_id 登录凭据（密码不落库明文；下发见 TaskObject.params.platform_auth）
+	ListAgentScriptAuths(context.Context, *ListAgentScriptAuthsRequest) (*ListAgentScriptAuthsReply, error)
 	ListAgents(context.Context, *ListAgentsRequest) (*ListAgentsReply, error)
+	UpsertAgentScriptAuth(context.Context, *UpsertAgentScriptAuthRequest) (*UpsertAgentScriptAuthReply, error)
 }
 
 func RegisterAgentAdminServiceHTTPServer(s *http.Server, srv AgentAdminServiceHTTPServer) {
@@ -34,6 +41,9 @@ func RegisterAgentAdminServiceHTTPServer(s *http.Server, srv AgentAdminServiceHT
 	r.GET("/api/v1/admin/agents", _AgentAdminService_ListAgents0_HTTP_Handler(srv))
 	r.GET("/api/v1/admin/agents/{agent_id}/leased-tasks", _AgentAdminService_ListAgentLeasedTasks0_HTTP_Handler(srv))
 	r.GET("/api/v1/admin/agents/{agent_id}/installed-scripts", _AgentAdminService_ListAgentInstalledScripts0_HTTP_Handler(srv))
+	r.GET("/api/v1/admin/agents/{agent_id}/script-auths", _AgentAdminService_ListAgentScriptAuths0_HTTP_Handler(srv))
+	r.PUT("/api/v1/admin/agents/{agent_id}/script-auths/{script_id}", _AgentAdminService_UpsertAgentScriptAuth0_HTTP_Handler(srv))
+	r.DELETE("/api/v1/admin/agents/{agent_id}/script-auths/{script_id}", _AgentAdminService_DeleteAgentScriptAuth0_HTTP_Handler(srv))
 }
 
 func _AgentAdminService_ListAgents0_HTTP_Handler(srv AgentAdminServiceHTTPServer) func(ctx http.Context) error {
@@ -99,10 +109,83 @@ func _AgentAdminService_ListAgentInstalledScripts0_HTTP_Handler(srv AgentAdminSe
 	}
 }
 
+func _AgentAdminService_ListAgentScriptAuths0_HTTP_Handler(srv AgentAdminServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ListAgentScriptAuthsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationAgentAdminServiceListAgentScriptAuths)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListAgentScriptAuths(ctx, req.(*ListAgentScriptAuthsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListAgentScriptAuthsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _AgentAdminService_UpsertAgentScriptAuth0_HTTP_Handler(srv AgentAdminServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in UpsertAgentScriptAuthRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationAgentAdminServiceUpsertAgentScriptAuth)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.UpsertAgentScriptAuth(ctx, req.(*UpsertAgentScriptAuthRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*UpsertAgentScriptAuthReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _AgentAdminService_DeleteAgentScriptAuth0_HTTP_Handler(srv AgentAdminServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in DeleteAgentScriptAuthRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationAgentAdminServiceDeleteAgentScriptAuth)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.DeleteAgentScriptAuth(ctx, req.(*DeleteAgentScriptAuthRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*DeleteAgentScriptAuthReply)
+		return ctx.Result(200, reply)
+	}
+}
+
 type AgentAdminServiceHTTPClient interface {
+	DeleteAgentScriptAuth(ctx context.Context, req *DeleteAgentScriptAuthRequest, opts ...http.CallOption) (rsp *DeleteAgentScriptAuthReply, err error)
 	ListAgentInstalledScripts(ctx context.Context, req *ListAgentInstalledScriptsRequest, opts ...http.CallOption) (rsp *ListAgentInstalledScriptsReply, err error)
 	ListAgentLeasedTasks(ctx context.Context, req *ListAgentLeasedTasksRequest, opts ...http.CallOption) (rsp *ListAgentLeasedTasksReply, err error)
+	// ListAgentScriptAuths Agent × script_id 登录凭据（密码不落库明文；下发见 TaskObject.params.platform_auth）
+	ListAgentScriptAuths(ctx context.Context, req *ListAgentScriptAuthsRequest, opts ...http.CallOption) (rsp *ListAgentScriptAuthsReply, err error)
 	ListAgents(ctx context.Context, req *ListAgentsRequest, opts ...http.CallOption) (rsp *ListAgentsReply, err error)
+	UpsertAgentScriptAuth(ctx context.Context, req *UpsertAgentScriptAuthRequest, opts ...http.CallOption) (rsp *UpsertAgentScriptAuthReply, err error)
 }
 
 type AgentAdminServiceHTTPClientImpl struct {
@@ -111,6 +194,19 @@ type AgentAdminServiceHTTPClientImpl struct {
 
 func NewAgentAdminServiceHTTPClient(client *http.Client) AgentAdminServiceHTTPClient {
 	return &AgentAdminServiceHTTPClientImpl{client}
+}
+
+func (c *AgentAdminServiceHTTPClientImpl) DeleteAgentScriptAuth(ctx context.Context, in *DeleteAgentScriptAuthRequest, opts ...http.CallOption) (*DeleteAgentScriptAuthReply, error) {
+	var out DeleteAgentScriptAuthReply
+	pattern := "/api/v1/admin/agents/{agent_id}/script-auths/{script_id}"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationAgentAdminServiceDeleteAgentScriptAuth))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "DELETE", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 func (c *AgentAdminServiceHTTPClientImpl) ListAgentInstalledScripts(ctx context.Context, in *ListAgentInstalledScriptsRequest, opts ...http.CallOption) (*ListAgentInstalledScriptsReply, error) {
@@ -139,6 +235,20 @@ func (c *AgentAdminServiceHTTPClientImpl) ListAgentLeasedTasks(ctx context.Conte
 	return &out, nil
 }
 
+// ListAgentScriptAuths Agent × script_id 登录凭据（密码不落库明文；下发见 TaskObject.params.platform_auth）
+func (c *AgentAdminServiceHTTPClientImpl) ListAgentScriptAuths(ctx context.Context, in *ListAgentScriptAuthsRequest, opts ...http.CallOption) (*ListAgentScriptAuthsReply, error) {
+	var out ListAgentScriptAuthsReply
+	pattern := "/api/v1/admin/agents/{agent_id}/script-auths"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationAgentAdminServiceListAgentScriptAuths))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (c *AgentAdminServiceHTTPClientImpl) ListAgents(ctx context.Context, in *ListAgentsRequest, opts ...http.CallOption) (*ListAgentsReply, error) {
 	var out ListAgentsReply
 	pattern := "/api/v1/admin/agents"
@@ -146,6 +256,19 @@ func (c *AgentAdminServiceHTTPClientImpl) ListAgents(ctx context.Context, in *Li
 	opts = append(opts, http.Operation(OperationAgentAdminServiceListAgents))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *AgentAdminServiceHTTPClientImpl) UpsertAgentScriptAuth(ctx context.Context, in *UpsertAgentScriptAuthRequest, opts ...http.CallOption) (*UpsertAgentScriptAuthReply, error) {
+	var out UpsertAgentScriptAuthReply
+	pattern := "/api/v1/admin/agents/{agent_id}/script-auths/{script_id}"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationAgentAdminServiceUpsertAgentScriptAuth))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "PUT", path, in, &out, opts...)
 	if err != nil {
 		return nil, err
 	}

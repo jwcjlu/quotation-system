@@ -17,10 +17,11 @@ import (
 
 // AgentAdminService 实现 api/admin/v1.AgentAdminServiceHTTPServer（与 Agent 采集 API 分离）。
 type AgentAdminService struct {
-	bc       *conf.Bootstrap
-	registry biz.AgentRegistryRepo
-	dispatch biz.DispatchTaskRepo
-	log      *log.Helper
+	bc         *conf.Bootstrap
+	registry   biz.AgentRegistryRepo
+	dispatch   biz.DispatchTaskRepo
+	scriptAuth biz.AgentScriptAuthRepo
+	log        *log.Helper
 }
 
 // NewAgentAdminService ...
@@ -28,9 +29,10 @@ func NewAgentAdminService(
 	bc *conf.Bootstrap,
 	reg biz.AgentRegistryRepo,
 	disp biz.DispatchTaskRepo,
+	scriptAuth biz.AgentScriptAuthRepo,
 	logger log.Logger,
 ) *AgentAdminService {
-	return &AgentAdminService{bc: bc, registry: reg, dispatch: disp, log: log.NewHelper(logger)}
+	return &AgentAdminService{bc: bc, registry: reg, dispatch: disp, scriptAuth: scriptAuth, log: log.NewHelper(logger)}
 }
 
 // Enabled 是否配置了 agent_admin.api_keys（用于注册 HTTP）。
@@ -79,7 +81,8 @@ func (s *AgentAdminService) validateAdminKey(ctx context.Context) bool {
 }
 
 func (s *AgentAdminService) dbOK() bool {
-	return s.registry != nil && s.registry.DBOk() && s.dispatch != nil && s.dispatch.DBOk()
+	return s.registry != nil && s.registry.DBOk() && s.dispatch != nil && s.dispatch.DBOk() &&
+		s.scriptAuth != nil && s.scriptAuth.DBOk()
 }
 
 // ListAgents 列出 Agent 及在线状态（与 BootstrapAgentOfflineThreshold 一致）。
@@ -90,20 +93,32 @@ func (s *AgentAdminService) ListAgents(ctx context.Context, _ *v1.ListAgentsRequ
 	if !s.dbOK() {
 		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
 	}
+	// BootstrapAgentOfflineThreshold 返回 time.Duration（配置里的秒已乘 time.Second）
+	th := biz.BootstrapAgentOfflineThreshold(s.bc)
+	now := time.Now()
+	cutoff := now.Add(-th)
+	if _, err := s.registry.MarkAgentsOfflineBefore(ctx, cutoff); err != nil {
+		return nil, err
+	}
 	rows, err := s.registry.ListAgentRegistrySummaries(ctx)
 	if err != nil {
 		return nil, err
 	}
-	th := biz.BootstrapAgentOfflineThreshold(s.bc)
-	now := time.Now()
-	out := &v1.ListAgentsReply{Agents: make([]*v1.AgentSummary, 0, len(rows))}
+	out := &v1.ListAgentsReply{
+		Agents:           make([]*v1.AgentSummary, 0, len(rows)),
+		OfflineWindowSec: int32(th / time.Second),
+	}
 	for _, r := range rows {
 		online := false
+		statusStr := biz.AgentStatusUnknown
 		var ts *timestamppb.Timestamp
 		if r.LastTaskHeartbeatAt != nil {
 			ts = timestamppb.New(*r.LastTaskHeartbeatAt)
 			if now.Sub(*r.LastTaskHeartbeatAt) <= th {
 				online = true
+				statusStr = biz.AgentStatusOnline
+			} else {
+				statusStr = biz.AgentStatusOffline
 			}
 		}
 		out.Agents = append(out.Agents, &v1.AgentSummary{
@@ -112,6 +127,7 @@ func (s *AgentAdminService) ListAgents(ctx context.Context, _ *v1.ListAgentsRequ
 			Hostname:            r.Hostname,
 			LastTaskHeartbeatAt: ts,
 			Online:              online,
+			Status:              statusStr,
 		})
 	}
 	return out, nil
@@ -177,6 +193,68 @@ func (s *AgentAdminService) ListAgentInstalledScripts(ctx context.Context, req *
 		})
 	}
 	return out, nil
+}
+
+// ListAgentScriptAuths 列出某 Agent 的 script 凭据（不含密码）。
+func (s *AgentAdminService) ListAgentScriptAuths(ctx context.Context, req *v1.ListAgentScriptAuthsRequest) (*v1.ListAgentScriptAuthsReply, error) {
+	if !s.validateAdminKey(ctx) {
+		return nil, kerrors.Unauthorized("UNAUTHORIZED", "invalid or missing agent admin api key")
+	}
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	aid := strings.TrimSpace(req.GetAgentId())
+	if aid == "" {
+		return nil, kerrors.BadRequest("BAD_REQUEST", "agent_id required")
+	}
+	rows, err := s.scriptAuth.ListByAgent(ctx, aid)
+	if err != nil {
+		return nil, err
+	}
+	out := &v1.ListAgentScriptAuthsReply{Rows: make([]*v1.AgentScriptAuthRow, 0, len(rows))}
+	for _, r := range rows {
+		out.Rows = append(out.Rows, &v1.AgentScriptAuthRow{
+			ScriptId:  r.ScriptID,
+			Username:  r.Username,
+			UpdatedAt: timestamppb.New(r.UpdatedAt),
+		})
+	}
+	return out, nil
+}
+
+// UpsertAgentScriptAuth 写入或更新凭据（须配置 AES 密钥）。
+func (s *AgentAdminService) UpsertAgentScriptAuth(ctx context.Context, req *v1.UpsertAgentScriptAuthRequest) (*v1.UpsertAgentScriptAuthReply, error) {
+	if !s.validateAdminKey(ctx) {
+		return nil, kerrors.Unauthorized("UNAUTHORIZED", "invalid or missing agent admin api key")
+	}
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	if s.scriptAuth == nil || !s.scriptAuth.CipherConfigured() {
+		return nil, kerrors.BadRequest("SCRIPT_AUTH_CIPHER_DISABLED", "configure CAICHIP_AGENT_SCRIPT_AUTH_KEY or agent_script_auth.aes_key_base64 (32-byte key base64)")
+	}
+	aid := strings.TrimSpace(req.GetAgentId())
+	sid := strings.TrimSpace(req.GetScriptId())
+	if err := s.scriptAuth.Upsert(ctx, aid, sid, req.GetUsername(), req.GetPassword()); err != nil {
+		return nil, kerrors.BadRequest("SCRIPT_AUTH_UPSERT", err.Error())
+	}
+	return &v1.UpsertAgentScriptAuthReply{}, nil
+}
+
+// DeleteAgentScriptAuth 删除一行凭据。
+func (s *AgentAdminService) DeleteAgentScriptAuth(ctx context.Context, req *v1.DeleteAgentScriptAuthRequest) (*v1.DeleteAgentScriptAuthReply, error) {
+	if !s.validateAdminKey(ctx) {
+		return nil, kerrors.Unauthorized("UNAUTHORIZED", "invalid or missing agent admin api key")
+	}
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	aid := strings.TrimSpace(req.GetAgentId())
+	sid := strings.TrimSpace(req.GetScriptId())
+	if err := s.scriptAuth.Delete(ctx, aid, sid); err != nil {
+		return nil, err
+	}
+	return &v1.DeleteAgentScriptAuthReply{}, nil
 }
 
 var _ v1.AgentAdminServiceHTTPServer = (*AgentAdminService)(nil)

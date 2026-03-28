@@ -22,6 +22,7 @@ func wireApp(*conf.Bootstrap, log.Logger) (*kratos.App, func(), error) {
 		wire.Bind(new(biz.BOMSessionRepo), new(*data.BomSessionRepo)),
 		wire.Bind(new(biz.MergeDispatchExecutor), new(*data.BomMergeDispatch)),
 		wire.Bind(new(biz.AgentScriptPublishedLister), new(*data.AgentScriptPackageRepo)),
+		wire.Bind(new(biz.AgentScriptAuthRepo), new(*data.AgentScriptAuthRepo)),
 		server.ProviderSet,
 		data.ProviderSet,
 		biz.ProviderSet,

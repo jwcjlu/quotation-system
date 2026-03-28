@@ -6,6 +6,7 @@ const (
 	TableCaichipAgent                = "t_caichip_agent"
 	TableCaichipAgentTag             = "t_caichip_agent_tag"
 	TableCaichipAgentInstalledScript = "t_caichip_agent_installed_script"
+	TableCaichipAgentScriptAuth      = "t_caichip_agent_script_auth"
 	TableBomSearchTask               = "t_bom_search_task"
 	TableBomQuoteCache               = "t_bom_quote_cache"
 	TableBomSession                  = "t_bom_session"

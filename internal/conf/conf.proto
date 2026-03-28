@@ -18,6 +18,14 @@ message Bootstrap {
   AgentAdmin agent_admin = 8;
   // OpenAI：BOM Upload parse_mode=llm 时推断列映射（github.com/sashabaranov/go-openai）
   OpenAI openai = 9;
+  // Agent 脚本登录凭据 AES-256-GCM 密钥（也可用环境变量 CAICHIP_AGENT_SCRIPT_AUTH_KEY）
+  AgentScriptAuth agent_script_auth = 10;
+}
+
+// AgentScriptAuth 调度下发 platform_auth 时解密密码；未配置密钥时不可 Upsert，Pull 不注入。
+message AgentScriptAuth {
+  // 32 字节原始密钥的 base64；与 env 二选一，env 优先
+  string aes_key_base64 = 1;
 }
 
 // OpenAI 聊天补全（api_key 为空时不创建客户端，llm 模式将报错提示配置）
@@ -54,6 +62,10 @@ message DataDatabase {
   string dsn = 2;
   // 未设置或 true：连接成功后执行 GORM AutoMigrate（建表/补列/补简单索引）；显式 false 时跳过（生产可用手工 SQL）。
   optional bool auto_migrate = 3;
+  // 为 true 时 GORM 将执行的 SQL 打印到标准输出（也可用环境变量 CAICHIP_GORM_LOG_SQL=1）
+  optional bool log_sql = 4;
+  // go-sql-driver 的 loc：解析/写入 DATETIME 时使用的 IANA 时区，如 Asia/Shanghai、UTC。空则不在 DSN 追加 loc（驱动默认按 UTC 解析墙钟，易与「库内存本地时间」差 8h）。也可用环境变量 CAICHIP_MYSQL_LOC。
+  optional string mysql_loc = 5;
 }
 
 message DataRedis {

@@ -20,6 +20,8 @@ func AutoMigrateSchema(db *gorm.DB) error {
 		&BomSearchTask{},
 		&BomMergeInflight{},
 		&BomPlatformScript{},
+		&BomManufacturerAlias{},
+		&BomFxRate{},
 		&CaichipAgent{},
 		&CaichipAgentTag{},
 		&CaichipAgentInstalledScript{},

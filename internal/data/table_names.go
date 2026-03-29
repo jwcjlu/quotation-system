@@ -13,5 +13,7 @@ const (
 	TableBomSessionLine              = "t_bom_session_line"
 	TableBomMergeInflight            = "t_bom_merge_inflight"
 	TableBomPlatformScript           = "t_bom_platform_script"
+	TableBomManufacturerAlias        = "t_bom_manufacturer_alias"
+	TableBomFxRate                   = "t_bom_fx_rate"
 	TableAgentScriptPackage          = "t_agent_script_package"
 )

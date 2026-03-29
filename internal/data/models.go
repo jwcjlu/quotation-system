@@ -170,3 +170,31 @@ type BomPlatformScript struct {
 }
 
 func (BomPlatformScript) TableName() string { return TableBomPlatformScript }
+
+// BomManufacturerAlias 对应 t_bom_manufacturer_alias（厂牌别名 → 规范 ID）。
+type BomManufacturerAlias struct {
+	ID          uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	CanonicalID string    `gorm:"column:canonical_id;size:128;not null;index:idx_bom_mfr_canonical_id"`
+	DisplayName string    `gorm:"column:display_name;size:512;not null"`
+	Alias       string    `gorm:"column:alias;size:512;not null"`
+	AliasNorm   string    `gorm:"column:alias_norm;size:512;not null;uniqueIndex:uk_bom_mfr_alias_norm"`
+	CreatedAt   time.Time `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt   time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (BomManufacturerAlias) TableName() string { return TableBomManufacturerAlias }
+
+// BomFxRate 对应 t_bom_fx_rate（配单换汇汇率）。
+type BomFxRate struct {
+	ID           uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	FromCcy      string    `gorm:"column:from_ccy;size:3;not null;uniqueIndex:uk_bom_fx_rate,priority:1;index:idx_bom_fx_rate_lookup,priority:1"`
+	ToCcy        string    `gorm:"column:to_ccy;size:3;not null;uniqueIndex:uk_bom_fx_rate,priority:2;index:idx_bom_fx_rate_lookup,priority:2"`
+	BizDate      time.Time `gorm:"column:biz_date;type:date;not null;uniqueIndex:uk_bom_fx_rate,priority:3;index:idx_bom_fx_rate_lookup,priority:3"`
+	Rate         float64   `gorm:"column:rate;type:decimal(24,10);not null"`
+	Source       string    `gorm:"column:source;size:64;not null;default:manual;uniqueIndex:uk_bom_fx_rate,priority:4"`
+	TableVersion string    `gorm:"column:table_version;size:64;not null;default:'';uniqueIndex:uk_bom_fx_rate,priority:5"`
+	CreatedAt    time.Time `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt    time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (BomFxRate) TableName() string { return TableBomFxRate }

@@ -48,9 +48,9 @@ func DefaultQuoteCCY(platformID string) string {
 	}
 }
 
-// parseCompareStock extracts a non-negative integer from s by keeping ASCII digits only.
+// ParseCompareStock extracts a non-negative integer from s by keeping ASCII digits only.
 // If there are no digits or the value overflows int64 parsing, parsed is false (unknown stock — skip check).
-func parseCompareStock(s string) (qty int64, parsed bool) {
+func ParseCompareStock(s string) (qty int64, parsed bool) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0, false
@@ -81,7 +81,7 @@ func ExtractCompareUnitPrice(in QuotePriceInput, platformID string, bomQty int, 
 	if in.Moq > 0 && in.Moq > bomQty {
 		return ComparePriceResult{}
 	}
-	if stock, ok := parseCompareStock(in.Stock); ok && stock < int64(bomQty) {
+	if stock, ok := ParseCompareStock(in.Stock); ok && stock < int64(bomQty) {
 		return ComparePriceResult{}
 	}
 

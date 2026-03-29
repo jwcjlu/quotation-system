@@ -1,0 +1,179 @@
+package biz
+
+import (
+	"context"
+	"strings"
+	"testing"
+	"time"
+)
+
+type stringAliasMap map[string]string
+
+func (m stringAliasMap) CanonicalID(ctx context.Context, aliasNorm string) (canonicalID string, ok bool) {
+	if m == nil {
+		return "", false
+	}
+	c, ok := m[aliasNorm]
+	return c, ok
+}
+
+type fakeFX struct {
+	USDToCNY float64
+}
+
+func (f fakeFX) Rate(ctx context.Context, from, to string, date time.Time) (rate float64, tableVersion, source string, ok bool) {
+	fr := strings.ToUpper(strings.TrimSpace(from))
+	tr := strings.ToUpper(strings.TrimSpace(to))
+	if fr == "USD" && tr == "CNY" && f.USDToCNY > 0 {
+		return f.USDToCNY, "test", "fake", true
+	}
+	if fr == "CNY" && tr == "USD" && f.USDToCNY > 0 {
+		return 1 / f.USDToCNY, "test", "fake", true
+	}
+	return 0, "", "", false
+}
+
+func TestLineMatch_TwoPricesFXCheaper(t *testing.T) {
+	// Two USD tier quotes; base CNY @ 7 — pick lower USD (8 vs 10).
+	quotes := []byte(`[
+  {"seq":1,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ $10.0000","hk_price":"","mainland_price":"","lead_time":"5天"},
+  {"seq":2,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ $8.0000","hk_price":"","mainland_price":"","lead_time":"5天"}
+]`)
+	alias := stringAliasMap{
+		"TI": "MFR_TI",
+	}
+	ctx := context.Background()
+	in := LineMatchInput{
+		BomMpn:           "lm358",
+		BomPackage:       "SOP-8",
+		BomMfr:           "TI",
+		BomQty:           50,
+		PlatformID:       "find_chips",
+		QuotesJSON:       quotes,
+		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		BaseCCY:          "CNY",
+		RoundingMode:     "decimal6",
+		ParseTierStrings: true,
+	}
+	pick, err := PickBestQuoteForLine(ctx, in, fakeFX{USDToCNY: 7}, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pick.Ok {
+		t.Fatalf("expected Ok, reason=%q", pick.Reason)
+	}
+	if pick.RowIndex != 1 {
+		t.Fatalf("want row 1 (cheaper after FX), got index %d price_base=%v orig=%v %s", pick.RowIndex, pick.UnitPriceBase, pick.OriginalPrice, pick.OriginalCCY)
+	}
+	if pick.OriginalPrice != 8 || pick.OriginalCCY != "USD" {
+		t.Fatalf("original: got %v %q", pick.OriginalPrice, pick.OriginalCCY)
+	}
+	wantBase := 56.0
+	if pick.UnitPriceBase < wantBase-1e-6 || pick.UnitPriceBase > wantBase+1e-6 {
+		t.Fatalf("unit_price_base want ~%v got %v", wantBase, pick.UnitPriceBase)
+	}
+	if pick.ComparePriceSource != ComparePriceSourcePriceTiersParsed {
+		t.Fatalf("source: %q", pick.ComparePriceSource)
+	}
+}
+
+func TestLineMatch_TiePriceShorterLead(t *testing.T) {
+	// Same CNY unit price after quantize; shorter lead wins (§1.10).
+	quotes := []byte(`[
+  {"seq":1,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ ￥10.000000","hk_price":"","mainland_price":"","lead_time":"7天"},
+  {"seq":2,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ ￥10.000000","hk_price":"","mainland_price":"","lead_time":"3天"}
+]`)
+	alias := stringAliasMap{"TI": "MFR_TI"}
+	ctx := context.Background()
+	in := LineMatchInput{
+		BomMpn:           "LM358",
+		BomPackage:       "SOP-8",
+		BomMfr:           "TI",
+		BomQty:           1,
+		PlatformID:       "ickey",
+		QuotesJSON:       quotes,
+		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		BaseCCY:          "CNY",
+		RoundingMode:     "decimal6",
+		ParseTierStrings: true,
+	}
+	pick, err := PickBestQuoteForLine(ctx, in, fakeFX{}, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pick.Ok {
+		t.Fatalf("expected Ok, reason=%q", pick.Reason)
+	}
+	if pick.RowIndex != 1 {
+		t.Fatalf("want row 1 (3天 lead), got %d lead=%q", pick.RowIndex, pick.Row.LeadTime)
+	}
+}
+
+func TestLineMatch_Table(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		in      LineMatchInput
+		fx      FXRateLookup
+		alias   AliasLookup
+		wantOk  bool
+		wantIdx int
+		reason  string
+		err     bool
+	}{
+		{
+			name: "invalid json",
+			in: LineMatchInput{
+				BomMpn: "X", BomQty: 1, BaseCCY: "CNY",
+				QuotesJSON: []byte(`not-json`),
+			},
+			wantOk: false,
+			reason: lineMatchReasonQuotesInvalid,
+		},
+		{
+			name: "bom mfr required alias miss",
+			in: LineMatchInput{
+				BomMpn: "X", BomMfr: "UNKNOWNBRAND", BomQty: 1, BaseCCY: "CNY",
+				QuotesJSON: []byte(`[]`),
+			},
+			alias:  stringAliasMap{"TI": "MFR_TI"},
+			wantOk: false,
+			reason: lineMatchReasonBomManufacturerMiss,
+		},
+		{
+			name: "programmer bom_qty",
+			in: LineMatchInput{
+				BomMpn: "X", BomQty: 0, BaseCCY: "CNY",
+				QuotesJSON: []byte(`[]`),
+			},
+			err: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			pick, err := PickBestQuoteForLine(ctx, tc.in, tc.fx, tc.alias)
+			if tc.err {
+				if err == nil {
+					t.Fatal("expected error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if pick.Ok != tc.wantOk {
+				t.Fatalf("Ok=%v reason=%q", pick.Ok, pick.Reason)
+			}
+			if pick.Reason != tc.reason && tc.reason != "" {
+				t.Fatalf("Reason=%q want %q", pick.Reason, tc.reason)
+			}
+			if tc.wantOk && pick.RowIndex != tc.wantIdx {
+				t.Fatalf("RowIndex=%d want %d", pick.RowIndex, tc.wantIdx)
+			}
+		})
+	}
+}

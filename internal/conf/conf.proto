@@ -20,12 +20,26 @@ message Bootstrap {
   OpenAI openai = 9;
   // Agent 脚本登录凭据 AES-256-GCM 密钥（也可用环境变量 CAICHIP_AGENT_SCRIPT_AUTH_KEY）
   AgentScriptAuth agent_script_auth = 10;
+  // BOM 配单：基准币种、阶梯价解析、舍入（见 docs/superpowers/specs/2026-03-28-bom-match-currency-mfr-design.md）
+  BomMatch bom_match = 11;
 }
 
 // AgentScriptAuth 调度下发 platform_auth 时解密密码；未配置密钥时不可 Upsert，Pull 不注入。
 message AgentScriptAuth {
   // 32 字节原始密钥的 base64；与 env 二选一，env 优先
   string aes_key_base64 = 1;
+}
+
+// BomMatch 配单比价币种归一与数量/舍入相关部署配置（设计 §1、§1.10–§1.11）
+message BomMatch {
+  // 比较与排序基准币种，如 CNY、USD
+  string base_ccy = 1;
+  // 是否解析 price_tiers 等字符串阶梯价；默认 true（§1.5）
+  bool parse_price_tier_strings = 2;
+  // 舍入模式：minor_unit（最小货币单位整数）或 decimal6（十进制 6 位），§1.10
+  string rounding_mode = 3;
+  // BOM 需求数量取整策略，如 ceil；未设置时由实现采用默认
+  optional string bom_qty_round = 4;
 }
 
 // OpenAI 聊天补全（api_key 为空时不创建客户端，llm 模式将报错提示配置）

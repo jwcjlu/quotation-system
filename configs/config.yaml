@@ -58,6 +58,13 @@ agent_admin:
 # agent_script_auth:
 #   aes_key_base64: ""
 
+# BOM 配单：基准币种、阶梯价字符串解析、舍入（见 internal/conf/conf.proto BomMatch）
+# bom_match:
+#   base_ccy: CNY
+#   parse_price_tier_strings: true
+#   rounding_mode: minor_unit   # 或 decimal6
+#   bom_qty_round: ceil         # 可选
+
 # BOM 搜索任务回传 POST /api/v1/bom-sessions/{id}/search-results（Header: X-API-Key 或 Authorization: Bearer）
 bom_search_callback:
   api_keys:

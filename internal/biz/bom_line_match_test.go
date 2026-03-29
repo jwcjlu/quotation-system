@@ -9,28 +9,28 @@ import (
 
 type stringAliasMap map[string]string
 
-func (m stringAliasMap) CanonicalID(ctx context.Context, aliasNorm string) (canonicalID string, ok bool) {
+func (m stringAliasMap) CanonicalID(ctx context.Context, aliasNorm string) (canonicalID string, ok bool, err error) {
 	if m == nil {
-		return "", false
+		return "", false, nil
 	}
 	c, ok := m[aliasNorm]
-	return c, ok
+	return c, ok, nil
 }
 
 type fakeFX struct {
 	USDToCNY float64
 }
 
-func (f fakeFX) Rate(ctx context.Context, from, to string, date time.Time) (rate float64, tableVersion, source string, ok bool) {
+func (f fakeFX) Rate(ctx context.Context, from, to string, date time.Time) (rate float64, tableVersion, source string, ok bool, err error) {
 	fr := strings.ToUpper(strings.TrimSpace(from))
 	tr := strings.ToUpper(strings.TrimSpace(to))
 	if fr == "USD" && tr == "CNY" && f.USDToCNY > 0 {
-		return f.USDToCNY, "test", "fake", true
+		return f.USDToCNY, "test", "fake", true, nil
 	}
 	if fr == "CNY" && tr == "USD" && f.USDToCNY > 0 {
-		return 1 / f.USDToCNY, "test", "fake", true
+		return 1 / f.USDToCNY, "test", "fake", true, nil
 	}
-	return 0, "", "", false
+	return 0, "", "", false, nil
 }
 
 func TestLineMatch_TwoPricesFXCheaper(t *testing.T) {
@@ -75,6 +75,42 @@ func TestLineMatch_TwoPricesFXCheaper(t *testing.T) {
 	}
 	if pick.ComparePriceSource != ComparePriceSourcePriceTiersParsed {
 		t.Fatalf("source: %q", pick.ComparePriceSource)
+	}
+}
+
+func TestLineMatch_MfrMismatchCollected(t *testing.T) {
+	// BOM 要 TI；同型号封装有一条 ON Semi，应记入 MfrMismatchQuoteManufacturers，仍能从 TI 行配单成功。
+	quotes := []byte(`[
+  {"seq":1,"model":"LM358","manufacturer":"ON Semi","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ ￥1.0000","hk_price":"","mainland_price":"","lead_time":"5天"},
+  {"seq":2,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ ￥2.0000","hk_price":"","mainland_price":"","lead_time":"5天"}
+]`)
+	alias := stringAliasMap{
+		"TI":      "MFR_TI",
+		"ON SEMI": "MFR_ON",
+	}
+	ctx := context.Background()
+	in := LineMatchInput{
+		BomMpn:           "lm358",
+		BomPackage:       "SOP-8",
+		BomMfr:           "TI",
+		BomQty:           1,
+		PlatformID:       "ickey",
+		QuotesJSON:       quotes,
+		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		BaseCCY:          "CNY",
+		RoundingMode:     "decimal6",
+		ParseTierStrings: true,
+	}
+	pick, err := PickBestQuoteForLine(ctx, in, fakeFX{}, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pick.Ok {
+		t.Fatalf("expected Ok, reason=%q", pick.Reason)
+	}
+	if len(pick.MfrMismatchQuoteManufacturers) != 1 || pick.MfrMismatchQuoteManufacturers[0] != "ON Semi" {
+		t.Fatalf("mfr mismatch: %+v", pick.MfrMismatchQuoteManufacturers)
 	}
 }
 

@@ -21,16 +21,16 @@ import (
 //     misses alias table → entire line returns Ok=false (strict §2.3). Quote side miss → skip row.
 //   - Params/desc: V1 not compared (no extra BOM fields on this struct).
 type LineMatchInput struct {
-	BomMpn          string
-	BomPackage      string // empty = no package constraint
-	BomMfr          string // empty = no manufacturer constraint (§2.5)
-	BomQty          int
-	PlatformID      string
-	QuotesJSON      []byte
-	BizDate         time.Time
-	RequestDay      time.Time
-	BaseCCY         string
-	RoundingMode    string // QuantizeUnitPriceBase mode; see bom_match_sort
+	BomMpn           string
+	BomPackage       string // empty = no package constraint
+	BomMfr           string // empty = no manufacturer constraint (§2.5)
+	BomQty           int
+	PlatformID       string
+	QuotesJSON       []byte
+	BizDate          time.Time
+	RequestDay       time.Time
+	BaseCCY          string
+	RoundingMode     string // QuantizeUnitPriceBase mode; see bom_match_sort
 	ParseTierStrings bool
 }
 
@@ -45,19 +45,23 @@ type LineMatchPick struct {
 	FxMeta             FXMeta
 	Ok                 bool
 	Reason             string // set when Ok is false
+	// MfrMismatchQuoteManufacturers：BOM 有厂牌且已解析 canonical 时，本缓存内「型号+封装过关但厂牌未对齐」的报价 manufacturer 原文（去重）。
+	MfrMismatchQuoteManufacturers []string
 }
 
 const (
-	lineMatchReasonQuotesInvalid          = "quotes_json_invalid"
-	lineMatchReasonNoQuotes               = "no_quotes"
-	lineMatchReasonBomManufacturerMiss    = "bom_manufacturer_alias_miss"
-	lineMatchReasonNoCandidate            = "no_matching_quote"
-	lineMatchReasonNoComparePrice         = "no_compare_price_after_filters"
-	lineMatchReasonFXUnavailable          = "fx_unavailable_all_candidates"
+	lineMatchReasonQuotesInvalid       = "quotes_json_invalid"
+	lineMatchReasonNoQuotes            = "no_quotes"
+	lineMatchReasonBomManufacturerMiss = "bom_manufacturer_alias_miss"
+	lineMatchReasonNoCandidate         = "no_matching_quote"
+	lineMatchReasonNoComparePrice      = "no_compare_price_after_filters"
+	lineMatchReasonFXUnavailable       = "fx_unavailable_all_candidates"
+	// MfrMismatchEmptyPlaceholder 记入 MfrMismatchQuoteManufacturers，表示报价行 manufacturer 为空；不可作为审核入库别名。
+	MfrMismatchEmptyPlaceholder = "(报价厂牌为空)"
 )
 
 // PickBestQuoteForLine filters cached quotes, extracts compare price, converts to base_ccy, and picks the best row by MatchSortKey.
-// Errors are reserved for programmer mistakes (e.g. BomQty<=0, empty BaseCCY). Business outcomes use Ok=false and Reason.
+// Errors: programmer mistakes (e.g. BomQty<=0, empty BaseCCY); FX/别名表查询等基础设施失败（非 ErrFXRateNotFound）。业务无匹配等用 Ok=false 与 Reason。
 func PickBestQuoteForLine(ctx context.Context, in LineMatchInput, fx FXRateLookup, alias AliasLookup) (LineMatchPick, error) {
 	if in.BomQty <= 0 {
 		return LineMatchPick{}, errors.New("bom line match: bom_qty must be > 0")
@@ -69,7 +73,10 @@ func PickBestQuoteForLine(ctx context.Context, in LineMatchInput, fx FXRateLooku
 	bomMfrTrim := strings.TrimSpace(in.BomMfr)
 	var bomCanonID string
 	if bomMfrTrim != "" {
-		id, hit := ResolveManufacturerCanonical(ctx, in.BomMfr, alias)
+		id, hit, err := ResolveManufacturerCanonical(ctx, in.BomMfr, alias)
+		if err != nil {
+			return LineMatchPick{}, err
+		}
 		if !hit {
 			return LineMatchPick{Ok: false, Reason: lineMatchReasonBomManufacturerMiss}, nil
 		}
@@ -100,10 +107,42 @@ func PickBestQuoteForLine(ctx context.Context, in LineMatchInput, fx FXRateLooku
 		anyPrice  bool
 		anyFXFail bool
 	)
+	mfrSeen := make(map[string]struct{})
+	var mfrMismatch []string
+	addMfrMismatch := func(raw string) {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			raw = MfrMismatchEmptyPlaceholder
+		}
+		if _, ok := mfrSeen[raw]; ok {
+			return
+		}
+		mfrSeen[raw] = struct{}{}
+		mfrMismatch = append(mfrMismatch, raw)
+	}
+	bomMfrConstraint := bomMfrTrim != "" && bomCanonID != ""
 
 	for i := range rows {
 		row := rows[i]
-		if !lineMatchRowPasses(ctx, in, bomCanonID, bomMfrTrim != "", row, alias) {
+		rowOK, err := lineMatchRowPasses(ctx, in, bomCanonID, bomMfrTrim != "", row, alias)
+		if err != nil {
+			return LineMatchPick{}, err
+		}
+		if bomMfrConstraint && quoteRowPassesModelAndPackage(in, row) && !rowOK {
+			mfr := strings.TrimSpace(row.Manufacturer)
+			if mfr == "" {
+				addMfrMismatch("")
+			} else {
+				qCanon, qHit, qerr := ResolveManufacturerCanonical(ctx, row.Manufacturer, alias)
+				if qerr != nil {
+					return LineMatchPick{}, qerr
+				}
+				if !qHit || qCanon != bomCanonID {
+					addMfrMismatch(row.Manufacturer)
+				}
+			}
+		}
+		if !rowOK {
 			continue
 		}
 
@@ -126,8 +165,9 @@ func PickBestQuoteForLine(ctx context.Context, in LineMatchInput, fx FXRateLooku
 		if err != nil {
 			if errors.Is(err, ErrFXRateNotFound) {
 				anyFXFail = true
+				continue
 			}
-			continue
+			return LineMatchPick{}, err
 		}
 
 		leadDays := MatchLeadDaysUnknown
@@ -160,27 +200,57 @@ func PickBestQuoteForLine(ctx context.Context, in LineMatchInput, fx FXRateLooku
 
 	if !found {
 		if anyPrice && anyFXFail {
-			return LineMatchPick{Ok: false, Reason: lineMatchReasonFXUnavailable}, nil
+			return LineMatchPick{Ok: false, Reason: lineMatchReasonFXUnavailable, MfrMismatchQuoteManufacturers: mfrMismatch}, nil
 		}
 		if !anyPrice {
-			return LineMatchPick{Ok: false, Reason: lineMatchReasonNoComparePrice}, nil
+			return LineMatchPick{Ok: false, Reason: lineMatchReasonNoComparePrice, MfrMismatchQuoteManufacturers: mfrMismatch}, nil
 		}
-		return LineMatchPick{Ok: false, Reason: lineMatchReasonNoCandidate}, nil
+		return LineMatchPick{Ok: false, Reason: lineMatchReasonNoCandidate, MfrMismatchQuoteManufacturers: mfrMismatch}, nil
 	}
 
 	return LineMatchPick{
-		RowIndex:           bestIdx,
-		Row:                bestRow,
-		UnitPriceBase:      bestBase,
-		OriginalPrice:      bestOrig,
-		OriginalCCY:        bestCcy,
-		ComparePriceSource: bestSrc,
-		FxMeta:             bestFX,
-		Ok:                 true,
+		RowIndex:                      bestIdx,
+		Row:                           bestRow,
+		UnitPriceBase:                 bestBase,
+		OriginalPrice:                 bestOrig,
+		OriginalCCY:                   bestCcy,
+		ComparePriceSource:            bestSrc,
+		FxMeta:                        bestFX,
+		Ok:                            true,
+		MfrMismatchQuoteManufacturers: mfrMismatch,
 	}, nil
 }
 
-func lineMatchRowPasses(ctx context.Context, in LineMatchInput, bomCanonID string, bomMfrRequired bool, row AgentQuoteRow, alias AliasLookup) bool {
+func lineMatchRowPasses(ctx context.Context, in LineMatchInput, bomCanonID string, bomMfrRequired bool, row AgentQuoteRow, alias AliasLookup) (bool, error) {
+	if strings.TrimSpace(row.Model) == "" {
+		return false, nil
+	}
+	if NormalizeMPNForBOMSearch(in.BomMpn) != NormalizeMPNForBOMSearch(row.Model) {
+		return false, nil
+	}
+	if pkg := strings.TrimSpace(in.BomPackage); pkg != "" {
+		if NormalizeMfrString(row.Package) != NormalizeMfrString(pkg) {
+			return false, nil
+		}
+	}
+	if !bomMfrRequired {
+		return true, nil
+	}
+	if strings.TrimSpace(row.Manufacturer) == "" {
+		return false, nil
+	}
+	qCanon, qHit, err := ResolveManufacturerCanonical(ctx, row.Manufacturer, alias)
+	if err != nil {
+		return false, err
+	}
+	if !qHit || qCanon != bomCanonID {
+		return false, nil
+	}
+	return true, nil
+}
+
+// quoteRowPassesModelAndPackage 仅校验型号与封装（若有），不含厂牌；用于识别「厂牌不匹配」类跳过。
+func quoteRowPassesModelAndPackage(in LineMatchInput, row AgentQuoteRow) bool {
 	if strings.TrimSpace(row.Model) == "" {
 		return false
 	}
@@ -191,16 +261,6 @@ func lineMatchRowPasses(ctx context.Context, in LineMatchInput, bomCanonID strin
 		if NormalizeMfrString(row.Package) != NormalizeMfrString(pkg) {
 			return false
 		}
-	}
-	if !bomMfrRequired {
-		return true
-	}
-	if strings.TrimSpace(row.Manufacturer) == "" {
-		return false
-	}
-	qCanon, qHit := ResolveManufacturerCanonical(ctx, row.Manufacturer, alias)
-	if !qHit || qCanon != bomCanonID {
-		return false
 	}
 	return true
 }

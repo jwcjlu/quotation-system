@@ -25,6 +25,8 @@ const (
 	BomService_DownloadTemplate_FullMethodName             = "/api.bom.v1.BomService/DownloadTemplate"
 	BomService_GetBOM_FullMethodName                       = "/api.bom.v1.BomService/GetBOM"
 	BomService_GetMatchResult_FullMethodName               = "/api.bom.v1.BomService/GetMatchResult"
+	BomService_ListMatchSourceRecords_FullMethodName       = "/api.bom.v1.BomService/ListMatchSourceRecords"
+	BomService_GetMatchSourceDetail_FullMethodName         = "/api.bom.v1.BomService/GetMatchSourceDetail"
 	BomService_CreateSession_FullMethodName                = "/api.bom.v1.BomService/CreateSession"
 	BomService_GetSession_FullMethodName                   = "/api.bom.v1.BomService/GetSession"
 	BomService_ListSessions_FullMethodName                 = "/api.bom.v1.BomService/ListSessions"
@@ -39,6 +41,8 @@ const (
 	BomService_RetrySearchTasks_FullMethodName             = "/api.bom.v1.BomService/RetrySearchTasks"
 	BomService_SubmitBomSearchResult_FullMethodName        = "/api.bom.v1.BomService/SubmitBomSearchResult"
 	BomService_ExportSession_FullMethodName                = "/api.bom.v1.BomService/ExportSession"
+	BomService_CreateManufacturerAlias_FullMethodName      = "/api.bom.v1.BomService/CreateManufacturerAlias"
+	BomService_ListManufacturerCanonicals_FullMethodName   = "/api.bom.v1.BomService/ListManufacturerCanonicals"
 )
 
 // BomServiceClient is the client API for BomService service.
@@ -59,6 +63,10 @@ type BomServiceClient interface {
 	GetBOM(ctx context.Context, in *GetBOMRequest, opts ...grpc.CallOption) (*GetBOMReply, error)
 	// 获取配单结果
 	GetMatchResult(ctx context.Context, in *GetMatchResultRequest, opts ...grpc.CallOption) (*GetMatchResultReply, error)
+	// 配单用到的报价缓存摘要（按行×平台；不含 quotes_json 大字段，详情另拉）
+	ListMatchSourceRecords(ctx context.Context, in *ListMatchSourceRecordsRequest, opts ...grpc.CallOption) (*ListMatchSourceRecordsReply, error)
+	// 单行×单平台的报价缓存明细（quotes_json / outcome 等）
+	GetMatchSourceDetail(ctx context.Context, in *GetMatchSourceDetailRequest, opts ...grpc.CallOption) (*GetMatchSourceDetailReply, error)
 	CreateSession(ctx context.Context, in *CreateSessionRequest, opts ...grpc.CallOption) (*CreateSessionReply, error)
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionReply, error)
 	// 会话列表（分页、筛选）
@@ -81,6 +89,10 @@ type BomServiceClient interface {
 	SubmitBomSearchResult(ctx context.Context, in *SubmitBomSearchResultRequest, opts ...grpc.CallOption) (*SubmitBomSearchResultReply, error)
 	// 导出会话 BOM 行（Excel/CSV）
 	ExportSession(ctx context.Context, in *ExportSessionRequest, opts ...grpc.CallOption) (*ExportSessionReply, error)
+	// 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
+	CreateManufacturerAlias(ctx context.Context, in *CreateManufacturerAliasRequest, opts ...grpc.CallOption) (*CreateManufacturerAliasReply, error)
+	// 列举已有规范厂牌（distinct canonical_id），供审核时对照/选择
+	ListManufacturerCanonicals(ctx context.Context, in *ListManufacturerCanonicalsRequest, opts ...grpc.CallOption) (*ListManufacturerCanonicalsReply, error)
 }
 
 type bomServiceClient struct {
@@ -145,6 +157,26 @@ func (c *bomServiceClient) GetMatchResult(ctx context.Context, in *GetMatchResul
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetMatchResultReply)
 	err := c.cc.Invoke(ctx, BomService_GetMatchResult_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) ListMatchSourceRecords(ctx context.Context, in *ListMatchSourceRecordsRequest, opts ...grpc.CallOption) (*ListMatchSourceRecordsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMatchSourceRecordsReply)
+	err := c.cc.Invoke(ctx, BomService_ListMatchSourceRecords_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) GetMatchSourceDetail(ctx context.Context, in *GetMatchSourceDetailRequest, opts ...grpc.CallOption) (*GetMatchSourceDetailReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMatchSourceDetailReply)
+	err := c.cc.Invoke(ctx, BomService_GetMatchSourceDetail_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -291,6 +323,26 @@ func (c *bomServiceClient) ExportSession(ctx context.Context, in *ExportSessionR
 	return out, nil
 }
 
+func (c *bomServiceClient) CreateManufacturerAlias(ctx context.Context, in *CreateManufacturerAliasRequest, opts ...grpc.CallOption) (*CreateManufacturerAliasReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateManufacturerAliasReply)
+	err := c.cc.Invoke(ctx, BomService_CreateManufacturerAlias_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) ListManufacturerCanonicals(ctx context.Context, in *ListManufacturerCanonicalsRequest, opts ...grpc.CallOption) (*ListManufacturerCanonicalsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListManufacturerCanonicalsReply)
+	err := c.cc.Invoke(ctx, BomService_ListManufacturerCanonicals_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BomServiceServer is the server API for BomService service.
 // All implementations must embed UnimplementedBomServiceServer
 // for forward compatibility.
@@ -309,6 +361,10 @@ type BomServiceServer interface {
 	GetBOM(context.Context, *GetBOMRequest) (*GetBOMReply, error)
 	// 获取配单结果
 	GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error)
+	// 配单用到的报价缓存摘要（按行×平台；不含 quotes_json 大字段，详情另拉）
+	ListMatchSourceRecords(context.Context, *ListMatchSourceRecordsRequest) (*ListMatchSourceRecordsReply, error)
+	// 单行×单平台的报价缓存明细（quotes_json / outcome 等）
+	GetMatchSourceDetail(context.Context, *GetMatchSourceDetailRequest) (*GetMatchSourceDetailReply, error)
 	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionReply, error)
 	// 会话列表（分页、筛选）
@@ -331,6 +387,10 @@ type BomServiceServer interface {
 	SubmitBomSearchResult(context.Context, *SubmitBomSearchResultRequest) (*SubmitBomSearchResultReply, error)
 	// 导出会话 BOM 行（Excel/CSV）
 	ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error)
+	// 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
+	CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error)
+	// 列举已有规范厂牌（distinct canonical_id），供审核时对照/选择
+	ListManufacturerCanonicals(context.Context, *ListManufacturerCanonicalsRequest) (*ListManufacturerCanonicalsReply, error)
 	mustEmbedUnimplementedBomServiceServer()
 }
 
@@ -358,6 +418,12 @@ func (UnimplementedBomServiceServer) GetBOM(context.Context, *GetBOMRequest) (*G
 }
 func (UnimplementedBomServiceServer) GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMatchResult not implemented")
+}
+func (UnimplementedBomServiceServer) ListMatchSourceRecords(context.Context, *ListMatchSourceRecordsRequest) (*ListMatchSourceRecordsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListMatchSourceRecords not implemented")
+}
+func (UnimplementedBomServiceServer) GetMatchSourceDetail(context.Context, *GetMatchSourceDetailRequest) (*GetMatchSourceDetailReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetMatchSourceDetail not implemented")
 }
 func (UnimplementedBomServiceServer) CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateSession not implemented")
@@ -400,6 +466,12 @@ func (UnimplementedBomServiceServer) SubmitBomSearchResult(context.Context, *Sub
 }
 func (UnimplementedBomServiceServer) ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method ExportSession not implemented")
+}
+func (UnimplementedBomServiceServer) CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateManufacturerAlias not implemented")
+}
+func (UnimplementedBomServiceServer) ListManufacturerCanonicals(context.Context, *ListManufacturerCanonicalsRequest) (*ListManufacturerCanonicalsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListManufacturerCanonicals not implemented")
 }
 func (UnimplementedBomServiceServer) mustEmbedUnimplementedBomServiceServer() {}
 func (UnimplementedBomServiceServer) testEmbeddedByValue()                    {}
@@ -526,6 +598,42 @@ func _BomService_GetMatchResult_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BomServiceServer).GetMatchResult(ctx, req.(*GetMatchResultRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_ListMatchSourceRecords_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMatchSourceRecordsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ListMatchSourceRecords(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ListMatchSourceRecords_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ListMatchSourceRecords(ctx, req.(*ListMatchSourceRecordsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_GetMatchSourceDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMatchSourceDetailRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).GetMatchSourceDetail(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_GetMatchSourceDetail_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).GetMatchSourceDetail(ctx, req.(*GetMatchSourceDetailRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -782,6 +890,42 @@ func _BomService_ExportSession_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BomService_CreateManufacturerAlias_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateManufacturerAliasRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).CreateManufacturerAlias(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_CreateManufacturerAlias_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).CreateManufacturerAlias(ctx, req.(*CreateManufacturerAliasRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_ListManufacturerCanonicals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListManufacturerCanonicalsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ListManufacturerCanonicals(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ListManufacturerCanonicals_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ListManufacturerCanonicals(ctx, req.(*ListManufacturerCanonicalsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BomService_ServiceDesc is the grpc.ServiceDesc for BomService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -812,6 +956,14 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetMatchResult",
 			Handler:    _BomService_GetMatchResult_Handler,
+		},
+		{
+			MethodName: "ListMatchSourceRecords",
+			Handler:    _BomService_ListMatchSourceRecords_Handler,
+		},
+		{
+			MethodName: "GetMatchSourceDetail",
+			Handler:    _BomService_GetMatchSourceDetail_Handler,
 		},
 		{
 			MethodName: "CreateSession",
@@ -868,6 +1020,14 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ExportSession",
 			Handler:    _BomService_ExportSession_Handler,
+		},
+		{
+			MethodName: "CreateManufacturerAlias",
+			Handler:    _BomService_CreateManufacturerAlias_Handler,
+		},
+		{
+			MethodName: "ListManufacturerCanonicals",
+			Handler:    _BomService_ListManufacturerCanonicals_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -42,6 +42,8 @@ export interface MatchItem {
   all_quotes: PlatformQuote[]
   demand_manufacturer: string
   demand_package: string
+  /** BOM 有厂牌要求时，型号/封装对齐但厂牌未与需求对齐的报价 manufacturer（去重） */
+  mfr_mismatch_quote_manufacturers?: string[]
 }
 
 /** 接口清单 §10 平台枚举 */

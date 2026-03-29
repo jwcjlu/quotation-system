@@ -53,6 +53,20 @@ service BomService {
     };
   }
 
+  // 配单用到的报价缓存摘要（按行×平台；不含 quotes_json 大字段，详情另拉）
+  rpc ListMatchSourceRecords(ListMatchSourceRecordsRequest) returns (ListMatchSourceRecordsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/{bom_id}/match-sources"
+    };
+  }
+
+  // 单行×单平台的报价缓存明细（quotes_json / outcome 等）
+  rpc GetMatchSourceDetail(GetMatchSourceDetailRequest) returns (GetMatchSourceDetailReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/{bom_id}/match-sources/detail"
+    };
+  }
+
   // ---------- BOM 会话（货源搜索 / 轮询就绪）----------
 
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply) {
@@ -153,6 +167,21 @@ service BomService {
       get: "/api/v1/bom-sessions/{session_id}/export"
     };
   }
+
+  // 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
+  rpc CreateManufacturerAlias(CreateManufacturerAliasRequest) returns (CreateManufacturerAliasReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom/manufacturer-alias"
+      body: "*"
+    };
+  }
+
+  // 列举已有规范厂牌（distinct canonical_id），供审核时对照/选择
+  rpc ListManufacturerCanonicals(ListManufacturerCanonicalsRequest) returns (ListManufacturerCanonicalsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/manufacturer-alias/canonicals"
+    };
+  }
 }
 
 // ========== UploadBOM ==========
@@ -209,6 +238,7 @@ message PlatformQuote {
   string price_tiers = 9;
   string hk_price = 10;
   string mainland_price = 11;
+  // SearchQuotes 等列表里常为 0；原价见 price_tiers / mainland_price / hk_price。AutoMatch/GetMatchResult 中若已换算则为基准币单价。
   double unit_price = 12;
   double subtotal = 13;
   string package = 14;      // 封装，用于型号/封装/厂牌匹配筛选
@@ -222,6 +252,7 @@ message AutoMatchRequest {
 
 message AutoMatchReply {
   repeated MatchItem items = 1;
+  // 与 items 中 unit_price/subtotal 同币种：配置项 bom_match.base_ccy（默认 CNY）。
   double total_amount = 2;
 }
 
@@ -234,12 +265,16 @@ message MatchItem {
   string platform = 6;
   string lead_time = 7;
   int64 stock = 8;
+  // 已按汇率换算后的**基准币种**单价（非报价原币）；基准币见 bom_match.base_ccy。
   double unit_price = 9;
+  // unit_price * quantity，同为基准币。
   double subtotal = 10;
   string match_status = 11;  // exact | pending | no_match
   repeated PlatformQuote all_quotes = 12;  // 该物料在各平台的全部报价，供「显示更多」展开展示
   string demand_manufacturer = 13;  // 需求厂牌（解析自 BOM）
   string demand_package = 14;       // 需求封装（解析自 BOM）
+  // BOM 有厂牌要求时：型号+封装已对齐但厂牌未与需求对齐的报价原始 manufacturer（去重；空厂牌记为占位符便于列表展示）
+  repeated string mfr_mismatch_quote_manufacturers = 15;
 }
 
 // ========== GetBOM ==========
@@ -261,6 +296,94 @@ message GetMatchResultRequest {
 message GetMatchResultReply {
   repeated MatchItem items = 1;
   double total_amount = 2;
+}
+
+// ========== 配单数据源（报价缓存）==========
+message ListMatchSourceRecordsRequest {
+  string bom_id = 1;
+}
+
+message MatchSourcePlatformEntry {
+  string platform = 1;
+  bool cache_hit = 2;
+  // 未参与 usable 报价时的原因：quote_cache_miss / outcome_* / quotes_json_empty 等；可参与则为空
+  string skip_reason = 3;
+  string outcome = 4;
+  int64 quotes_json_size = 5;
+}
+
+message MatchSourceLineRecord {
+  int32 line_no = 1;
+  string mpn = 2;
+  string merge_mpn = 3;
+  int32 quantity = 4;
+  string demand_manufacturer = 5;
+  string demand_package = 6;
+  repeated MatchSourcePlatformEntry platforms = 7;
+}
+
+message ListMatchSourceRecordsReply {
+  string biz_date = 1;
+  repeated string session_platforms = 2;
+  repeated MatchSourceLineRecord lines = 3;
+}
+
+message GetMatchSourceDetailRequest {
+  string bom_id = 1;
+  int32 line_no = 2;
+  string platform = 3;
+}
+
+// 与 biz.ExplainQuoteRowsForBOMLine 一致：每条报价相对当前 BOM 行的型号/封装/厂牌说明（不含出价）。
+message QuoteRowMatchEval {
+  int32 row_index = 1;
+  bool model_ok = 2;
+  string model_reason = 3;
+  bool package_ok = 4;
+  string package_reason = 5;
+  bool manufacturer_ok = 6;
+  string manufacturer_reason = 7;
+  bool passes_bom_filters = 8;
+  string summary = 9;
+}
+
+message GetMatchSourceDetailReply {
+  string merge_mpn = 1;
+  string platform = 2;
+  bool cache_hit = 3;
+  string skip_reason = 4;
+  string outcome = 5;
+  string quotes_json = 6;
+  string no_mpn_detail = 7;
+  repeated QuoteRowMatchEval quote_row_evals = 8;
+  // 当前 BOM 行需求（用于与表格对照；匹配判定与 quote_row_evals 一致）
+  string bom_demand_mpn = 9;
+  string bom_demand_package = 10;
+  string bom_demand_manufacturer = 11;
+}
+
+// ========== Manufacturer alias（审核入库）==========
+message CreateManufacturerAliasRequest {
+  string alias = 1;           // 报价中出现的厂牌原文
+  string canonical_id = 2;    // 目标规范 ID，如 MFR_TEXAS_INSTRUMENTS
+  string display_name = 3;    // 规范展示名（与 canonical 主档一致即可）
+}
+
+message CreateManufacturerAliasReply {
+  string alias_norm = 1;      // 实际写入的规范化键
+}
+
+message ListManufacturerCanonicalsRequest {
+  int32 limit = 1; // 默认 300，最大 1000
+}
+
+message ManufacturerCanonicalRow {
+  string canonical_id = 1;
+  string display_name = 2;
+}
+
+message ListManufacturerCanonicalsReply {
+  repeated ManufacturerCanonicalRow rows = 1;
 }
 
 // ========== DownloadTemplate ==========

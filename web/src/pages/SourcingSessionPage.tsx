@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   PLATFORM_IDS,
+  autoMatch,
   createSessionLine,
   deleteSessionLine,
   exportSessionFile,
@@ -43,6 +44,8 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
   const [exporting, setExporting] = useState(false)
   const [savingHeader, setSavingHeader] = useState(false)
   const [lineMsg, setLineMsg] = useState<string | null>(null)
+  const [sessionStatus, setSessionStatus] = useState('')
+  const [oneClickMatchRunning, setOneClickMatchRunning] = useState(false)
 
   const [newLine, setNewLine] = useState<LineDraft>({ mpn: '', mfr: '', package: '', qty: '' })
   const [addingLine, setAddingLine] = useState(false)
@@ -60,6 +63,7 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
       setContactExtra(s.contact_extra || '')
       const rm = (s.readiness_mode || 'lenient').toLowerCase()
       setReadinessMode(rm === 'strict' ? 'strict' : 'lenient')
+      setSessionStatus((s.status || '').trim())
       setRevision(s.selection_revision)
       if (s.platform_ids?.length) setSelectedPlatforms(s.platform_ids)
     } catch (e) {
@@ -166,6 +170,22 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
       setErr(e instanceof Error ? e.message : '导出失败')
     } finally {
       setExporting(false)
+    }
+  }
+
+  const dataReady = sessionStatus.toLowerCase() === 'data_ready'
+
+  const handleOneClickMatch = async () => {
+    if (!dataReady) return
+    setOneClickMatchRunning(true)
+    setLineMsg(null)
+    try {
+      await autoMatch(sessionId, 'price_first')
+      onOpenMatch()
+    } catch (e) {
+      setLineMsg(e instanceof Error ? e.message : '一键配单失败')
+    } finally {
+      setOneClickMatchRunning(false)
     }
   }
 
@@ -290,6 +310,19 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
           <span className="font-medium text-slate-800">{sessionTitle}</span>
           {' · '}
           <span className="font-mono text-sm">{sessionId}</span>
+          {sessionStatus ? (
+            <>
+              {' · '}
+              <span
+                className={`text-xs font-medium px-2 py-0.5 rounded ${
+                  dataReady ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                }`}
+                title="bom_session.status"
+              >
+                {sessionStatus}
+              </span>
+            </>
+          ) : null}
         </p>
         <div className="mt-3 flex flex-wrap gap-2 items-center">
           <button
@@ -310,17 +343,34 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
           </button>
           <button
             type="button"
-            onClick={() => void loadLines()}
+            onClick={() => {
+              void loadLines()
+              void loadSession()
+            }}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
           >
-            刷新行列表
+            刷新行列表与状态
+          </button>
+          <button
+            type="button"
+            disabled={!dataReady || oneClickMatchRunning}
+            title={
+              dataReady
+                ? '调用配单接口后跳转匹配单页'
+                : '仅当会话状态为 data_ready（数据就绪）时可一键配单'
+            }
+            onClick={() => void handleOneClickMatch()}
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700 disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
+          >
+            {oneClickMatchRunning ? '配单中…' : '一键配单'}
           </button>
           <button
             type="button"
             onClick={onOpenMatch}
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+            className="rounded-lg border border-blue-600 bg-white px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50"
+            title="仅跳转匹配单页（不先跑配单；未就绪时接口可能返回错误）"
           >
-            打开经典配单页
+            打开配单页
           </button>
           <span className="text-xs text-slate-500 self-center">GET /bom-sessions/.../export</span>
         </div>

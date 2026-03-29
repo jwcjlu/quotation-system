@@ -35,7 +35,7 @@ func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(),
 	scriptPackageAdmin := service.NewScriptPackageAdmin(bootstrap, agentScriptPackageRepo, logger)
 	bomMergeDispatch := data.NewBomMergeDispatch(dataData, dispatchTaskRepo, bomSearchTaskRepo, bomSessionRepo, agentScriptPackageRepo)
 	openAIChat := data.NewOpenAIChat(bootstrap)
-	bomFxRateRepo := data.NewBomFxRateRepoFromData(dataData)
+	bomFxRateRepo := data.NewBomFxRateRepoFromData(dataData, logger)
 	bomManufacturerAliasRepo := data.NewBomManufacturerAliasRepo(dataData)
 	bomService := service.NewBomService(bomSessionRepo, bomSearchTaskRepo, bomMergeDispatch, openAIChat, bomFxRateRepo, bomManufacturerAliasRepo, bootstrap, logger)
 	agentAdminService := service.NewAgentAdminService(bootstrap, agentRegistryRepo, dispatchTaskRepo, agentScriptAuthRepo, logger)

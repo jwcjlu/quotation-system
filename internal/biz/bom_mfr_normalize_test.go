@@ -7,12 +7,12 @@ import (
 
 type fakeAliasLookup map[string]string
 
-func (m fakeAliasLookup) CanonicalID(ctx context.Context, aliasNorm string) (string, bool) {
+func (m fakeAliasLookup) CanonicalID(ctx context.Context, aliasNorm string) (string, bool, error) {
 	if m == nil {
-		return "", false
+		return "", false, nil
 	}
 	id, ok := m[aliasNorm]
-	return id, ok
+	return id, ok, nil
 }
 
 func TestNormalizeMfrString(t *testing.T) {
@@ -42,7 +42,10 @@ func TestResolveMfrCanonical(t *testing.T) {
 
 	t.Run("empty_no_constraint", func(t *testing.T) {
 		for _, raw := range []string{"", "   ", "\t"} {
-			id, hit := ResolveManufacturerCanonical(ctx, raw, lk)
+			id, hit, err := ResolveManufacturerCanonical(ctx, raw, lk)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if hit || id != "" {
 				t.Fatalf("raw %q: want empty,false; got %q,%v", raw, id, hit)
 			}
@@ -50,21 +53,30 @@ func TestResolveMfrCanonical(t *testing.T) {
 	})
 
 	t.Run("hit", func(t *testing.T) {
-		id, hit := ResolveManufacturerCanonical(ctx, "  molex ", lk)
+		id, hit, err := ResolveManufacturerCanonical(ctx, "  molex ", lk)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if !hit || id != "mfr_molex" {
 			t.Fatalf("want mfr_molex,true; got %q,%v", id, hit)
 		}
 	})
 
 	t.Run("miss_strict", func(t *testing.T) {
-		id, hit := ResolveManufacturerCanonical(ctx, "UNKNOWN", lk)
+		id, hit, err := ResolveManufacturerCanonical(ctx, "UNKNOWN", lk)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if hit || id != "" {
 			t.Fatalf("want empty,false; got %q,%v", id, hit)
 		}
 	})
 
 	t.Run("nil_lookup", func(t *testing.T) {
-		id, hit := ResolveManufacturerCanonical(ctx, "molex", nil)
+		id, hit, err := ResolveManufacturerCanonical(ctx, "molex", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if hit || id != "" {
 			t.Fatalf("want empty,false; got %q,%v", id, hit)
 		}

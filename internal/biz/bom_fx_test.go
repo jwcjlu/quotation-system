@@ -8,14 +8,14 @@ import (
 )
 
 type fakeFXLookup struct {
-	fn func(ctx context.Context, from, to string, date time.Time) (float64, string, string, bool)
+	fn func(ctx context.Context, from, to string, date time.Time) (float64, string, string, bool, error)
 }
 
-func (f *fakeFXLookup) Rate(ctx context.Context, from, to string, date time.Time) (float64, string, string, bool) {
+func (f *fakeFXLookup) Rate(ctx context.Context, from, to string, date time.Time) (float64, string, string, bool, error) {
 	if f.fn != nil {
 		return f.fn(ctx, from, to, date)
 	}
-	return 0, "", "", false
+	return 0, "", "", false, nil
 }
 
 func TestFX_ToBaseCCY_sameCurrency(t *testing.T) {
@@ -42,12 +42,12 @@ func TestFX_ToBaseCCY_usesBizDateWhenSet(t *testing.T) {
 	req := time.Date(2026, 3, 20, 0, 0, 0, 0, time.UTC)
 	var seen time.Time
 	fk := &fakeFXLookup{
-		fn: func(_ context.Context, from, to string, date time.Time) (float64, string, string, bool) {
+		fn: func(_ context.Context, from, to string, date time.Time) (float64, string, string, bool, error) {
 			seen = date
 			if from == "USD" && to == "CNY" {
-				return 7.2, "v1", "manual", true
+				return 7.2, "v1", "manual", true, nil
 			}
-			return 0, "", "", false
+			return 0, "", "", false, nil
 		},
 	}
 	base, meta, err := ToBaseCCY(ctx, 10, "USD", "CNY", biz, req, fk)
@@ -70,9 +70,9 @@ func TestFX_ToBaseCCY_fallsBackToRequestDay(t *testing.T) {
 	req := time.Date(2026, 3, 21, 15, 30, 0, 0, time.FixedZone("CST", 8*3600))
 	var seen time.Time
 	fk := &fakeFXLookup{
-		fn: func(_ context.Context, from, to string, date time.Time) (float64, string, string, bool) {
+		fn: func(_ context.Context, from, to string, date time.Time) (float64, string, string, bool, error) {
 			seen = date
-			return 7.0, "", "ecb", true
+			return 7.0, "", "ecb", true, nil
 		},
 	}
 	_, meta, err := ToBaseCCY(ctx, 1, "USD", "CNY", time.Time{}, req, fk)
@@ -92,11 +92,11 @@ func TestFX_ToBaseCCY_directRate(t *testing.T) {
 	ctx := context.Background()
 	d := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	fk := &fakeFXLookup{
-		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool) {
+		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool, error) {
 			if from == "EUR" && to == "CNY" {
-				return 8.0, "t2026", "manual", true
+				return 8.0, "t2026", "manual", true, nil
 			}
-			return 0, "", "", false
+			return 0, "", "", false, nil
 		},
 	}
 	base, meta, err := ToBaseCCY(ctx, 100, "eur", "CNY", d, time.Time{}, fk)
@@ -113,14 +113,14 @@ func TestFX_ToBaseCCY_inverseRate(t *testing.T) {
 	d := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	// 仅存在 USD→CNY：1 USD = 7 CNY；求 14 CNY → USD 应为 2 USD。
 	fk := &fakeFXLookup{
-		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool) {
+		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool, error) {
 			if from == "CNY" && to == "USD" {
-				return 0, "", "", false
+				return 0, "", "", false, nil
 			}
 			if from == "USD" && to == "CNY" {
-				return 7, "batch-a", "fixer", true
+				return 7, "batch-a", "fixer", true, nil
 			}
-			return 0, "", "", false
+			return 0, "", "", false, nil
 		},
 	}
 	base, meta, err := ToBaseCCY(ctx, 14, "CNY", "USD", d, time.Time{}, fk)
@@ -142,8 +142,8 @@ func TestFX_ToBaseCCY_ErrFXRateNotFound(t *testing.T) {
 	ctx := context.Background()
 	d := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	fk := &fakeFXLookup{
-		fn: func(_ context.Context, _, _ string, _ time.Time) (float64, string, string, bool) {
-			return 0, "", "", false
+		fn: func(_ context.Context, _, _ string, _ time.Time) (float64, string, string, bool, error) {
+			return 0, "", "", false, nil
 		},
 	}
 	_, _, err := ToBaseCCY(ctx, 1, "JPY", "CNY", d, time.Time{}, fk)
@@ -152,18 +152,57 @@ func TestFX_ToBaseCCY_ErrFXRateNotFound(t *testing.T) {
 	}
 }
 
+func TestFX_ToBaseCCY_lookupErrorPropagates(t *testing.T) {
+	ctx := context.Background()
+	d := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+	dbDown := errors.New("db down")
+	fk := &fakeFXLookup{
+		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool, error) {
+			if from == "USD" && to == "CNY" {
+				return 0, "", "", false, dbDown
+			}
+			return 0, "", "", false, nil
+		},
+	}
+	_, _, err := ToBaseCCY(ctx, 1, "USD", "CNY", d, time.Time{}, fk)
+	if err == nil || !errors.Is(err, dbDown) {
+		t.Fatalf("want wrapped dbDown, got %v", err)
+	}
+}
+
+func TestFX_ToBaseCCY_inverseLookupErrorPropagates(t *testing.T) {
+	ctx := context.Background()
+	d := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+	dbDown := errors.New("inverse db down")
+	fk := &fakeFXLookup{
+		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool, error) {
+			if from == "CNY" && to == "USD" {
+				return 0, "", "", false, nil
+			}
+			if from == "USD" && to == "CNY" {
+				return 0, "", "", false, dbDown
+			}
+			return 0, "", "", false, nil
+		},
+	}
+	_, _, err := ToBaseCCY(ctx, 1, "CNY", "USD", d, time.Time{}, fk)
+	if err == nil || !errors.Is(err, dbDown) {
+		t.Fatalf("want wrapped dbDown, got %v", err)
+	}
+}
+
 func TestFX_ToBaseCCY_inverseZeroRateNotFound(t *testing.T) {
 	ctx := context.Background()
 	d := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	fk := &fakeFXLookup{
-		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool) {
+		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool, error) {
 			if from == "CNY" && to == "USD" {
-				return 0, "", "", false
+				return 0, "", "", false, nil
 			}
 			if from == "USD" && to == "CNY" {
-				return 0, "x", "y", true
+				return 0, "x", "y", true, nil
 			}
-			return 0, "", "", false
+			return 0, "", "", false, nil
 		},
 	}
 	_, _, err := ToBaseCCY(ctx, 1, "CNY", "USD", d, time.Time{}, fk)
@@ -185,14 +224,14 @@ func TestFX_ToBaseCCY_directZeroUsesInverse(t *testing.T) {
 	ctx := context.Background()
 	d := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
 	fk := &fakeFXLookup{
-		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool) {
+		fn: func(_ context.Context, from, to string, _ time.Time) (float64, string, string, bool, error) {
 			if from == "EUR" && to == "CNY" {
-				return 0, "", "", true
+				return 0, "", "", true, nil
 			}
 			if from == "CNY" && to == "EUR" {
-				return 0.125, "v", "s", true
+				return 0.125, "v", "s", true, nil
 			}
-			return 0, "", "", false
+			return 0, "", "", false, nil
 		},
 	}
 	// 直连 EUR→CNY 为 0；反向 CNY→EUR 0.125 表示 1 CNY = 0.125 EUR ⇒ 1 EUR = 8 CNY。

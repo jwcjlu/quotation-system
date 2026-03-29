@@ -10,6 +10,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// ManufacturerCanonicalRow distinct canonical_id + 任一展示名（MIN 聚合）。
+type ManufacturerCanonicalRow struct {
+	CanonicalID string `gorm:"column:canonical_id"`
+	DisplayName string `gorm:"column:display_name"`
+}
+
 // BomManufacturerAliasRepo 厂牌别名表（t_bom_manufacturer_alias）；无 DB 时 CanonicalID 恒为未命中。
 type BomManufacturerAliasRepo struct {
 	db *gorm.DB
@@ -24,26 +30,66 @@ func NewBomManufacturerAliasRepo(d *Data) *BomManufacturerAliasRepo {
 }
 
 // CanonicalID 按 alias_norm 精确匹配一行，返回 canonical_id。
-func (r *BomManufacturerAliasRepo) CanonicalID(ctx context.Context, aliasNorm string) (string, bool) {
+// ok=true 且 err=nil 表示命中；ok=false 且 err=nil 表示无行；err!=nil 表示数据库等基础设施错误。
+func (r *BomManufacturerAliasRepo) CanonicalID(ctx context.Context, aliasNorm string) (string, bool, error) {
 	if r == nil || r.db == nil {
-		return "", false
+		return "", false, nil
 	}
 	aliasNorm = strings.TrimSpace(aliasNorm)
 	if aliasNorm == "" {
-		return "", false
+		return "", false, nil
 	}
 	var row BomManufacturerAlias
 	err := r.db.WithContext(ctx).Where("alias_norm = ?", aliasNorm).Select("canonical_id").First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", false
+		return "", false, nil
 	}
 	if err != nil {
-		return "", false
+		return "", false, err
 	}
 	if row.CanonicalID == "" {
-		return "", false
+		return "", false, nil
 	}
-	return row.CanonicalID, true
+	return row.CanonicalID, true, nil
+}
+
+// CreateRow 插入一条别名；alias_norm 须由调用方按 biz.NormalizeMfrString 与配单一致地计算。
+func (r *BomManufacturerAliasRepo) CreateRow(ctx context.Context, canonicalID, displayName, alias, aliasNorm string) error {
+	if r == nil || r.db == nil {
+		return errors.New("bom manufacturer alias: database not configured")
+	}
+	row := BomManufacturerAlias{
+		CanonicalID: canonicalID,
+		DisplayName: displayName,
+		Alias:       alias,
+		AliasNorm:   aliasNorm,
+	}
+	return r.db.WithContext(ctx).Create(&row).Error
+}
+
+// ListDistinctCanonicals 按 canonical_id 去重，display_name 取字典序最小的一条（便于下拉展示）。
+func (r *BomManufacturerAliasRepo) ListDistinctCanonicals(ctx context.Context, limit int) ([]ManufacturerCanonicalRow, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("bom manufacturer alias: database not configured")
+	}
+	if limit <= 0 {
+		limit = 300
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	var out []ManufacturerCanonicalRow
+	err := r.db.WithContext(ctx).
+		Model(&BomManufacturerAlias{}).
+		Select("canonical_id, MIN(display_name) AS display_name").
+		Group("canonical_id").
+		Order("canonical_id ASC").
+		Limit(limit).
+		Scan(&out).Error
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // DBOk 是否已连接数据库（厂牌别名解析依赖）。

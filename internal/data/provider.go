@@ -9,6 +9,8 @@ var ProviderSet = wire.NewSet(
 	NewBOMSearchTaskRepo,
 	NewBomSessionRepo,
 	NewBomMergeDispatch,
+	NewBomFxRateRepoFromData,
+	NewBomManufacturerAliasRepo,
 	NewAgentScriptPackageRepo,
 	NewDispatchTaskRepo,
 	NewAgentRegistryRepo,

@@ -3,39 +3,53 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
 
 	v1 "caichip/api/bom/v1"
 	"caichip/internal/biz"
+	"caichip/internal/conf"
 	"caichip/internal/data"
 
 	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 )
 
 // BomService 实现 BOM HTTP API（api/bom/v1.BomServiceHTTPServer）。
 type BomService struct {
-	session biz.BOMSessionRepo
-	search  biz.BOMSearchTaskRepo
-	merge   biz.MergeDispatchExecutor
-	openai  *data.OpenAIChat
-	log     *log.Helper
+	session  biz.BOMSessionRepo
+	search   biz.BOMSearchTaskRepo
+	merge    biz.MergeDispatchExecutor
+	openai   *data.OpenAIChat
+	fx       *data.BomFxRateRepo
+	alias    *data.BomManufacturerAliasRepo
+	bomMatch *conf.BomMatch
+	log      *log.Helper
 }
 
 // NewBomService ...
-func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, openai *data.OpenAIChat, logger log.Logger) *BomService {
+func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, openai *data.OpenAIChat, fx *data.BomFxRateRepo, alias *data.BomManufacturerAliasRepo, bc *conf.Bootstrap, logger log.Logger) *BomService {
+	var bm *conf.BomMatch
+	if bc != nil {
+		bm = bc.BomMatch
+	}
 	return &BomService{
-		session: session,
-		search:  search,
-		merge:   merge,
-		openai:  openai,
-		log:     log.NewHelper(logger),
+		session:  session,
+		search:   search,
+		merge:    merge,
+		openai:   openai,
+		fx:       fx,
+		alias:    alias,
+		bomMatch: bm,
+		log:      log.NewHelper(logger),
 	}
 }
 
@@ -50,16 +64,84 @@ func (s *BomService) dbOK() bool {
 	return s.session != nil && s.session.DBOk() && s.search != nil && s.search.DBOk()
 }
 
+// matchDepsOK：SearchQuotes / AutoMatch / GetMatchResult 依赖报价缓存、汇率与厂牌别名表；有 DB 时 Wire 注入的 fx/alias 须非 nil 且 DBOk。
+func (s *BomService) matchDepsOK() bool {
+	if !s.dbOK() {
+		return false
+	}
+	return s.fx != nil && s.fx.DBOk() && s.alias != nil && s.alias.DBOk()
+}
+
 func notImplemented(msg string) error {
 	return kerrors.ServiceUnavailable("BOM_LEGACY", msg)
 }
 
 func (s *BomService) SearchQuotes(ctx context.Context, req *v1.SearchQuotesRequest) (*v1.SearchQuotesReply, error) {
-	return nil, notImplemented("SearchQuotes 未实现，请使用 bom-sessions 流程")
+	if !s.matchDepsOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	sid, err := parseBomSessionID(req.GetBomId())
+	if err != nil {
+		return nil, err
+	}
+	view, lines, plats, err := s.loadSessionLinesAndPlatforms(ctx, sid, req.GetPlatforms())
+	if err != nil {
+		return nil, err
+	}
+	if err := s.matchReadinessError(ctx, sid, view, lines); err != nil {
+		return nil, err
+	}
+	out := make([]*v1.ItemQuotes, 0, len(lines))
+	for _, line := range lines {
+		qtyI := bomLineQtyInt(line.Qty)
+		var quotes []*v1.PlatformQuote
+		for _, pid := range plats {
+			pid = biz.NormalizePlatformID(pid)
+			snap, hit, lerr := s.search.LoadQuoteCacheByMergeKey(ctx, biz.NormalizeMPNForBOMSearch(line.Mpn), pid, view.BizDate)
+			if lerr != nil {
+				return nil, lerr
+			}
+			if !hit || !quoteCacheUsable(snap) {
+				continue
+			}
+			var rows []biz.AgentQuoteRow
+			if err := json.Unmarshal(snap.QuotesJSON, &rows); err != nil {
+				continue
+			}
+			for _, row := range rows {
+				quotes = append(quotes, agentRowToPlatformQuote(pid, row, qtyI))
+			}
+		}
+		out = append(out, &v1.ItemQuotes{
+			Model:    line.Mpn,
+			Quantity: int32(qtyI),
+			Quotes:   quotes,
+		})
+	}
+	return &v1.SearchQuotesReply{ItemQuotes: out}, nil
 }
 
 func (s *BomService) AutoMatch(ctx context.Context, req *v1.AutoMatchRequest) (*v1.AutoMatchReply, error) {
-	return nil, notImplemented("AutoMatch 未实现")
+	if !s.matchDepsOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	sid, err := parseBomSessionID(req.GetBomId())
+	if err != nil {
+		return nil, err
+	}
+	_ = req.GetStrategy()
+	view, lines, plats, err := s.loadSessionLinesAndPlatforms(ctx, sid, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.matchReadinessError(ctx, sid, view, lines); err != nil {
+		return nil, err
+	}
+	items, total, err := s.computeMatchItems(ctx, view, lines, plats)
+	if err != nil {
+		return nil, err
+	}
+	return &v1.AutoMatchReply{Items: items, TotalAmount: total}, nil
 }
 
 func (s *BomService) GetBOM(ctx context.Context, req *v1.GetBOMRequest) (*v1.GetBOMReply, error) {
@@ -67,7 +149,306 @@ func (s *BomService) GetBOM(ctx context.Context, req *v1.GetBOMRequest) (*v1.Get
 }
 
 func (s *BomService) GetMatchResult(ctx context.Context, req *v1.GetMatchResultRequest) (*v1.GetMatchResultReply, error) {
-	return nil, notImplemented("GetMatchResult 未实现")
+	if !s.matchDepsOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	sid, err := parseBomSessionID(req.GetBomId())
+	if err != nil {
+		return nil, err
+	}
+	view, lines, plats, err := s.loadSessionLinesAndPlatforms(ctx, sid, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.matchReadinessError(ctx, sid, view, lines); err != nil {
+		return nil, err
+	}
+	items, total, err := s.computeMatchItems(ctx, view, lines, plats)
+	if err != nil {
+		return nil, err
+	}
+	return &v1.GetMatchResultReply{Items: items, TotalAmount: total}, nil
+}
+
+func parseBomSessionID(bomID string) (string, error) {
+	id := strings.TrimSpace(bomID)
+	if id == "" {
+		return "", kerrors.BadRequest("BAD_BOM_ID", "bom_id required")
+	}
+	if _, err := uuid.Parse(id); err != nil {
+		return "", kerrors.BadRequest("BAD_BOM_ID", "bom_id must be a valid session UUID")
+	}
+	return id, nil
+}
+
+func (s *BomService) loadSessionLinesAndPlatforms(ctx context.Context, sid string, reqPlats []string) (*biz.BOMSessionView, []data.BomSessionLine, []string, error) {
+	view, err := s.session.GetSession(ctx, sid)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, nil, kerrors.NotFound("SESSION_NOT_FOUND", "session not found")
+		}
+		return nil, nil, nil, err
+	}
+	lines, err := s.dataListLines(ctx, sid)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	var plats []string
+	if len(reqPlats) == 0 {
+		plats = append([]string(nil), view.PlatformIDs...)
+	} else {
+		for _, p := range reqPlats {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				plats = append(plats, biz.NormalizePlatformID(p))
+			}
+		}
+	}
+	return view, lines, plats, nil
+}
+
+// matchReadinessError 在会话尚未满足与 GetReadiness 一致的「可进入配单」条件时拒绝。
+// gRPC FailedPrecondition 常映射为 HTTP 400；此处选用 ServiceUnavailable，表示依赖侧（搜索任务/缓存）未就绪、可稍后重试。
+func (s *BomService) matchReadinessError(ctx context.Context, sid string, view *biz.BOMSessionView, lines []data.BomSessionLine) error {
+	tasks, err := s.search.ListTasksForSession(ctx, sid)
+	if err != nil {
+		return err
+	}
+	lineSnaps := make([]biz.LineReadinessSnapshot, 0, len(lines))
+	for _, ln := range lines {
+		lineSnaps = append(lineSnaps, biz.LineReadinessSnapshot{MpnNorm: biz.NormalizeMPNForBOMSearch(ln.Mpn)})
+	}
+	lenient := biz.ReadinessFromTasks(biz.ReadinessLenient, tasks, lineSnaps, view.PlatformIDs)
+	strict := biz.ReadinessFromTasks(biz.ReadinessStrict, tasks, lineSnaps, view.PlatformIDs)
+	can := false
+	switch view.Status {
+	case "data_ready":
+		can = true
+	case "blocked":
+		can = false
+	default:
+		if lenient && strict {
+			can = true
+		} else if lenient && !strict && strings.TrimSpace(view.ReadinessMode) == biz.ReadinessStrict {
+			can = false
+		}
+	}
+	if !can {
+		return kerrors.ServiceUnavailable("BOM_NOT_READY", "session data not ready for match; see GetReadiness")
+	}
+	return nil
+}
+
+func quoteCacheUsable(snap *biz.QuoteCacheSnapshot) bool {
+	if snap == nil {
+		return false
+	}
+	oc := strings.ToLower(strings.TrimSpace(snap.Outcome))
+	if oc == "no_mpn_match" || oc == "no_result" {
+		return false
+	}
+	return len(snap.QuotesJSON) > 0
+}
+
+func (s *BomService) bomMatchBaseCCY() string {
+	if s.bomMatch != nil {
+		if v := strings.TrimSpace(s.bomMatch.GetBaseCcy()); v != "" {
+			return v
+		}
+	}
+	return "CNY"
+}
+
+func (s *BomService) bomMatchRoundingMode() string {
+	if s.bomMatch != nil {
+		if v := strings.TrimSpace(s.bomMatch.GetRoundingMode()); v != "" {
+			return v
+		}
+	}
+	return "decimal6"
+}
+
+func (s *BomService) bomMatchParseTiers() bool {
+	if s.bomMatch == nil {
+		return true
+	}
+	return s.bomMatch.GetParsePriceTierStrings()
+}
+
+func bomLineQtyInt(q *float64) int {
+	if q == nil || *q <= 0 {
+		return 1
+	}
+	v := int(math.Round(*q))
+	if v < 1 {
+		return 1
+	}
+	return v
+}
+
+func moqDigitsPositive(s string) int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	start := -1
+	for i, r := range s {
+		if r >= '0' && r <= '9' {
+			if start < 0 {
+				start = i
+			}
+		} else if start >= 0 {
+			v, err := strconv.Atoi(s[start:i])
+			if err == nil && v > 0 {
+				return v
+			}
+			start = -1
+		}
+	}
+	if start >= 0 {
+		v, err := strconv.Atoi(s[start:])
+		if err == nil && v > 0 {
+			return v
+		}
+	}
+	return 0
+}
+
+func matchSortKeyFromPick(pick biz.LineMatchPick, platformID, roundingMode string) biz.MatchSortKey {
+	leadDays := biz.MatchLeadDaysUnknown
+	if d, ok := biz.ParseLeadDays(pick.Row.LeadTime, platformID); ok {
+		leadDays = d
+	}
+	stockVal := int64(0)
+	if sq, ok := biz.ParseCompareStock(pick.Row.Stock); ok {
+		stockVal = sq
+	}
+	return biz.MatchSortKey{
+		UnitPriceBaseQuantized: biz.QuantizeUnitPriceBase(roundingMode, pick.UnitPriceBase),
+		LeadDays:               leadDays,
+		StockParsed:            stockVal,
+		PlatformID:             biz.NormalizePlatformID(platformID),
+	}
+}
+
+func agentRowToPlatformQuote(platformID string, row biz.AgentQuoteRow, _ int) *v1.PlatformQuote {
+	pq := &v1.PlatformQuote{
+		Platform:      biz.NormalizePlatformID(platformID),
+		MatchedModel:  row.Model,
+		Manufacturer:  row.Manufacturer,
+		Description:   row.Desc,
+		LeadTime:      row.LeadTime,
+		PriceTiers:    row.PriceTiers,
+		HkPrice:       row.HKPrice,
+		MainlandPrice: row.MainlandPrice,
+		Package:       row.Package,
+	}
+	if sq, ok := biz.ParseCompareStock(row.Stock); ok {
+		pq.Stock = sq
+	}
+	if v := moqDigitsPositive(row.MOQ); v > 0 {
+		pq.Moq = int32(v)
+	}
+	return pq
+}
+
+func noMatchItem(line data.BomSessionLine, qtyI int) *v1.MatchItem {
+	return &v1.MatchItem{
+		Index:              int32(line.LineNo),
+		Model:              line.Mpn,
+		Quantity:           int32(qtyI),
+		MatchStatus:        "no_match",
+		DemandManufacturer: derefStrPtr(line.Mfr),
+		DemandPackage:      derefStrPtr(line.Package),
+	}
+}
+
+func matchItemFromPick(line data.BomSessionLine, qtyI int, pick biz.LineMatchPick, platformID string) *v1.MatchItem {
+	subtotal := pick.UnitPriceBase * float64(qtyI)
+	var stock int64
+	if sq, ok := biz.ParseCompareStock(pick.Row.Stock); ok {
+		stock = sq
+	}
+	return &v1.MatchItem{
+		Index:              int32(line.LineNo),
+		Model:              line.Mpn,
+		Quantity:           int32(qtyI),
+		MatchedModel:       pick.Row.Model,
+		Manufacturer:       pick.Row.Manufacturer,
+		Platform:           biz.NormalizePlatformID(platformID),
+		LeadTime:           pick.Row.LeadTime,
+		Stock:              stock,
+		UnitPrice:          pick.UnitPriceBase,
+		Subtotal:           subtotal,
+		MatchStatus:        "exact",
+		DemandManufacturer: derefStrPtr(line.Mfr),
+		DemandPackage:      derefStrPtr(line.Package),
+	}
+}
+
+func (s *BomService) computeMatchItems(ctx context.Context, view *biz.BOMSessionView, lines []data.BomSessionLine, plats []string) ([]*v1.MatchItem, float64, error) {
+	baseCCY := s.bomMatchBaseCCY()
+	roundMode := s.bomMatchRoundingMode()
+	parseTiers := s.bomMatchParseTiers()
+	reqDay := time.Now()
+	items := make([]*v1.MatchItem, 0, len(lines))
+	var total float64
+	for _, line := range lines {
+		qtyI := bomLineQtyInt(line.Qty)
+		type pc struct {
+			pid  string
+			pick biz.LineMatchPick
+		}
+		var cand []pc
+		for _, pid := range plats {
+			pid = biz.NormalizePlatformID(pid)
+			snap, hit, err := s.search.LoadQuoteCacheByMergeKey(ctx, biz.NormalizeMPNForBOMSearch(line.Mpn), pid, view.BizDate)
+			if err != nil {
+				return nil, 0, err
+			}
+			if !hit || !quoteCacheUsable(snap) {
+				continue
+			}
+			in := biz.LineMatchInput{
+				BomMpn:           line.Mpn,
+				BomPackage:       derefStrPtr(line.Package),
+				BomMfr:           derefStrPtr(line.Mfr),
+				BomQty:           qtyI,
+				PlatformID:       pid,
+				QuotesJSON:       snap.QuotesJSON,
+				BizDate:          view.BizDate,
+				RequestDay:       reqDay,
+				BaseCCY:          baseCCY,
+				RoundingMode:     roundMode,
+				ParseTierStrings: parseTiers,
+			}
+			pick, err := biz.PickBestQuoteForLine(ctx, in, s.fx, s.alias)
+			if err != nil {
+				return nil, 0, err
+			}
+			if pick.Ok {
+				cand = append(cand, pc{pid, pick})
+			}
+		}
+		if len(cand) == 0 {
+			items = append(items, noMatchItem(line, qtyI))
+			continue
+		}
+		bestIdx := 0
+		bestKey := matchSortKeyFromPick(cand[0].pick, cand[0].pid, roundMode)
+		for i := 1; i < len(cand); i++ {
+			k := matchSortKeyFromPick(cand[i].pick, cand[i].pid, roundMode)
+			if biz.LessMatchCandidate(k, bestKey) {
+				bestKey = k
+				bestIdx = i
+			}
+		}
+		ch := cand[bestIdx]
+		mi := matchItemFromPick(line, qtyI, ch.pick, ch.pid)
+		items = append(items, mi)
+		total += mi.GetSubtotal()
+	}
+	return items, total, nil
 }
 
 func (s *BomService) CreateSession(ctx context.Context, req *v1.CreateSessionRequest) (*v1.CreateSessionReply, error) {

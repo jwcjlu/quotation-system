@@ -46,4 +46,9 @@ func (r *BomManufacturerAliasRepo) CanonicalID(ctx context.Context, aliasNorm st
 	return row.CanonicalID, true
 }
 
+// DBOk 是否已连接数据库（厂牌别名解析依赖）。
+func (r *BomManufacturerAliasRepo) DBOk() bool {
+	return r != nil && r.db != nil
+}
+
 var _ biz.AliasLookup = (*BomManufacturerAliasRepo)(nil)

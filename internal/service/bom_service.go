@@ -92,17 +92,20 @@ func (s *BomService) SearchQuotes(ctx context.Context, req *v1.SearchQuotesReque
 	if err := s.matchReadinessError(ctx, sid, view, lines); err != nil {
 		return nil, err
 	}
+	pairList := dedupeQuoteCachePairs(lines, plats)
+	cacheMap, err := s.search.LoadQuoteCachesForKeys(ctx, view.BizDate, pairList)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]*v1.ItemQuotes, 0, len(lines))
 	for _, line := range lines {
 		qtyI := bomLineQtyInt(line.Qty)
 		var quotes []*v1.PlatformQuote
+		mergeKey := biz.NormalizeMPNForBOMSearch(line.Mpn)
 		for _, pid := range plats {
 			pid = biz.NormalizePlatformID(pid)
-			snap, hit, lerr := s.search.LoadQuoteCacheByMergeKey(ctx, biz.NormalizeMPNForBOMSearch(line.Mpn), pid, view.BizDate)
-			if lerr != nil {
-				return nil, lerr
-			}
-			if !hit || !quoteCacheUsable(snap) {
+			snap := cacheMap[quoteCachePairKey(mergeKey, pid)]
+			if snap == nil || !quoteCacheUsable(snap) {
 				continue
 			}
 			var rows []biz.AgentQuoteRow
@@ -410,105 +413,6 @@ func matchItemFromPick(line data.BomSessionLine, qtyI int, pick biz.LineMatchPic
 		DemandPackage:                 derefStrPtr(line.Package),
 		MfrMismatchQuoteManufacturers: append([]string(nil), mfrMismatch...),
 	}
-}
-
-func (s *BomService) computeMatchItems(ctx context.Context, view *biz.BOMSessionView, lines []data.BomSessionLine, plats []string) ([]*v1.MatchItem, float64, error) {
-	baseCCY := s.bomMatchBaseCCY()
-	roundMode := s.bomMatchRoundingMode()
-	parseTiers := s.bomMatchParseTiers()
-	reqDay := time.Now()
-	items := make([]*v1.MatchItem, 0, len(lines))
-	var total float64
-	sid := strings.TrimSpace(view.SessionID)
-
-	for _, line := range lines {
-		qtyI := bomLineQtyInt(line.Qty)
-		type pc struct {
-			pid  string
-			pick biz.LineMatchPick
-		}
-		var cand []pc
-		mergeKey := biz.NormalizeMPNForBOMSearch(line.Mpn)
-		mfrSeenLine := make(map[string]struct{})
-		var lineMfrMismatch []string
-		addLineMfr := func(xs []string) {
-			for _, s := range xs {
-				if _, ok := mfrSeenLine[s]; ok {
-					continue
-				}
-				mfrSeenLine[s] = struct{}{}
-				lineMfrMismatch = append(lineMfrMismatch, s)
-			}
-		}
-		for _, pid := range plats {
-			pid = biz.NormalizePlatformID(pid)
-			snap, hit, err := s.search.LoadQuoteCacheByMergeKey(ctx, mergeKey, pid, view.BizDate)
-			if err != nil {
-				return nil, 0, err
-			}
-			if !hit || !quoteCacheUsable(snap) {
-				if r := quoteCacheUnusableReason(hit, snap); r != "" {
-					oc := ""
-					if snap != nil {
-						oc = strings.TrimSpace(snap.Outcome)
-					}
-					s.log.Debugf(
-						"bom match skip: session=%s line_no=%d mpn=%q merge_mpn=%q platform=%s reason=%s outcome=%q",
-						sid, line.LineNo, line.Mpn, mergeKey, pid, r, oc,
-					)
-				}
-				continue
-			}
-			in := biz.LineMatchInput{
-				BomMpn:           line.Mpn,
-				BomPackage:       derefStrPtr(line.Package),
-				BomMfr:           derefStrPtr(line.Mfr),
-				BomQty:           qtyI,
-				PlatformID:       pid,
-				QuotesJSON:       snap.QuotesJSON,
-				BizDate:          view.BizDate,
-				RequestDay:       reqDay,
-				BaseCCY:          baseCCY,
-				RoundingMode:     roundMode,
-				ParseTierStrings: parseTiers,
-			}
-			pick, err := biz.PickBestQuoteForLine(ctx, in, s.fx, s.alias)
-			if err != nil {
-				return nil, 0, err
-			}
-			addLineMfr(pick.MfrMismatchQuoteManufacturers)
-			if pick.Ok {
-				cand = append(cand, pc{pid, pick})
-			} else {
-				s.log.Debugf(
-					"bom match skip: session=%s line_no=%d mpn=%q merge_mpn=%q platform=%s reason=pick_not_ok pick_reason=%q bom_mfr=%q bom_pkg=%q",
-					sid, line.LineNo, line.Mpn, mergeKey, pid, pick.Reason, derefStrPtr(line.Mfr), derefStrPtr(line.Package),
-				)
-			}
-		}
-		if len(cand) == 0 {
-			s.log.Debugf(
-				"bom match line no_match: session=%s line_no=%d mpn=%q merge_mpn=%q qty=%d bom_mfr=%q bom_pkg=%q (no platform produced a candidate after skips above)",
-				sid, line.LineNo, line.Mpn, mergeKey, qtyI, derefStrPtr(line.Mfr), derefStrPtr(line.Package),
-			)
-			items = append(items, noMatchItem(line, qtyI, lineMfrMismatch))
-			continue
-		}
-		bestIdx := 0
-		bestKey := matchSortKeyFromPick(cand[0].pick, cand[0].pid, roundMode)
-		for i := 1; i < len(cand); i++ {
-			k := matchSortKeyFromPick(cand[i].pick, cand[i].pid, roundMode)
-			if biz.LessMatchCandidate(k, bestKey) {
-				bestKey = k
-				bestIdx = i
-			}
-		}
-		ch := cand[bestIdx]
-		mi := matchItemFromPick(line, qtyI, ch.pick, ch.pid, lineMfrMismatch)
-		items = append(items, mi)
-		total += mi.GetSubtotal()
-	}
-	return items, total, nil
 }
 
 func (s *BomService) CreateSession(ctx context.Context, req *v1.CreateSessionRequest) (*v1.CreateSessionReply, error) {
@@ -1221,6 +1125,11 @@ func (s *BomService) ListMatchSourceRecords(ctx context.Context, req *v1.ListMat
 		return nil, err
 	}
 	plats := normalizeSessionPlatforms(view.PlatformIDs)
+	pairList := dedupeQuoteCachePairs(lines, plats)
+	cacheMap, err := s.search.LoadQuoteCachesForKeys(ctx, view.BizDate, pairList)
+	if err != nil {
+		return nil, err
+	}
 	out := &v1.ListMatchSourceRecordsReply{
 		BizDate:          view.BizDate.Format("2006-01-02"),
 		SessionPlatforms: append([]string(nil), plats...),
@@ -1237,10 +1146,8 @@ func (s *BomService) ListMatchSourceRecords(ctx context.Context, req *v1.ListMat
 			DemandPackage:      derefStrPtr(line.Package),
 		}
 		for _, pid := range plats {
-			snap, hit, lerr := s.search.LoadQuoteCacheByMergeKey(ctx, mergeKey, pid, view.BizDate)
-			if lerr != nil {
-				return nil, lerr
-			}
+			snap := cacheMap[quoteCachePairKey(mergeKey, pid)]
+			hit := snap != nil
 			skip := ""
 			if !hit || !quoteCacheUsable(snap) {
 				skip = quoteCacheUnusableReason(hit, snap)

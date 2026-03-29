@@ -453,6 +453,60 @@ func (r *BOMSearchTaskRepo) LoadQuoteCacheByMergeKey(ctx context.Context, mpnNor
 	}, true, nil
 }
 
+// LoadQuoteCachesForKeys 同一 biz_date 下批量读取 t_bom_quote_cache，减少配单 N×M 次往返。
+func (r *BOMSearchTaskRepo) LoadQuoteCachesForKeys(ctx context.Context, bizDate time.Time, pairs []biz.MpnPlatformPair) (map[string]*biz.QuoteCacheSnapshot, error) {
+	out := make(map[string]*biz.QuoteCacheSnapshot)
+	if !r.DBOk() || len(pairs) == 0 {
+		return out, nil
+	}
+	dateStr := bizDate.Format("2006-01-02")
+	bd, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]struct{}, len(pairs))
+	var uniq []biz.MpnPlatformPair
+	for _, p := range pairs {
+		mn := normalizeMPNForSearchTask(p.MpnNorm)
+		pid := strings.TrimSpace(p.PlatformID)
+		k := mn + "\x00" + pid
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		uniq = append(uniq, biz.MpnPlatformPair{MpnNorm: mn, PlatformID: pid})
+	}
+	if len(uniq) == 0 {
+		return out, nil
+	}
+	q := r.db.WithContext(ctx).Model(&BomQuoteCache{}).Where("biz_date = ?", bd)
+	{
+		var parts []string
+		var args []interface{}
+		for _, p := range uniq {
+			parts = append(parts, "(mpn_norm = ? AND platform_id = ?)")
+			args = append(args, p.MpnNorm, p.PlatformID)
+		}
+		q = q.Where(strings.Join(parts, " OR "), args...)
+	}
+	var rows []BomQuoteCache
+	if err := q.Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		row := &rows[i]
+		key := row.MpnNorm + "\x00" + row.PlatformID
+		qj := row.QuotesJSON
+		nd := row.NoMpnDetail
+		out[key] = &biz.QuoteCacheSnapshot{
+			Outcome:     row.Outcome,
+			QuotesJSON:  qj,
+			NoMpnDetail: nd,
+		}
+	}
+	return out, nil
+}
+
 // DistinctPendingMergeKeysForSession 会话内 pending 任务涉及的合并键去重。
 func (r *BOMSearchTaskRepo) DistinctPendingMergeKeysForSession(ctx context.Context, sessionID string) ([]biz.MergeKey, error) {
 	if !r.DBOk() {

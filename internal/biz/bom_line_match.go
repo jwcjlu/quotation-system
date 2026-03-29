@@ -20,6 +20,15 @@ import (
 //     both sides resolved via ResolveManufacturerCanonical; canonical IDs must be equal. If BOM mfr non-empty but BOM side
 //     misses alias table → entire line returns Ok=false (strict §2.3). Quote side miss → skip row.
 //   - Params/desc: V1 not compared (no extra BOM fields on this struct).
+//
+// BomManufacturerResolveHint 由外层在一次配单中预先解析需求厂牌后传入，避免每个平台重复查别
+// BomManufacturerResolveHint 由外层在一次配单中预先解析需求厂牌后传入，避免每个平台重复查别名表。
+// Hit=false 表示已确认别名未命中（等价于 lineMatchReasonBomManufacturerMiss）；Hit=true 时使用 CanonID。
+type BomManufacturerResolveHint struct {
+	CanonID string
+	Hit     bool
+}
+
 type LineMatchInput struct {
 	BomMpn           string
 	BomPackage       string // empty = no package constraint
@@ -32,6 +41,8 @@ type LineMatchInput struct {
 	BaseCCY          string
 	RoundingMode     string // QuantizeUnitPriceBase mode; see bom_match_sort
 	ParseTierStrings bool
+	// BomMfrHint 非 nil 时跳过对 BomMfr 的 ResolveManufacturerCanonical（按 Hit/CanonID 解释）。
+	BomMfrHint *BomManufacturerResolveHint
 }
 
 // LineMatchPick is the best quote for one BOM line on one platform cache row, after filters, price extract, FX, and sort (§1.10).
@@ -73,14 +84,21 @@ func PickBestQuoteForLine(ctx context.Context, in LineMatchInput, fx FXRateLooku
 	bomMfrTrim := strings.TrimSpace(in.BomMfr)
 	var bomCanonID string
 	if bomMfrTrim != "" {
-		id, hit, err := ResolveManufacturerCanonical(ctx, in.BomMfr, alias)
-		if err != nil {
-			return LineMatchPick{}, err
+		if in.BomMfrHint != nil {
+			if !in.BomMfrHint.Hit {
+				return LineMatchPick{Ok: false, Reason: lineMatchReasonBomManufacturerMiss}, nil
+			}
+			bomCanonID = in.BomMfrHint.CanonID
+		} else {
+			id, hit, err := ResolveManufacturerCanonical(ctx, in.BomMfr, alias)
+			if err != nil {
+				return LineMatchPick{}, err
+			}
+			if !hit {
+				return LineMatchPick{Ok: false, Reason: lineMatchReasonBomManufacturerMiss}, nil
+			}
+			bomCanonID = id
 		}
-		if !hit {
-			return LineMatchPick{Ok: false, Reason: lineMatchReasonBomManufacturerMiss}, nil
-		}
-		bomCanonID = id
 	}
 
 	var rows []AgentQuoteRow

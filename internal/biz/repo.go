@@ -91,6 +91,8 @@ type BOMSearchTaskRepo interface {
 	ListSearchTaskLookupsByCaichipTaskID(ctx context.Context, caichipTaskID string) ([]BOMSearchTaskLookup, error)
 	ListPendingLookupsByMergeKey(ctx context.Context, mpnNorm, platformID string, bizDate time.Time) ([]BOMSearchTaskLookup, error)
 	LoadQuoteCacheByMergeKey(ctx context.Context, mpnNorm, platformID string, bizDate time.Time) (*QuoteCacheSnapshot, bool, error)
+	// LoadQuoteCachesForKeys 按业务日批量加载报价缓存；返回 map 仅含命中行，键为 MpnNorm+"\x00"+PlatformID（与 Normalize 后一致）。
+	LoadQuoteCachesForKeys(ctx context.Context, bizDate time.Time, pairs []MpnPlatformPair) (map[string]*QuoteCacheSnapshot, error)
 	DistinctPendingMergeKeysForSession(ctx context.Context, sessionID string) ([]MergeKey, error)
 }
 

@@ -78,6 +78,41 @@ func TestLineMatch_TwoPricesFXCheaper(t *testing.T) {
 	}
 }
 
+func TestLineMatch_BomMfrHintMatchesResolve(t *testing.T) {
+	quotes := []byte(`[{"seq":1,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ $10.0000","hk_price":"","mainland_price":"","lead_time":"5天"}]`)
+	alias := stringAliasMap{"TI": "MFR_TI"}
+	ctx := context.Background()
+	base := LineMatchInput{
+		BomMpn:           "lm358",
+		BomPackage:       "SOP-8",
+		BomMfr:           "TI",
+		BomQty:           50,
+		PlatformID:       "find_chips",
+		QuotesJSON:       quotes,
+		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		BaseCCY:          "CNY",
+		RoundingMode:     "decimal6",
+		ParseTierStrings: true,
+	}
+	p1, err := PickBestQuoteForLine(ctx, base, fakeFX{USDToCNY: 7}, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in2 := base
+	in2.BomMfrHint = &BomManufacturerResolveHint{Hit: true, CanonID: "MFR_TI"}
+	p2, err := PickBestQuoteForLine(ctx, in2, fakeFX{USDToCNY: 7}, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p1.Ok || !p2.Ok {
+		t.Fatalf("ok p1=%v p2=%v r1=%q r2=%q", p1.Ok, p2.Ok, p1.Reason, p2.Reason)
+	}
+	if p1.RowIndex != p2.RowIndex || p1.UnitPriceBase != p2.UnitPriceBase {
+		t.Fatalf("pick mismatch p1=%+v p2=%+v", p1, p2)
+	}
+}
+
 func TestLineMatch_MfrMismatchCollected(t *testing.T) {
 	// BOM 要 TI；同型号封装有一条 ON Semi，应记入 MfrMismatchQuoteManufacturers，仍能从 TI 行配单成功。
 	quotes := []byte(`[

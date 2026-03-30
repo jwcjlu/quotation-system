@@ -43,7 +43,7 @@ import os
 import re
 import sys
 import time
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from DrissionPage import ChromiumPage, ChromiumOptions
 
@@ -205,6 +205,38 @@ def wait_for_manual_captcha_or_rate_limit(
     return False
 
 
+def icgoo_suggests_not_logged_in(page: ChromiumPage) -> bool:
+    """
+    根据当前页 URL / 文案判断是否像未登录访客（Cookie 失效、被重定向到登录等）。
+    用于在打开搜索页后决定是否需要走账号密码登录。
+    """
+    try:
+        path = (urlparse(page.url or "").path or "").lower().rstrip("/")
+        if path.endswith("/login"):
+            return True
+    except Exception:
+        pass
+    try:
+        html = page.html or ""
+    except Exception:
+        html = ""
+    if len(html) < 200:
+        return False
+    for needle in (
+        "请登录",
+        "登录后查看",
+        "登录后可见",
+        "登录后可",
+        "请先登录",
+        "立即登录查看",
+    ):
+        if needle in html:
+            return True
+    if re.search(r"登录\s*/\s*注册", html):
+        return True
+    return False
+
+
 def login_icgoo(
     page: ChromiumPage,
     username: str,
@@ -212,9 +244,14 @@ def login_icgoo(
     login_url: str = DEFAULT_LOGIN_URL,
     quiet: bool = False,
     captcha_wait_sec: float = 300.0,
+    wait_captcha_after_login: bool = True,
 ) -> None:
     """
     打开登录页并提交账号密码。站点为 Vue/Element UI，选择器多路兜底。
+
+    wait_captcha_after_login:
+      登录成功跳转后是否在**当前 URL**（常为首页 ``/?code=...``）上调用易盾/限流等待。
+      开发脚本若随后会 ``get`` 到搜索页，可设为 False，只在业务页面上做一次等待，避免在回调首页误拦。
     """
     if not quiet:
         print(f"登录页: {login_url}", flush=True)
@@ -317,9 +354,10 @@ def login_icgoo(
     if not quiet:
         print(f"登录后 URL: {page.url}", flush=True)
 
-    wait_for_manual_captcha_or_rate_limit(
-        page, timeout_sec=captcha_wait_sec, quiet=quiet
-    )
+    if wait_captcha_after_login:
+        wait_for_manual_captcha_or_rate_limit(
+            page, timeout_sec=captcha_wait_sec, quiet=quiet
+        )
 
 
 def setup_browser(headless: bool = True) -> ChromiumPage:

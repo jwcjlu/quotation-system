@@ -26,19 +26,24 @@ CLI:
   set ICGOO_PASSWORD=xxx
   python icgoo_crawler.py --model LAN8720AI-CP-TR
 
+**浏览器模式**：命令行未加 ``--no-headless`` 时 **默认无头**；``run_search`` / ``run_search_batch`` 的 ``headless`` 形参默认亦为 ``True``（无头），与 CLI 一致。需要可见窗口时请 ``--no-headless`` 或传入 ``headless=False``。
+
 若站点弹出验证码/滑块，无头模式可能失败，请使用 ``--no-headless`` 在可见窗口中手动完成
 易盾滑块/短信验证；脚本会轮询直到验证消失或出现 ``.yidun--success``。
 
 「您的搜索过于频繁」为服务端限流，需降低请求频率、换网络/账号，或隔一段时间再试；
 无法通过纯代码绕过，亦不建议对接打码平台（合规与稳定性风险）。
 
-依赖: pip install DrissionPage
+依赖: pip install DrissionPage（详见 requirements.txt）。
+
+运行日志写入当前工作目录 ``icgoo_crawler.log``；需控制台提示时同时输出到 stderr。
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import re
 import sys
@@ -55,11 +60,63 @@ except ImportError:
         sys.path.insert(0, _root)
     from crawler_cli import emit_json_stderr_error, emit_json_stdout
 
+try:
+    from icgoo_yidun_solver import (
+        IcgooBrowserDisconnectedError,
+        try_auto_solve_icgoo_yidun_slider,
+        yidun_still_requires_user_action,
+        YidunAutoSolveResult,
+    )
+except ImportError:
+    try_auto_solve_icgoo_yidun_slider = None  # type: ignore[assignment, misc]
+    yidun_still_requires_user_action = None  # type: ignore[assignment, misc]
+    IcgooBrowserDisconnectedError = RuntimeError  # type: ignore[misc, assignment]
+
 # 登录页（SPA，需等待 JS 渲染出表单）
 DEFAULT_LOGIN_URL = "https://www.icgoo.net/login"
 # 加载 Cookie 时优先用空白页，避免多一次打开 icgoo 首页触发易盾（失败再回退首页）
 ICGOO_ORIGIN = "https://www.icgoo.net/"
 _BLANK_PAGE = "about:blank"
+
+_LOG = logging.getLogger("icgoo_crawler")
+
+
+class _EchoConsoleFilter(logging.Filter):
+    """为 StreamHandler 使用：``extra={"echo_console": False}`` 时仅写文件、不刷 stderr。"""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return getattr(record, "echo_console", True)
+
+
+def _ensure_icgoo_logging() -> None:
+    if _LOG.handlers:
+        return
+    _LOG.setLevel(logging.INFO)
+    _LOG.propagate = False
+    fmt = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    log_path = os.path.join(os.getcwd(), "icgoo_crawler.log")
+    fh = logging.FileHandler(log_path, encoding="utf-8")
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(fmt)
+    sh = logging.StreamHandler(sys.stderr)
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(fmt)
+    sh.addFilter(_EchoConsoleFilter())
+    _LOG.addHandler(fh)
+    _LOG.addHandler(sh)
+
+
+def _icgoo_log(
+    level: int,
+    msg: str,
+    *,
+    echo_console: bool = True,
+) -> None:
+    _ensure_icgoo_logging()
+    _LOG.log(level, msg, extra={"echo_console": echo_console})
 
 
 def _get_credentials(
@@ -120,35 +177,112 @@ def save_icgoo_cookies_to_file(page: ChromiumPage, path: str, quiet: bool = Fals
         all_c = page.cookies(all_domains=True, all_info=True)
         filtered = [dict(c) for c in all_c if _cookie_dict_is_icgoo(c)]
         if not filtered:
-            if not quiet:
-                print("未找到 icgoo.net 相关 Cookie，跳过保存", flush=True)
+            _icgoo_log(
+                logging.INFO,
+                "未找到 icgoo.net 相关 Cookie，跳过保存",
+                echo_console=not quiet,
+            )
             return False
         parent = os.path.dirname(os.path.abspath(path))
         if parent and not os.path.isdir(parent):
             os.makedirs(parent, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(filtered, f, ensure_ascii=False, indent=2)
-        if not quiet:
-            print(f"已保存 {len(filtered)} 条 Cookie 到: {path}", flush=True)
+        _icgoo_log(
+            logging.INFO,
+            f"已保存 {len(filtered)} 条 Cookie 到: {path}",
+            echo_console=not quiet,
+        )
         return True
     except OSError as e:
-        if not quiet:
-            print(f"保存 Cookie 失败: {e}", flush=True)
+        _icgoo_log(
+            logging.ERROR,
+            f"保存 Cookie 失败: {e}",
+            echo_console=not quiet,
+        )
+        return False
+
+
+def _icgoo_rate_limit_ui_visible(page: ChromiumPage) -> bool:
+    """
+    「搜索过于频繁」是否对用户可见。
+
+    勿用 ``\"slide-frequently\" in page.html``：SPA 打包脚本、隐藏模板里常含该子串，
+    易盾已过后仍会误报，从而进 ``wait_for_manual``。
+    """
+    js = """
+    return (function(){
+      function visible(el){
+        if (!el) return false;
+        var st = getComputedStyle(el);
+        if (st.display === 'none' || st.visibility === 'hidden') return false;
+        var op = parseFloat(st.opacity);
+        if (!isNaN(op) && op < 0.05) return false;
+        var r = el.getBoundingClientRect();
+        return r.width > 8 && r.height > 8;
+      }
+      var box = document.getElementById('slide-frequently');
+      if (box && visible(box)) return true;
+      try {
+        var nodes = document.querySelectorAll('.frequently-text');
+        for (var i = 0; i < nodes.length; i++) {
+          if (visible(nodes[i])) return true;
+        }
+      } catch (e) {}
+      try {
+        var bt = (document.body && document.body.innerText) || '';
+        if (/您的搜索过于频繁/.test(bt)) return true;
+      } catch (e) {}
+      return false;
+    })();
+    """
+    try:
+        return page.run_js(js) is True
+    except Exception:
         return False
 
 
 def _has_icgoo_yidun_or_frequent_block(page: ChromiumPage) -> bool:
-    """是否出现网易易盾验证码或「搜索过于频繁」容器（#slide-frequently / .yidun）。"""
+    """
+    是否仍存在需处理的「搜索过于频繁」或易盾 **可见交互层**。
+
+    易盾通过后页面常保留隐藏 ``.yidun`` / ``img.yidun_jigsaw``，仅用 ``ele('.yidun')`` 会误报；
+    有 ``icgoo_yidun_solver`` 时改用与自动破解相同的 JS 探测。
+    """
+    if _icgoo_rate_limit_ui_visible(page):
+        return True
+
     try:
         html = page.html or ""
     except Exception:
         html = ""
-    if "您的搜索过于频繁" in html or "slide-frequently" in html:
-        return True
-    for sel in ("css:#slide-frequently", "css:.frequently-text", "css:.yidun", "css:.nc-container"):
+
+    low = html.lower()
+    has_yidun_trace = "yidun" in low or "nc-container" in html
+    if not has_yidun_trace:
         try:
-            el = page.ele(sel, timeout=0.4)
-            if el:
+            if page.ele("css:.yidun", timeout=0.25):
+                has_yidun_trace = True
+        except Exception:
+            pass
+        if not has_yidun_trace:
+            try:
+                if page.ele("css:.nc-container", timeout=0.2):
+                    has_yidun_trace = True
+            except Exception:
+                pass
+    if not has_yidun_trace:
+        return False
+
+    if yidun_still_requires_user_action is not None:
+        try:
+            return yidun_still_requires_user_action(page)
+        except Exception:
+            pass
+
+    for sel in ("css:.yidun", "css:.nc-container"):
+        try:
+            if page.ele(sel, timeout=0.4):
                 return True
         except Exception:
             continue
@@ -172,17 +306,19 @@ def wait_for_manual_captcha_or_rate_limit(
         "检测到易盾验证码或「搜索过于频繁」提示：请在浏览器窗口内完成滑块/短信验证；"
         "完成后脚本会自动继续…"
     )
+    _icgoo_log(logging.WARNING, msg, echo_console=True)
     if quiet:
-        # JSON 模式勿写 stdout
-        print(msg, file=sys.stderr, flush=True)
-        print(
+        _icgoo_log(
+            logging.WARNING,
             f"（最长等待 {timeout_sec:.0f} 秒；请加 --no-headless 以便操作浏览器）",
-            file=sys.stderr,
-            flush=True,
+            echo_console=True,
         )
     else:
-        print(msg, flush=True)
-        print(f"（最长等待 {timeout_sec:.0f} 秒，可按 Ctrl+C 中断）", flush=True)
+        _icgoo_log(
+            logging.WARNING,
+            f"（最长等待 {timeout_sec:.0f} 秒，可按 Ctrl+C 中断）",
+            echo_console=True,
+        )
     deadline = time.time() + timeout_sec
     while time.time() < deadline:
         time.sleep(poll_interval)
@@ -198,10 +334,7 @@ def wait_for_manual_captcha_or_rate_limit(
         if not _has_icgoo_yidun_or_frequent_block(page):
             return True
     err = "等待验证/限流解除超时，后续步骤可能仍被拦截。"
-    if quiet:
-        print(err, file=sys.stderr, flush=True)
-    else:
-        print(err, flush=True)
+    _icgoo_log(logging.ERROR, err, echo_console=True)
     return False
 
 
@@ -254,7 +387,7 @@ def login_icgoo(
       开发脚本若随后会 ``get`` 到搜索页，可设为 False，只在业务页面上做一次等待，避免在回调首页误拦。
     """
     if not quiet:
-        print(f"登录页: {login_url}", flush=True)
+        _icgoo_log(logging.INFO, f"登录页: {login_url}", echo_console=True)
     page.get(login_url)
     time.sleep(2)
 
@@ -352,7 +485,7 @@ def login_icgoo(
         # 再等一会 SPA 路由
         time.sleep(2)
     if not quiet:
-        print(f"登录后 URL: {page.url}", flush=True)
+        _icgoo_log(logging.INFO, f"登录后 URL: {page.url}", echo_console=True)
 
     if wait_captcha_after_login:
         wait_for_manual_captcha_or_rate_limit(
@@ -372,7 +505,7 @@ def setup_browser(headless: bool = True) -> ChromiumPage:
     if headless:
         co.set_argument("--headless=new")
     co.set_argument("--window-size=1400,900")
-    co.set_argument("--blink-settings=imagesEnabled=false")
+    # 勿关闭图片：网易易盾验证码依赖 <img> 正常加载，imagesEnabled=false 会导致拼图 src 长期为空、自动/手动滑块均失败。
     return ChromiumPage(co)
 
 
@@ -382,27 +515,80 @@ def search_url(keyword: str) -> str:
     return f"https://www.icgoo.net/search/{quote(keyword, safe='')}/1?t={ts}"
 
 
+def _maybe_auto_solve_yidun(
+    page: ChromiumPage, quiet: bool
+) -> "YidunAutoSolveResult | None":
+    """
+    若存在易盾拼图 img，尝试自动滑动；依赖 opencv / Pillow / 可选 ddddocr。
+    返回 ``None`` 表示未加载求解器或调用抛错（已记日志）；否则返回 ``YidunAutoSolveResult``。
+    """
+    if try_auto_solve_icgoo_yidun_slider is None:
+        if _has_icgoo_yidun_or_frequent_block(page):
+            _icgoo_log(
+                logging.WARNING,
+                "页面存在易盾或限流提示，但未加载 icgoo_yidun_solver（导入失败或缺依赖）。"
+                "请安装: pip install opencv-python-headless Pillow（可选 ddddocr），并查看同目录 icgoo_yidun_solver.log。",
+                echo_console=not quiet,
+            )
+        return None
+    try:
+        res = try_auto_solve_icgoo_yidun_slider(page, quiet=quiet)
+        if res.auto_solved:
+            _icgoo_log(
+                logging.INFO,
+                "易盾已由脚本自动验证通过，继续执行搜索与解析。",
+                echo_console=not quiet,
+            )
+        if not res:
+            _icgoo_log(
+                logging.WARNING,
+                "易盾自动破解已执行但未通过（返回失败），将进入手动等待。"
+                "请查看当前目录 icgoo_yidun_solver.log 中的缺口识别与滑动记录；"
+                "无头模式易失败时请使用 --no-headless 人工完成滑块。",
+                echo_console=not quiet,
+            )
+        return res
+    except IcgooBrowserDisconnectedError:
+        raise
+    except Exception as e:
+        _ensure_icgoo_logging()
+        _LOG.warning(
+            "易盾自动识别抛错 %s: %s，将进入手动等待。"
+            "请核对依赖（opencv-python-headless、Pillow、可选 ddddocr）与同目录 icgoo_yidun_solver.log。",
+            type(e).__name__,
+            e,
+            exc_info=True,
+            extra={"echo_console": not quiet},
+        )
+        return None
+
+
 def wait_for_results(page: ChromiumPage, timeout: float = 25.0, quiet: bool = False) -> bool:
-    """等待列表区域出现（多选择器兜底）。"""
-    selectors = [
-        "css:.el-table__body tbody tr",
-        "css:table tbody tr",
-        "xpath://table//tbody//tr[td]",
-        "css:[class*='table'] tbody tr",
-    ]
+    """等待列表区域出现（多选择器兜底：新版商品卡片 + 旧版表格）。"""
     deadline = time.time() + timeout
     while time.time() < deadline:
+        try:
+            cards = page.eles("css:.product-list-wrapper .product-card-item", timeout=1)
+            if not cards:
+                cards = page.eles("css:.product-list-wrapper [class*='ProductCard_container']", timeout=1)
+            if cards and len(cards) >= 1:
+                return True
+        except Exception:
+            pass
+        selectors = [
+            "css:.el-table__body tbody tr",
+            "css:table tbody tr",
+            "xpath://table//tbody//tr[td]",
+            "css:[class*='table'] tbody tr",
+        ]
         for sel in selectors:
             try:
                 rows = page.eles(sel, timeout=1)
                 if rows and len(rows) >= 1:
-                    # 排除只有表头的一行情况：至少一行有多个单元格
                     for r in rows[:3]:
                         try:
                             tds = r.eles("tag:td", timeout=0.2)
                             if len(tds) >= 3:
-                                if not quiet:
-                                    pass
                                 return True
                         except Exception:
                             continue
@@ -449,10 +635,214 @@ def _pick_model(cells: list[str], query_hint: str) -> str:
     return best or (cells[1] if len(cells) > 1 else cells[0] if cells else "N/A")
 
 
+def parse_product_cards_js(page: ChromiumPage, quiet: bool = True) -> list[dict]:
+    """解析新版搜索页 ``product-list-wrapper`` 内商品卡片（与 ickey 字段对齐）。
+
+    站点由表格改为 Vue 卡片后，类名带 CSS Modules 哈希；选择器用 ``[class*=\"...\"]`` 与结构兜底。
+
+    说明：DrissionPage 会把脚本包成 ``function(){ ... }`` 再执行（见 ``is_js_func`` / ``callFunctionOn``）。
+    若脚本写成 ``(function(){ return x; })();``，内层返回值不会传给外层，外层隐式 ``undefined``，
+    Python 侧得到 ``None``。因此这里只用「函数体 + ``return JSON.stringify(out)``」，不要外包 IIFE。
+
+    另：对象数组经 CDP 反序列化不稳定，故用 ``JSON.stringify`` + ``json.loads``。
+    """
+    js = r"""
+      function text(el){ return el ? (el.innerText || '').trim().replace(/\s+/g, ' ') : ''; }
+      function findSpec(card, keyword) {
+        var labels = card.querySelectorAll('[class*="specLabel"], [class*="SpecLabel"]');
+        for (var i = 0; i < labels.length; i++) {
+          var lab = labels[i];
+          if ((lab.textContent || '').indexOf(keyword) < 0) continue;
+          var par = lab.closest('[class*="specItem"]') || lab.closest('[class*="descriptionItem"]');
+          if (!par) continue;
+          var val = par.querySelector('[class*="specValue"], [class*="SpecValue"]');
+          return val ? text(val) : '';
+        }
+        return '';
+      }
+      function stockField(card, keyword) {
+        var labels = card.querySelectorAll('[class*="stockLabel"]');
+        for (var i = 0; i < labels.length; i++) {
+          if ((labels[i].textContent || '').indexOf(keyword) < 0) continue;
+          var par = labels[i].closest('[class*="stockItem"]');
+          if (!par) continue;
+          var val = par.querySelector('[class*="stockValue"]');
+          return val ? text(val).replace(/,/g, '') : '';
+        }
+        return '';
+      }
+      function parseRowPrice(row) {
+        var t = text(row);
+        if (t === '-' || !t) return {usd: '', cny: ''};
+        var m = t.match(/\$\s*([\d.]+)/);
+        var usd = m ? ('$' + m[1]) : '';
+        var m2 = t.match(/[￥¥]\s*([\d.]+)/);
+        var cny = m2 ? ('￥' + m2[1]) : '';
+        return {usd: usd, cny: cny};
+      }
+      function parsePrices(card) {
+        var tierEls = card.querySelectorAll('[class*="priceTierLabel"]');
+        var labels = [];
+        for (var i = 0; i < tierEls.length; i++) labels.push(text(tierEls[i]));
+        var valuesRoot = card.querySelector('[class*="priceValues"]');
+        if (!valuesRoot) return {hk_price: 'N/A', mainland_price: 'N/A', price_tiers: 'N/A'};
+        var cols = valuesRoot.querySelectorAll(':scope > [class*="priceValue"]');
+        var usdRows = [], cnyRows = [];
+        if (cols.length >= 2) {
+          usdRows = cols[0].querySelectorAll('[class*="priceRow"]');
+          cnyRows = cols[1].querySelectorAll('[class*="priceRow"]');
+        } else if (cols.length === 1) {
+          cnyRows = cols[0].querySelectorAll('[class*="priceRow"]');
+        }
+        var hkParts = [], cnParts = [];
+        var n = Math.max(labels.length, Math.max(usdRows.length, cnyRows.length));
+        for (var j = 0; j < n; j++) {
+          var lbl = labels[j] || '';
+          var u = '', c = '';
+          if (usdRows[j]) {
+            var pr = parseRowPrice(usdRows[j]);
+            u = pr.usd;
+            if (!c && pr.cny) c = pr.cny;
+          }
+          if (cnyRows[j]) {
+            var pr2 = parseRowPrice(cnyRows[j]);
+            if (!c && pr2.cny) c = pr2.cny;
+            if (!u && pr2.usd) u = pr2.usd;
+          }
+          if (u) hkParts.push(lbl + ' ' + u);
+          if (c) cnParts.push(lbl + ' ' + c);
+        }
+        var hk = hkParts.length ? hkParts.join(' | ') : 'N/A';
+        var cn = cnParts.length ? cnParts.join(' | ') : 'N/A';
+        var tiers = cn !== 'N/A' ? cn : hk;
+        return {hk_price: hk, mainland_price: cn, price_tiers: tiers};
+      }
+      function leadTime(card) {
+        var sec = card.querySelector('[class*="deliveryTimeSection"]');
+        if (!sec) return 'N/A';
+        var picked = '';
+        var infos = sec.querySelectorAll('[class*="deliveryInfo"]');
+        for (var i = 0; i < infos.length; i++) {
+          var info = infos[i];
+          var dot = info.querySelector('[class*="deliveryDot"]');
+          var selected = dot && dot.className.indexOf('selected') >= 0;
+          if (!selected) continue;
+          var sp = info.querySelector('[class*="deliveryText"]');
+          if (sp) { picked = text(sp); break; }
+        }
+        if (!picked && infos.length) {
+          var sp2 = infos[0].querySelector('[class*="deliveryText"]');
+          if (sp2) picked = text(sp2);
+        }
+        return picked || 'N/A';
+      }
+      var wrap = document.querySelector('.product-list-wrapper') ||
+        document.querySelector('[class*="product-list-wrapper"]');
+      var cards = [];
+      if (wrap) {
+        cards = wrap.querySelectorAll('.product-card-item');
+        if (!cards.length) cards = wrap.querySelectorAll('[class*="ProductCard_container"]');
+      }
+      if (!cards.length) {
+        cards = document.querySelectorAll('.product-card-item, [class*="ProductCard_container"]');
+      }
+      var out = [];
+      for (var k = 0; k < cards.length; k++) {
+        var card = cards[k];
+        var a = card.querySelector('a[href*="partno-detail"]');
+        var model = a ? text(a) : '';
+        if (!model) continue;
+        var manufacturer = findSpec(card, '品牌') || 'N/A';
+        var pkg = findSpec(card, '封装') || 'N/A';
+        if (pkg === '') pkg = 'N/A';
+        var desc = findSpec(card, '描述') || 'N/A';
+        if (desc === '') desc = 'N/A';
+        var batch = stockField(card, '批次');
+        if (batch) {
+          if (desc !== 'N/A') desc = desc + ' | 批次:' + batch;
+          else desc = '批次:' + batch;
+        }
+        var stock = stockField(card, '库存') || '0';
+        stock = stock.replace(/\s/g, '');
+        var moq = stockField(card, '起订量') || 'N/A';
+        var prices = parsePrices(card);
+        out.push({
+          model: model,
+          manufacturer: manufacturer,
+          package: pkg,
+          desc: desc,
+          stock: stock,
+          moq: moq,
+          price_tiers: prices.price_tiers,
+          hk_price: prices.hk_price,
+          mainland_price: prices.mainland_price,
+          lead_time: leadTime(card)
+        });
+      }
+      return JSON.stringify(out);
+    """
+    try:
+        raw = page.run_js(js)
+        if raw is None:
+            if not quiet:
+                _ensure_icgoo_logging()
+                _icgoo_log(logging.WARNING, "parse_product_cards_js: run_js 返回 None", echo_console=True)
+            return []
+        if isinstance(raw, str):
+            s = raw.strip()
+            if not s:
+                return []
+            try:
+                parsed = json.loads(s)
+            except json.JSONDecodeError as e:
+                if not quiet:
+                    _ensure_icgoo_logging()
+                    _icgoo_log(
+                        logging.WARNING,
+                        f"parse_product_cards_js: JSON 解析失败 {e}，片段={s[:200]!r}",
+                        echo_console=True,
+                    )
+                return []
+            raw = parsed
+        if not isinstance(raw, list):
+            if not quiet:
+                _ensure_icgoo_logging()
+                _icgoo_log(
+                    logging.WARNING,
+                    f"parse_product_cards_js: 期望 list，实际 {type(raw).__name__}",
+                    echo_console=True,
+                )
+            return []
+        out: list[dict] = []
+        for row in raw:
+            if isinstance(row, dict):
+                out.append(dict(row))
+        if not out and not quiet:
+            try:
+                n_wrap = page.run_js(
+                    "return document.querySelectorAll('.product-list-wrapper .product-card-item').length"
+                )
+                n_a = page.run_js('return document.querySelectorAll(\'a[href*="partno-detail"]\').length')
+                _ensure_icgoo_logging()
+                _icgoo_log(
+                    logging.WARNING,
+                    f"parse_product_cards_js: 解析 0 条；DOM 中 wrapper 下 .product-card-item={n_wrap}，"
+                    f"partno-detail 链接数={n_a}",
+                    echo_console=True,
+                )
+            except Exception:
+                pass
+        return out
+    except Exception as e:
+        if not quiet:
+            _ensure_icgoo_logging()
+            _icgoo_log(logging.WARNING, f"parse_product_cards_js: {e}", echo_console=True)
+        return []
+
+
 def parse_table_rows_js(page: ChromiumPage) -> list[list[str]]:
     """用 JS 抽取页面中最大表格的 tbody 行文本。"""
     js = """
-    (function(){
       var tables = document.querySelectorAll('table');
       var bestRows = [];
       for (var i = 0; i < tables.length; i++) {
@@ -468,7 +858,6 @@ def parse_table_rows_js(page: ChromiumPage) -> list[list[str]]:
           return (td.innerText || '').trim().replace(/\\s+/g, ' ');
         });
       });
-    })();
     """
     try:
         raw = page.run_js(js)
@@ -534,9 +923,24 @@ def cells_to_item(seq: int, cells: list[str], query_model: str) -> dict | None:
 
 
 def parse_search_results(page: ChromiumPage, query_model: str, quiet: bool = False) -> list[dict]:
+    # 新版：商品卡片列表（product-list-wrapper）
+    card_rows = parse_product_cards_js(page, quiet=quiet)
+    if card_rows:
+        results: list[dict] = []
+        seq = 0
+        for it in card_rows:
+            model = (it.get("model") or "").strip()
+            if not model or model == "N/A":
+                continue
+            seq += 1
+            it["seq"] = seq
+            it["query_model"] = query_model
+            results.append(it)
+        if results:
+            return results
+
     rows = parse_table_rows_js(page)
     if not rows and not quiet:
-        # 再试 DrissionPage 直接取行
         try:
             trs = page.eles("css:.el-table__body tbody tr", timeout=2) or page.eles(
                 "css:table tbody tr", timeout=2
@@ -547,7 +951,7 @@ def parse_search_results(page: ChromiumPage, query_model: str, quiet: bool = Fal
         except Exception:
             pass
 
-    results: list[dict] = []
+    results = []
     seq = 0
     for cells in rows:
         item = cells_to_item(seq + 1, cells, query_model)
@@ -560,7 +964,7 @@ def parse_search_results(page: ChromiumPage, query_model: str, quiet: bool = Fal
 
 def run_search(
     keyword: str,
-    headless: bool = False,
+    headless: bool = True,
     quiet: bool = False,
     query_model: str | None = None,
     page: ChromiumPage | None = None,
@@ -585,10 +989,7 @@ def run_search(
             cookies_ok = load_icgoo_cookies_from_file(page, cookies_path)
             if cookies_ok:
                 msg = "已加载 Cookie，跳过登录（减少登录页易盾触发）"
-                if quiet:
-                    print(msg, file=sys.stderr, flush=True)
-                else:
-                    print(msg, flush=True)
+                _icgoo_log(logging.INFO, msg, echo_console=True)
 
         did_login = False
         if not cookies_ok and u and p and not skip_login:
@@ -602,22 +1003,34 @@ def run_search(
             )
             did_login = True
         elif not cookies_ok and not quiet and not (u and p) and not skip_login:
-            print("未设置 ICGOO_USERNAME/ICGOO_PASSWORD，跳过登录（搜索可能无数据）", flush=True)
+            _icgoo_log(
+                logging.WARNING,
+                "未设置 ICGOO_USERNAME/ICGOO_PASSWORD，跳过登录（搜索可能无数据）",
+                echo_console=True,
+            )
 
         if did_login and save_cookies_to:
             save_icgoo_cookies_to_file(page, save_cookies_to, quiet=quiet)
 
         url = search_url(keyword)
         if not quiet:
-            print(f"打开: {url}", flush=True)
+            _icgoo_log(logging.INFO, f"打开: {url}", echo_console=True)
         page.get(url)
         time.sleep(2)
+        yidun_res = _maybe_auto_solve_yidun(page, quiet=quiet)
+        if yidun_res is not None and yidun_res.auto_solved:
+            # 自动通过后 success 类 / 隐藏拼图可能晚半拍才写入，避免立刻误判需手动等待
+            time.sleep(2)
         wait_for_manual_captcha_or_rate_limit(
             page, timeout_sec=captcha_wait_sec, quiet=quiet
         )
         if not wait_for_results(page, timeout=22, quiet=quiet):
             if not quiet:
-                print("等待结果超时，尝试继续解析当前 DOM", flush=True)
+                _icgoo_log(
+                    logging.WARNING,
+                    "等待结果超时，尝试继续解析当前 DOM",
+                    echo_console=True,
+                )
             time.sleep(3)
         else:
             time.sleep(1)
@@ -668,15 +1081,16 @@ def run_search_batch(
         for i, model in enumerate(models):
             if i > 0 and request_delay_sec > 0:
                 if quiet:
-                    print(
+                    _icgoo_log(
+                        logging.INFO,
                         f"型号间隔 {request_delay_sec:.1f}s（降低频繁访问触发易盾/限流）",
-                        file=sys.stderr,
-                        flush=True,
+                        echo_console=True,
                     )
                 else:
-                    print(
+                    _icgoo_log(
+                        logging.INFO,
                         f"等待 {request_delay_sec:.1f}s 再搜下一型号…",
-                        flush=True,
+                        echo_console=True,
                     )
                 time.sleep(request_delay_sec)
             chunk = run_search(
@@ -808,9 +1222,9 @@ def main() -> None:
 
     # 交互调试
     kw = "LAN8720AI-CP-TR"
-    print("ICGOO 爬虫调试模式，关键词:", kw)
+    _icgoo_log(logging.INFO, f"ICGOO 爬虫调试模式，关键词: {kw}", echo_console=True)
     rs = run_search(kw, headless=True, quiet=False)
-    print(json.dumps(rs, ensure_ascii=False, indent=2))
+    _icgoo_log(logging.INFO, json.dumps(rs, ensure_ascii=False, indent=2), echo_console=True)
 
 
 if __name__ == "__main__":

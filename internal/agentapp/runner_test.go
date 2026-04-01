@@ -109,13 +109,14 @@ func TestResolveEntry(t *testing.T) {
 func TestRunTask_Skipped(t *testing.T) {
 	log := discardLogger()
 
-	file := "szlcsc_crawler.py"
+	file := "icgoo_crawler.py"
 	st, code, stdout, msg := RunTask("D:\\tmp", &v1.TaskObject{
-		TaskId:         "111111",
-		ScriptId:       "szlcsc",
-		Version:        "0.0.1",
-		EntryFile:      &file,
-		Argv:           []string{"--model", "TS5A3159DCKR", "--parse-workers", "8"},
+		TaskId:    "111111",
+		ScriptId:  "icgoo",
+		Version:   "0.0.1",
+		EntryFile: &file,
+		Argv: []string{"--model", "TS5A3159DCKR", "--parse-workers", "8",
+			"--user", "18025478083", "--password", "jw123456", "--no-headless"},
 		Params:         nil,
 		TimeoutSec:     300,
 		LeaseId:        "",

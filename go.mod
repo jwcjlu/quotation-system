@@ -7,6 +7,7 @@ require (
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.7.0
+	github.com/panjf2000/ants/v2 v2.11.3
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/xuri/excelize/v2 v2.10.1
 	golang.org/x/text v0.34.0
@@ -28,7 +29,6 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/panjf2000/ants/v2 v2.11.3 // indirect
 	github.com/richardlehane/mscfb v1.0.6 // indirect
 	github.com/richardlehane/msoleps v1.0.6 // indirect
 	github.com/tiendc/go-deepcopy v1.7.2 // indirect

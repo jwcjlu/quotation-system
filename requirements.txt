@@ -1,4 +1,11 @@
 requests>=2.28.0
+# scripts/icgoo_crawler.py：Chromium 自动化与搜索页解析
+DrissionPage>=4.0.0
+# scripts/icgoo_yidun_solver.py（icgoo_crawler 自动易盾）：Pillow+OpenCV 必需；ddddocr 优先，导入失败时走纯 OpenCV shim（无需 onnx）
+ddddocr>=1.4.0
+Pillow>=9.0.0
+opencv-python-headless>=4.5.0
+# scripts/icgoo_crawler_dev.py 与上列相同（调试脚本）
 # find_chips.py 离线验证 --validate-html
 beautifulsoup4>=4.12.0
 # 可选：使用浏览器模式绕过验证码时安装

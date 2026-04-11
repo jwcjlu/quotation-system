@@ -23,6 +23,7 @@ type CaichipDispatchTask struct {
 	LeasedToAgentID sql.NullString `gorm:"column:leased_to_agent_id;size:64;index:idx_dispatch_leased_agent,priority:1"`
 	LeasedAt        *time.Time     `gorm:"column:leased_at;precision:3"`
 	LeaseDeadlineAt *time.Time     `gorm:"column:lease_deadline_at;precision:3"`
+	NextClaimAt     *time.Time     `gorm:"column:next_claim_at;precision:3"`
 	FinishedAt      *time.Time     `gorm:"column:finished_at;precision:3"`
 	ResultStatus    sql.NullString `gorm:"column:result_status;size:32"`
 	LastError       sql.NullString `gorm:"column:last_error;type:text"`
@@ -160,13 +161,29 @@ type BomMergeInflight struct {
 
 func (BomMergeInflight) TableName() string { return TableBomMergeInflight }
 
+// BomMergeProxyWait BOM 合并键代理获取失败退避（策略 B）；表 t_bom_merge_proxy_wait。
+type BomMergeProxyWait struct {
+	MpnNorm       string     `gorm:"column:mpn_norm;size:256;primaryKey"`
+	PlatformID    string     `gorm:"column:platform_id;size:32;primaryKey"`
+	BizDate       time.Time  `gorm:"column:biz_date;type:date;primaryKey"`
+	NextRetryAt   time.Time  `gorm:"column:next_retry_at;precision:3;not null;index:idx_bom_merge_proxy_wait_next"`
+	Attempt       int        `gorm:"column:attempt;not null;default:0"`
+	LastError     string     `gorm:"column:last_error;type:text"`
+	FirstFailedAt *time.Time `gorm:"column:first_failed_at;precision:3"`
+	CreatedAt     time.Time  `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (BomMergeProxyWait) TableName() string { return TableBomMergeProxyWait }
+
 // BomPlatformScript 对应 t_bom_platform_script（平台与 Agent 脚本映射）。
 type BomPlatformScript struct {
-	PlatformID  string    `gorm:"column:platform_id;size:32;primaryKey"`
-	ScriptID    string    `gorm:"column:script_id;size:128;not null"`
-	DisplayName *string   `gorm:"column:display_name;size:128"`
-	Enabled     bool      `gorm:"column:enabled;not null;default:true"`
-	UpdatedAt   time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+	PlatformID    string    `gorm:"column:platform_id;size:32;primaryKey"`
+	ScriptID      string    `gorm:"column:script_id;size:128;not null"`
+	DisplayName   *string   `gorm:"column:display_name;size:128"`
+	Enabled       bool      `gorm:"column:enabled;not null;default:true"`
+	RunParamsJSON []byte    `gorm:"column:run_params;type:json"`
+	UpdatedAt     time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
 }
 
 func (BomPlatformScript) TableName() string { return TableBomPlatformScript }

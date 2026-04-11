@@ -1,13 +1,27 @@
-requests>=2.28.0
-# scripts/icgoo_crawler.py：Chromium 自动化与搜索页解析
+# -----------------------------------------------------------------------------
+# scripts/icgoo_crawler.py
+#   核心：Chromium 自动化与搜索页解析（DrissionPage）。
+#   自动滑块：icgoo_yidun_solver → icgoo_aliyun_captcha / icgoo_aliyun_gap（易盾+阿里云）。
+#   安装：pip install -r requirements.txt
+# -----------------------------------------------------------------------------
 DrissionPage>=4.0.0
-# scripts/icgoo_yidun_solver.py（icgoo_crawler 自动易盾）：Pillow+OpenCV 必需；ddddocr 优先，导入失败时走纯 OpenCV shim（无需 onnx）
-ddddocr>=1.4.0
 Pillow>=9.0.0
 opencv-python-headless>=4.5.0
-# scripts/icgoo_crawler_dev.py 与上列相同（调试脚本）
+numpy>=1.20.0
+# ddddocr：缺口识别优先；未安装或 ONNX 失败时 icgoo_yidun_solver 会回退纯 OpenCV shim
+ddddocr>=1.4.0
+# 可选：阿里云 ensemble 的 puzzle-slider-captcha 候选（见 icgoo_yidun_solver）
+# puzzle-slider-captcha>=0.1.0
+
+# -----------------------------------------------------------------------------
+# 仓库内其他脚本
+# -----------------------------------------------------------------------------
+requests>=2.28.0
 # find_chips.py 离线验证 --validate-html
 beautifulsoup4>=4.12.0
+
+# scripts/icgoo_crawler_dev.py 与 icgoo_crawler.py 共用上述滑块相关依赖
+
 # 可选：使用浏览器模式绕过验证码时安装
 # selenium>=4.0.0
 # webdriver-manager>=4.0.0

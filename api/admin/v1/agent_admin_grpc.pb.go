@@ -25,6 +25,10 @@ const (
 	AgentAdminService_ListAgentScriptAuths_FullMethodName      = "/api.admin.v1.AgentAdminService/ListAgentScriptAuths"
 	AgentAdminService_UpsertAgentScriptAuth_FullMethodName     = "/api.admin.v1.AgentAdminService/UpsertAgentScriptAuth"
 	AgentAdminService_DeleteAgentScriptAuth_FullMethodName     = "/api.admin.v1.AgentAdminService/DeleteAgentScriptAuth"
+	AgentAdminService_ListBomPlatforms_FullMethodName          = "/api.admin.v1.AgentAdminService/ListBomPlatforms"
+	AgentAdminService_GetBomPlatform_FullMethodName            = "/api.admin.v1.AgentAdminService/GetBomPlatform"
+	AgentAdminService_UpsertBomPlatform_FullMethodName         = "/api.admin.v1.AgentAdminService/UpsertBomPlatform"
+	AgentAdminService_DeleteBomPlatform_FullMethodName         = "/api.admin.v1.AgentAdminService/DeleteBomPlatform"
 )
 
 // AgentAdminServiceClient is the client API for AgentAdminService service.
@@ -40,6 +44,11 @@ type AgentAdminServiceClient interface {
 	ListAgentScriptAuths(ctx context.Context, in *ListAgentScriptAuthsRequest, opts ...grpc.CallOption) (*ListAgentScriptAuthsReply, error)
 	UpsertAgentScriptAuth(ctx context.Context, in *UpsertAgentScriptAuthRequest, opts ...grpc.CallOption) (*UpsertAgentScriptAuthReply, error)
 	DeleteAgentScriptAuth(ctx context.Context, in *DeleteAgentScriptAuthRequest, opts ...grpc.CallOption) (*DeleteAgentScriptAuthReply, error)
+	// BOM 采集平台（platform_id 与 script_id 一一对应；run_params 为键值对象，服务端展开为 TaskObject.argv 前缀）
+	ListBomPlatforms(ctx context.Context, in *ListBomPlatformsRequest, opts ...grpc.CallOption) (*ListBomPlatformsReply, error)
+	GetBomPlatform(ctx context.Context, in *GetBomPlatformRequest, opts ...grpc.CallOption) (*GetBomPlatformReply, error)
+	UpsertBomPlatform(ctx context.Context, in *UpsertBomPlatformRequest, opts ...grpc.CallOption) (*UpsertBomPlatformReply, error)
+	DeleteBomPlatform(ctx context.Context, in *DeleteBomPlatformRequest, opts ...grpc.CallOption) (*DeleteBomPlatformReply, error)
 }
 
 type agentAdminServiceClient struct {
@@ -110,6 +119,46 @@ func (c *agentAdminServiceClient) DeleteAgentScriptAuth(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *agentAdminServiceClient) ListBomPlatforms(ctx context.Context, in *ListBomPlatformsRequest, opts ...grpc.CallOption) (*ListBomPlatformsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListBomPlatformsReply)
+	err := c.cc.Invoke(ctx, AgentAdminService_ListBomPlatforms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentAdminServiceClient) GetBomPlatform(ctx context.Context, in *GetBomPlatformRequest, opts ...grpc.CallOption) (*GetBomPlatformReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBomPlatformReply)
+	err := c.cc.Invoke(ctx, AgentAdminService_GetBomPlatform_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentAdminServiceClient) UpsertBomPlatform(ctx context.Context, in *UpsertBomPlatformRequest, opts ...grpc.CallOption) (*UpsertBomPlatformReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpsertBomPlatformReply)
+	err := c.cc.Invoke(ctx, AgentAdminService_UpsertBomPlatform_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentAdminServiceClient) DeleteBomPlatform(ctx context.Context, in *DeleteBomPlatformRequest, opts ...grpc.CallOption) (*DeleteBomPlatformReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteBomPlatformReply)
+	err := c.cc.Invoke(ctx, AgentAdminService_DeleteBomPlatform_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AgentAdminServiceServer is the server API for AgentAdminService service.
 // All implementations must embed UnimplementedAgentAdminServiceServer
 // for forward compatibility.
@@ -123,6 +172,11 @@ type AgentAdminServiceServer interface {
 	ListAgentScriptAuths(context.Context, *ListAgentScriptAuthsRequest) (*ListAgentScriptAuthsReply, error)
 	UpsertAgentScriptAuth(context.Context, *UpsertAgentScriptAuthRequest) (*UpsertAgentScriptAuthReply, error)
 	DeleteAgentScriptAuth(context.Context, *DeleteAgentScriptAuthRequest) (*DeleteAgentScriptAuthReply, error)
+	// BOM 采集平台（platform_id 与 script_id 一一对应；run_params 为键值对象，服务端展开为 TaskObject.argv 前缀）
+	ListBomPlatforms(context.Context, *ListBomPlatformsRequest) (*ListBomPlatformsReply, error)
+	GetBomPlatform(context.Context, *GetBomPlatformRequest) (*GetBomPlatformReply, error)
+	UpsertBomPlatform(context.Context, *UpsertBomPlatformRequest) (*UpsertBomPlatformReply, error)
+	DeleteBomPlatform(context.Context, *DeleteBomPlatformRequest) (*DeleteBomPlatformReply, error)
 	mustEmbedUnimplementedAgentAdminServiceServer()
 }
 
@@ -150,6 +204,18 @@ func (UnimplementedAgentAdminServiceServer) UpsertAgentScriptAuth(context.Contex
 }
 func (UnimplementedAgentAdminServiceServer) DeleteAgentScriptAuth(context.Context, *DeleteAgentScriptAuthRequest) (*DeleteAgentScriptAuthReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteAgentScriptAuth not implemented")
+}
+func (UnimplementedAgentAdminServiceServer) ListBomPlatforms(context.Context, *ListBomPlatformsRequest) (*ListBomPlatformsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListBomPlatforms not implemented")
+}
+func (UnimplementedAgentAdminServiceServer) GetBomPlatform(context.Context, *GetBomPlatformRequest) (*GetBomPlatformReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBomPlatform not implemented")
+}
+func (UnimplementedAgentAdminServiceServer) UpsertBomPlatform(context.Context, *UpsertBomPlatformRequest) (*UpsertBomPlatformReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpsertBomPlatform not implemented")
+}
+func (UnimplementedAgentAdminServiceServer) DeleteBomPlatform(context.Context, *DeleteBomPlatformRequest) (*DeleteBomPlatformReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteBomPlatform not implemented")
 }
 func (UnimplementedAgentAdminServiceServer) mustEmbedUnimplementedAgentAdminServiceServer() {}
 func (UnimplementedAgentAdminServiceServer) testEmbeddedByValue()                           {}
@@ -280,6 +346,78 @@ func _AgentAdminService_DeleteAgentScriptAuth_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentAdminService_ListBomPlatforms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBomPlatformsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentAdminServiceServer).ListBomPlatforms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentAdminService_ListBomPlatforms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentAdminServiceServer).ListBomPlatforms(ctx, req.(*ListBomPlatformsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentAdminService_GetBomPlatform_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBomPlatformRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentAdminServiceServer).GetBomPlatform(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentAdminService_GetBomPlatform_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentAdminServiceServer).GetBomPlatform(ctx, req.(*GetBomPlatformRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentAdminService_UpsertBomPlatform_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpsertBomPlatformRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentAdminServiceServer).UpsertBomPlatform(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentAdminService_UpsertBomPlatform_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentAdminServiceServer).UpsertBomPlatform(ctx, req.(*UpsertBomPlatformRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentAdminService_DeleteBomPlatform_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteBomPlatformRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentAdminServiceServer).DeleteBomPlatform(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentAdminService_DeleteBomPlatform_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentAdminServiceServer).DeleteBomPlatform(ctx, req.(*DeleteBomPlatformRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AgentAdminService_ServiceDesc is the grpc.ServiceDesc for AgentAdminService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -310,6 +448,22 @@ var AgentAdminService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteAgentScriptAuth",
 			Handler:    _AgentAdminService_DeleteAgentScriptAuth_Handler,
+		},
+		{
+			MethodName: "ListBomPlatforms",
+			Handler:    _AgentAdminService_ListBomPlatforms_Handler,
+		},
+		{
+			MethodName: "GetBomPlatform",
+			Handler:    _AgentAdminService_GetBomPlatform_Handler,
+		},
+		{
+			MethodName: "UpsertBomPlatform",
+			Handler:    _AgentAdminService_UpsertBomPlatform_Handler,
+		},
+		{
+			MethodName: "DeleteBomPlatform",
+			Handler:    _AgentAdminService_DeleteBomPlatform_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

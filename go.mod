@@ -7,10 +7,12 @@ require (
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.7.0
+	github.com/kuaidaili/golang-sdk v0.0.0-20230320090841-d45067e83a89
 	github.com/panjf2000/ants/v2 v2.11.3
 	github.com/sashabaranov/go-openai v1.41.2
 	github.com/xuri/excelize/v2 v2.10.1
 	golang.org/x/text v0.34.0
+	golang.org/x/time v0.11.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260316180232-0b37fe3546d5
 	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11

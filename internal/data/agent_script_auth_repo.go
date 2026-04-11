@@ -45,6 +45,54 @@ func (r *AgentScriptAuthRepo) CipherConfigured() bool {
 	return r != nil && r.cipher != nil
 }
 
+func (r *AgentScriptAuthRepo) fetchAuthRow(ctx context.Context, agentID, scriptID string) (CaichipAgentScriptAuth, bool, error) {
+	if !r.DBOk() {
+		return CaichipAgentScriptAuth{}, false, ErrDispatchTaskNoDB
+	}
+	agentID = strings.TrimSpace(agentID)
+	scriptID = strings.TrimSpace(scriptID)
+	if agentID == "" || scriptID == "" {
+		return CaichipAgentScriptAuth{}, false, nil
+	}
+	var row CaichipAgentScriptAuth
+	q := r.db.WithContext(ctx).Where("agent_id = ? AND script_id = ?", agentID, scriptID).First(&row)
+	if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+		return CaichipAgentScriptAuth{}, false, nil
+	}
+	if q.Error != nil {
+		return CaichipAgentScriptAuth{}, false, q.Error
+	}
+	return row, true, nil
+}
+
+// decryptStoredPassword 将库内密文解密为明文（缓存命中时用）。
+func (r *AgentScriptAuthRepo) decryptStoredPassword(cipherText string) (string, error) {
+	if r == nil || r.cipher == nil {
+		return "", errors.New("agent script auth: cipher not configured")
+	}
+	return r.cipher.decryptString(strings.TrimSpace(cipherText))
+}
+
+// GetPlatformAuthMaterial 返回库内 username 与 password 密文（不解密）；无行时 ok=false。
+func (r *AgentScriptAuthRepo) GetPlatformAuthMaterial(ctx context.Context, agentID, scriptID string) (username, cipherText string, ok bool, err error) {
+	if !r.DBOk() {
+		return "", "", false, ErrDispatchTaskNoDB
+	}
+	if !r.CipherConfigured() {
+		return "", "", false, nil
+	}
+	row, ok, err := r.fetchAuthRow(ctx, agentID, scriptID)
+	if err != nil || !ok {
+		return "", "", false, err
+	}
+	u := strings.TrimSpace(row.Username)
+	ct := strings.TrimSpace(row.PasswordCipher)
+	if u == "" || ct == "" {
+		return "", "", false, nil
+	}
+	return u, ct, true, nil
+}
+
 // GetPlatformAuth 解密密码；无行或解密失败时 ok=false（err 仅表示 DB 错误）。
 func (r *AgentScriptAuthRepo) GetPlatformAuth(ctx context.Context, agentID, scriptID string) (username, password string, ok bool, err error) {
 	if !r.DBOk() {
@@ -53,18 +101,9 @@ func (r *AgentScriptAuthRepo) GetPlatformAuth(ctx context.Context, agentID, scri
 	if !r.CipherConfigured() {
 		return "", "", false, nil
 	}
-	agentID = strings.TrimSpace(agentID)
-	scriptID = strings.TrimSpace(scriptID)
-	if agentID == "" || scriptID == "" {
-		return "", "", false, nil
-	}
-	var row CaichipAgentScriptAuth
-	q := r.db.WithContext(ctx).Where("agent_id = ? AND script_id = ?", agentID, scriptID).First(&row)
-	if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-		return "", "", false, nil
-	}
-	if q.Error != nil {
-		return "", "", false, q.Error
+	row, ok, err := r.fetchAuthRow(ctx, agentID, scriptID)
+	if err != nil || !ok {
+		return "", "", false, err
 	}
 	u := strings.TrimSpace(row.Username)
 	cipherText := strings.TrimSpace(row.PasswordCipher)

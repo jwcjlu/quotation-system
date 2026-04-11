@@ -177,6 +177,10 @@ HTTP 状态码与业务错误：
 | `tasks[].entry_file` | string \| null | 相对包根路径；`null` 表示使用 `main.py`/`run.py` 约定。 |
 | `tasks[].argv` | string[] | 传给 Python 的额外参数（可选）。 |
 | `tasks[].params` | object | JSON 参数，由脚本约定读取方式（如环境变量 `CAICHIP_TASK_PARAMS`）。 |
+| `tasks[].params.proxy_host` | string | **可选**。平台 `require_proxy` 且中心侧已取到私密代理时下发；Agent 应为该任务设置 HTTP(S) 代理（如 `HTTP_PROXY`/`HTTPS_PROXY` 或脚本约定）。 |
+| `tasks[].params.proxy_port` | number | **可选**。与 `proxy_host` 成对出现。 |
+| `tasks[].params.proxy_user` | string | **可选**。代理鉴权用户名（快代理 `f_auth=1` 等场景）。 |
+| `tasks[].params.proxy_password` | string | **可选**。代理鉴权密码；日志与落库侧应打码。 |
 | `tasks[].timeout_sec` | int | **可选**。任务执行超时（秒），由 **下发任务** 指定；**省略时 Agent 默认 `300`（5 分钟）**。Agent 在本地计时，**超时则终止该任务进程组**（含子进程）并上报 **`status=timeout`**（需求文档 §6.2）。 |
 | `tasks[].lease_id` | string | **可选**（建议有）。本次 **派发租约 ID**；结果上报 **须回传**，供服务端识别 **重派** 与拒收 **迟到结果**（需求文档 §6.4）。 |
 | `tasks[].idempotency_key` | string | 可选幂等键。 |

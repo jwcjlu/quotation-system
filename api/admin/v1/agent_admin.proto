@@ -3,6 +3,7 @@ syntax = "proto3";
 package api.admin.v1;
 
 import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "caichip/api/admin/v1;v1";
@@ -39,6 +40,28 @@ service AgentAdminService {
   rpc DeleteAgentScriptAuth(DeleteAgentScriptAuthRequest) returns (DeleteAgentScriptAuthReply) {
     option (google.api.http) = {
       delete: "/api/v1/admin/agents/{agent_id}/script-auths/{script_id}"
+    };
+  }
+  // BOM 采集平台（platform_id 与 script_id 一一对应；run_params 为键值对象，服务端展开为 TaskObject.argv 前缀）
+  rpc ListBomPlatforms(ListBomPlatformsRequest) returns (ListBomPlatformsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/bom-platforms"
+    };
+  }
+  rpc GetBomPlatform(GetBomPlatformRequest) returns (GetBomPlatformReply) {
+    option (google.api.http) = {
+      get: "/api/v1/admin/bom-platforms/{platform_id}"
+    };
+  }
+  rpc UpsertBomPlatform(UpsertBomPlatformRequest) returns (UpsertBomPlatformReply) {
+    option (google.api.http) = {
+      put: "/api/v1/admin/bom-platforms/{platform_id}"
+      body: "*"
+    };
+  }
+  rpc DeleteBomPlatform(DeleteBomPlatformRequest) returns (DeleteBomPlatformReply) {
+    option (google.api.http) = {
+      delete: "/api/v1/admin/bom-platforms/{platform_id}"
     };
   }
 }
@@ -121,3 +144,46 @@ message DeleteAgentScriptAuthRequest {
 }
 
 message DeleteAgentScriptAuthReply {}
+
+// ========== BOM 采集平台 ==========
+
+message ListBomPlatformsRequest {}
+
+message BomPlatformRow {
+  string platform_id = 1;
+  string script_id = 2;
+  string display_name = 3;
+  bool enabled = 4;
+  google.protobuf.Struct run_params = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message ListBomPlatformsReply {
+  repeated BomPlatformRow items = 1;
+}
+
+message GetBomPlatformRequest {
+  string platform_id = 1;
+}
+
+message GetBomPlatformReply {
+  BomPlatformRow item = 1;
+}
+
+message UpsertBomPlatformRequest {
+  string platform_id = 1;
+  string script_id = 2;
+  string display_name = 3;
+  bool enabled = 4;
+  google.protobuf.Struct run_params = 5;
+}
+
+message UpsertBomPlatformReply {
+  BomPlatformRow item = 1;
+}
+
+message DeleteBomPlatformRequest {
+  string platform_id = 1;
+}
+
+message DeleteBomPlatformReply {}

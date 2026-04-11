@@ -20,20 +20,29 @@ var _ = binding.EncodeURL
 const _ = http.SupportPackageIsVersion1
 
 const OperationAgentAdminServiceDeleteAgentScriptAuth = "/api.admin.v1.AgentAdminService/DeleteAgentScriptAuth"
+const OperationAgentAdminServiceDeleteBomPlatform = "/api.admin.v1.AgentAdminService/DeleteBomPlatform"
+const OperationAgentAdminServiceGetBomPlatform = "/api.admin.v1.AgentAdminService/GetBomPlatform"
 const OperationAgentAdminServiceListAgentInstalledScripts = "/api.admin.v1.AgentAdminService/ListAgentInstalledScripts"
 const OperationAgentAdminServiceListAgentLeasedTasks = "/api.admin.v1.AgentAdminService/ListAgentLeasedTasks"
 const OperationAgentAdminServiceListAgentScriptAuths = "/api.admin.v1.AgentAdminService/ListAgentScriptAuths"
 const OperationAgentAdminServiceListAgents = "/api.admin.v1.AgentAdminService/ListAgents"
+const OperationAgentAdminServiceListBomPlatforms = "/api.admin.v1.AgentAdminService/ListBomPlatforms"
 const OperationAgentAdminServiceUpsertAgentScriptAuth = "/api.admin.v1.AgentAdminService/UpsertAgentScriptAuth"
+const OperationAgentAdminServiceUpsertBomPlatform = "/api.admin.v1.AgentAdminService/UpsertBomPlatform"
 
 type AgentAdminServiceHTTPServer interface {
 	DeleteAgentScriptAuth(context.Context, *DeleteAgentScriptAuthRequest) (*DeleteAgentScriptAuthReply, error)
+	DeleteBomPlatform(context.Context, *DeleteBomPlatformRequest) (*DeleteBomPlatformReply, error)
+	GetBomPlatform(context.Context, *GetBomPlatformRequest) (*GetBomPlatformReply, error)
 	ListAgentInstalledScripts(context.Context, *ListAgentInstalledScriptsRequest) (*ListAgentInstalledScriptsReply, error)
 	ListAgentLeasedTasks(context.Context, *ListAgentLeasedTasksRequest) (*ListAgentLeasedTasksReply, error)
 	// ListAgentScriptAuths Agent × script_id 登录凭据（密码不落库明文；下发见 TaskObject.params.platform_auth）
 	ListAgentScriptAuths(context.Context, *ListAgentScriptAuthsRequest) (*ListAgentScriptAuthsReply, error)
 	ListAgents(context.Context, *ListAgentsRequest) (*ListAgentsReply, error)
+	// ListBomPlatforms BOM 采集平台（platform_id 与 script_id 一一对应；run_params 为键值对象，服务端展开为 TaskObject.argv 前缀）
+	ListBomPlatforms(context.Context, *ListBomPlatformsRequest) (*ListBomPlatformsReply, error)
 	UpsertAgentScriptAuth(context.Context, *UpsertAgentScriptAuthRequest) (*UpsertAgentScriptAuthReply, error)
+	UpsertBomPlatform(context.Context, *UpsertBomPlatformRequest) (*UpsertBomPlatformReply, error)
 }
 
 func RegisterAgentAdminServiceHTTPServer(s *http.Server, srv AgentAdminServiceHTTPServer) {
@@ -44,6 +53,10 @@ func RegisterAgentAdminServiceHTTPServer(s *http.Server, srv AgentAdminServiceHT
 	r.GET("/api/v1/admin/agents/{agent_id}/script-auths", _AgentAdminService_ListAgentScriptAuths0_HTTP_Handler(srv))
 	r.PUT("/api/v1/admin/agents/{agent_id}/script-auths/{script_id}", _AgentAdminService_UpsertAgentScriptAuth0_HTTP_Handler(srv))
 	r.DELETE("/api/v1/admin/agents/{agent_id}/script-auths/{script_id}", _AgentAdminService_DeleteAgentScriptAuth0_HTTP_Handler(srv))
+	r.GET("/api/v1/admin/bom-platforms", _AgentAdminService_ListBomPlatforms0_HTTP_Handler(srv))
+	r.GET("/api/v1/admin/bom-platforms/{platform_id}", _AgentAdminService_GetBomPlatform0_HTTP_Handler(srv))
+	r.PUT("/api/v1/admin/bom-platforms/{platform_id}", _AgentAdminService_UpsertBomPlatform0_HTTP_Handler(srv))
+	r.DELETE("/api/v1/admin/bom-platforms/{platform_id}", _AgentAdminService_DeleteBomPlatform0_HTTP_Handler(srv))
 }
 
 func _AgentAdminService_ListAgents0_HTTP_Handler(srv AgentAdminServiceHTTPServer) func(ctx http.Context) error {
@@ -178,14 +191,107 @@ func _AgentAdminService_DeleteAgentScriptAuth0_HTTP_Handler(srv AgentAdminServic
 	}
 }
 
+func _AgentAdminService_ListBomPlatforms0_HTTP_Handler(srv AgentAdminServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ListBomPlatformsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationAgentAdminServiceListBomPlatforms)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListBomPlatforms(ctx, req.(*ListBomPlatformsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListBomPlatformsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _AgentAdminService_GetBomPlatform0_HTTP_Handler(srv AgentAdminServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetBomPlatformRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationAgentAdminServiceGetBomPlatform)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetBomPlatform(ctx, req.(*GetBomPlatformRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetBomPlatformReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _AgentAdminService_UpsertBomPlatform0_HTTP_Handler(srv AgentAdminServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in UpsertBomPlatformRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationAgentAdminServiceUpsertBomPlatform)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.UpsertBomPlatform(ctx, req.(*UpsertBomPlatformRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*UpsertBomPlatformReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _AgentAdminService_DeleteBomPlatform0_HTTP_Handler(srv AgentAdminServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in DeleteBomPlatformRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationAgentAdminServiceDeleteBomPlatform)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.DeleteBomPlatform(ctx, req.(*DeleteBomPlatformRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*DeleteBomPlatformReply)
+		return ctx.Result(200, reply)
+	}
+}
+
 type AgentAdminServiceHTTPClient interface {
 	DeleteAgentScriptAuth(ctx context.Context, req *DeleteAgentScriptAuthRequest, opts ...http.CallOption) (rsp *DeleteAgentScriptAuthReply, err error)
+	DeleteBomPlatform(ctx context.Context, req *DeleteBomPlatformRequest, opts ...http.CallOption) (rsp *DeleteBomPlatformReply, err error)
+	GetBomPlatform(ctx context.Context, req *GetBomPlatformRequest, opts ...http.CallOption) (rsp *GetBomPlatformReply, err error)
 	ListAgentInstalledScripts(ctx context.Context, req *ListAgentInstalledScriptsRequest, opts ...http.CallOption) (rsp *ListAgentInstalledScriptsReply, err error)
 	ListAgentLeasedTasks(ctx context.Context, req *ListAgentLeasedTasksRequest, opts ...http.CallOption) (rsp *ListAgentLeasedTasksReply, err error)
 	// ListAgentScriptAuths Agent × script_id 登录凭据（密码不落库明文；下发见 TaskObject.params.platform_auth）
 	ListAgentScriptAuths(ctx context.Context, req *ListAgentScriptAuthsRequest, opts ...http.CallOption) (rsp *ListAgentScriptAuthsReply, err error)
 	ListAgents(ctx context.Context, req *ListAgentsRequest, opts ...http.CallOption) (rsp *ListAgentsReply, err error)
+	// ListBomPlatforms BOM 采集平台（platform_id 与 script_id 一一对应；run_params 为键值对象，服务端展开为 TaskObject.argv 前缀）
+	ListBomPlatforms(ctx context.Context, req *ListBomPlatformsRequest, opts ...http.CallOption) (rsp *ListBomPlatformsReply, err error)
 	UpsertAgentScriptAuth(ctx context.Context, req *UpsertAgentScriptAuthRequest, opts ...http.CallOption) (rsp *UpsertAgentScriptAuthReply, err error)
+	UpsertBomPlatform(ctx context.Context, req *UpsertBomPlatformRequest, opts ...http.CallOption) (rsp *UpsertBomPlatformReply, err error)
 }
 
 type AgentAdminServiceHTTPClientImpl struct {
@@ -203,6 +309,32 @@ func (c *AgentAdminServiceHTTPClientImpl) DeleteAgentScriptAuth(ctx context.Cont
 	opts = append(opts, http.Operation(OperationAgentAdminServiceDeleteAgentScriptAuth))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "DELETE", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *AgentAdminServiceHTTPClientImpl) DeleteBomPlatform(ctx context.Context, in *DeleteBomPlatformRequest, opts ...http.CallOption) (*DeleteBomPlatformReply, error) {
+	var out DeleteBomPlatformReply
+	pattern := "/api/v1/admin/bom-platforms/{platform_id}"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationAgentAdminServiceDeleteBomPlatform))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "DELETE", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *AgentAdminServiceHTTPClientImpl) GetBomPlatform(ctx context.Context, in *GetBomPlatformRequest, opts ...http.CallOption) (*GetBomPlatformReply, error) {
+	var out GetBomPlatformReply
+	pattern := "/api/v1/admin/bom-platforms/{platform_id}"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationAgentAdminServiceGetBomPlatform))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -262,11 +394,38 @@ func (c *AgentAdminServiceHTTPClientImpl) ListAgents(ctx context.Context, in *Li
 	return &out, nil
 }
 
+// ListBomPlatforms BOM 采集平台（platform_id 与 script_id 一一对应；run_params 为键值对象，服务端展开为 TaskObject.argv 前缀）
+func (c *AgentAdminServiceHTTPClientImpl) ListBomPlatforms(ctx context.Context, in *ListBomPlatformsRequest, opts ...http.CallOption) (*ListBomPlatformsReply, error) {
+	var out ListBomPlatformsReply
+	pattern := "/api/v1/admin/bom-platforms"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationAgentAdminServiceListBomPlatforms))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (c *AgentAdminServiceHTTPClientImpl) UpsertAgentScriptAuth(ctx context.Context, in *UpsertAgentScriptAuthRequest, opts ...http.CallOption) (*UpsertAgentScriptAuthReply, error) {
 	var out UpsertAgentScriptAuthReply
 	pattern := "/api/v1/admin/agents/{agent_id}/script-auths/{script_id}"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationAgentAdminServiceUpsertAgentScriptAuth))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "PUT", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *AgentAdminServiceHTTPClientImpl) UpsertBomPlatform(ctx context.Context, in *UpsertBomPlatformRequest, opts ...http.CallOption) (*UpsertBomPlatformReply, error) {
+	var out UpsertBomPlatformReply
+	pattern := "/api/v1/admin/bom-platforms/{platform_id}"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationAgentAdminServiceUpsertBomPlatform))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "PUT", path, in, &out, opts...)
 	if err != nil {

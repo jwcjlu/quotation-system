@@ -22,6 +22,15 @@ message Bootstrap {
   AgentScriptAuth agent_script_auth = 10;
   // BOM 配单：基准币种、阶梯价解析、舍入（见 docs/superpowers/specs/2026-03-28-bom-match-currency-mfr-design.md）
   BomMatch bom_match = 11;
+  // 四表进程内缓存：定时全量预热 + 读穿 + 写后失效（单实例，无 Redis）；见 docs/superpowers/specs/2026-03-30-four-tables-inproc-cache-design.md
+  TableCache table_cache = 12;
+}
+
+// TableCache 热表缓存；enabled=false 时不启定时刷新，读路径仍可走读穿（若已接装饰器）。
+message TableCache {
+  bool enabled = 1;
+  // 定时刷新间隔（秒）；0 表示不跑定时器（仅读穿）；建议 300–900
+  int32 refresh_interval_sec = 2;
 }
 
 // AgentScriptAuth 调度下发 platform_auth 时解密密码；未配置密钥时不可 Upsert，Pull 不注入。

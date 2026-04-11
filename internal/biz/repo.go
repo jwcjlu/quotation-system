@@ -165,3 +165,36 @@ type AgentScriptPublishedLister interface {
 	DBOk() bool
 	ListPublishedScripts(ctx context.Context) ([]PublishedScriptMeta, error)
 }
+
+// BomPlatformScript 采集平台配置（t_bom_platform_script）；platform_id 与 script_id 一一对应。
+type BomPlatformScript struct {
+	PlatformID    string
+	ScriptID      string
+	DisplayName   string
+	Enabled       bool
+	RunParamsJSON []byte
+	UpdatedAt     time.Time
+}
+
+// BomPlatformScriptRepo 平台 run_params 与脚本映射。
+type BomPlatformScriptRepo interface {
+	DBOk() bool
+	List(ctx context.Context) ([]BomPlatformScript, error)
+	Get(ctx context.Context, platformID string) (*BomPlatformScript, error)
+	Upsert(ctx context.Context, p *BomPlatformScript) error
+	Delete(ctx context.Context, platformID string) error
+}
+
+// ManufacturerCanonicalDisplay 厂牌 canonical 下拉一行（与 t_bom_manufacturer_alias 聚合查询一致）。
+type ManufacturerCanonicalDisplay struct {
+	CanonicalID string
+	DisplayName string
+}
+
+// BomManufacturerAliasRepo 厂牌别名表：点查 + 运维列表/写入。
+type BomManufacturerAliasRepo interface {
+	CanonicalID(ctx context.Context, aliasNorm string) (canonicalID string, ok bool, err error)
+	DBOk() bool
+	ListDistinctCanonicals(ctx context.Context, limit int) ([]ManufacturerCanonicalDisplay, error)
+	CreateRow(ctx context.Context, canonicalID, displayName, alias, aliasNorm string) error
+}

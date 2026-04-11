@@ -38,8 +38,12 @@ func main() {
 	if err := c.Scan(&bc); err != nil {
 		log.NewHelper(logger).Fatalf("scan config: %v", err)
 	}
+	var px conf.BootstrapProxy
+	if err := c.Scan(&px); err != nil {
+		log.NewHelper(logger).Fatalf("scan proxy config: %v", err)
+	}
 
-	app, cleanup, err := wireApp(&bc, logger)
+	app, cleanup, err := wireApp(&bc, &px, logger)
 	if err != nil {
 		log.NewHelper(logger).Fatalf("wire app: %v", err)
 	}

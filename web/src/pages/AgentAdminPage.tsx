@@ -11,6 +11,7 @@ import {
   type InstalledScriptRow,
   type LeasedTaskRow,
 } from '../api/agentAdmin'
+import { BomPlatformsAdminSection } from './BomPlatformsAdminSection'
 
 const STORAGE_KEY = 'caichip_web_agent_admin_api_key'
 
@@ -44,6 +45,7 @@ export function AgentAdminPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const [adminTab, setAdminTab] = useState<'bom-platforms' | 'agents'>('bom-platforms')
 
   const persistKey = useCallback((k: string) => {
     setApiKey(k)
@@ -214,7 +216,7 @@ export function AgentAdminPage() {
         <p className="text-sm text-slate-600 mt-1">
           对应后端 <code className="bg-slate-100 px-1 rounded">/api/v1/admin/agents/*</code>（含{' '}
           <code className="bg-slate-100 px-1 rounded">…/script-auths</code>
-          ），需配置{' '}
+          ）与 <code className="bg-slate-100 px-1 rounded">/api/v1/admin/bom-platforms</code>，需配置{' '}
           <code className="bg-slate-100 px-1 rounded">agent_admin.api_keys</code>（与脚本包管理的{' '}
           <code className="bg-slate-100 px-1 rounded">script_admin</code> 密钥独立）。开发时 Vite 代理{' '}
           <code className="bg-slate-100 px-1 rounded">/api</code> → 后端。
@@ -232,14 +234,9 @@ export function AgentAdminPage() {
           value={apiKey}
           onChange={(e) => persistKey(e.target.value)}
         />
-        <button
-          type="button"
-          disabled={loading}
-          onClick={loadAgents}
-          className="mt-3 px-4 py-2 bg-slate-800 text-white text-sm rounded hover:bg-slate-700 disabled:opacity-50"
-        >
-          刷新 Agent 列表
-        </button>
+        <p className="mt-3 text-xs text-slate-500">
+          列表与平台配置在下方 Tab 中分别刷新；两页共用本 Key。
+        </p>
       </section>
 
       {(error || info) && (
@@ -252,20 +249,85 @@ export function AgentAdminPage() {
         </div>
       )}
 
-      <section className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-        <h3 className="font-medium text-slate-800 mb-3">Agent 列表</h3>
-        <p className="text-xs text-slate-500 mb-3">
-          状态按<strong>任务心跳</strong>判定：距最近心跳未超过离线窗口为在线；超时为离线；从未有心跳时间为「未知」。刷新列表时会将库内{' '}
-          <code className="bg-slate-100 px-1 rounded">agent_status</code> 同步为 offline。
-          {offlineWindowSec != null && (
-            <>
-              {' '}
-              当前窗口：<strong>{offlineWindowSec}s</strong>（与 <code className="bg-slate-100 px-1 rounded">agent</code>{' '}
-              配置一致）。
-            </>
+      <section className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+        <div
+          className="flex flex-wrap items-end gap-1 px-2 pt-2 border-b border-slate-200 bg-slate-50/90"
+          role="tablist"
+          aria-label="运维数据分类"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={adminTab === 'bom-platforms'}
+            id="admin-tab-bom-platforms"
+            onClick={() => setAdminTab('bom-platforms')}
+            className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border transition-colors ${
+              adminTab === 'bom-platforms'
+                ? 'bg-white border-slate-200 border-b-white text-slate-900 -mb-px relative z-[1]'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/70'
+            }`}
+          >
+            BOM 采集平台
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={adminTab === 'agents'}
+            id="admin-tab-agents"
+            onClick={() => setAdminTab('agents')}
+            className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border transition-colors ${
+              adminTab === 'agents'
+                ? 'bg-white border-slate-200 border-b-white text-slate-900 -mb-px relative z-[1]'
+                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/70'
+            }`}
+          >
+            Agent 列表
+          </button>
+        </div>
+
+        <div
+          className="p-5"
+          role="tabpanel"
+          aria-labelledby={adminTab === 'bom-platforms' ? 'admin-tab-bom-platforms' : 'admin-tab-agents'}
+        >
+          {adminTab === 'bom-platforms' && (
+            <BomPlatformsAdminSection
+              embedded
+              apiKey={apiKey}
+              requireKey={requireKey}
+              resetFlash={resetFlash}
+              setError={setError}
+              setInfo={setInfo}
+            />
           )}
-        </p>
-        <div className="overflow-x-auto">
+
+          {adminTab === 'agents' && (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-slate-800 mb-2">Agent 列表</h3>
+                  <p className="text-xs text-slate-500">
+                    状态按<strong>任务心跳</strong>判定：距最近心跳未超过离线窗口为在线；超时为离线；从未有心跳时间为「未知」。刷新列表时会将库内{' '}
+                    <code className="bg-slate-100 px-1 rounded">agent_status</code> 同步为 offline。
+                    {offlineWindowSec != null && (
+                      <>
+                        {' '}
+                        当前窗口：<strong>{offlineWindowSec}s</strong>（与{' '}
+                        <code className="bg-slate-100 px-1 rounded">agent</code> 配置一致）。
+                      </>
+                    )}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={loadAgents}
+                  className="shrink-0 px-4 py-2 bg-slate-800 text-white text-sm rounded hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {loading ? '加载中…' : '刷新 Agent 列表'}
+                </button>
+              </div>
+              <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-slate-600">
@@ -323,10 +385,9 @@ export function AgentAdminPage() {
             </tbody>
           </table>
         </div>
-      </section>
 
-      {selectedId && (
-        <section className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-6">
+              {selectedId && (
+        <section className="border border-slate-200 rounded-lg p-5 bg-slate-50/40 space-y-6">
           <h3 className="font-medium text-slate-800">
             详情：<span className="font-mono text-sm">{selectedId}</span>
             {detailLoading && <span className="ml-2 text-slate-500 text-sm">加载中…</span>}
@@ -526,7 +587,11 @@ export function AgentAdminPage() {
             </div>
           </div>
         </section>
-      )}
+              )}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   )
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 	khttp "github.com/go-kratos/kratos/v2/transport/http"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -21,6 +23,7 @@ type AgentAdminService struct {
 	registry   biz.AgentRegistryRepo
 	dispatch   biz.DispatchTaskRepo
 	scriptAuth biz.AgentScriptAuthRepo
+	platforms  biz.BomPlatformScriptRepo
 	log        *log.Helper
 }
 
@@ -30,9 +33,12 @@ func NewAgentAdminService(
 	reg biz.AgentRegistryRepo,
 	disp biz.DispatchTaskRepo,
 	scriptAuth biz.AgentScriptAuthRepo,
+	platforms biz.BomPlatformScriptRepo,
 	logger log.Logger,
 ) *AgentAdminService {
-	return &AgentAdminService{bc: bc, registry: reg, dispatch: disp, scriptAuth: scriptAuth, log: log.NewHelper(logger)}
+	return &AgentAdminService{
+		bc: bc, registry: reg, dispatch: disp, scriptAuth: scriptAuth, platforms: platforms, log: log.NewHelper(logger),
+	}
 }
 
 // Enabled 是否配置了 agent_admin.api_keys（用于注册 HTTP）。
@@ -82,7 +88,33 @@ func (s *AgentAdminService) validateAdminKey(ctx context.Context) bool {
 
 func (s *AgentAdminService) dbOK() bool {
 	return s.registry != nil && s.registry.DBOk() && s.dispatch != nil && s.dispatch.DBOk() &&
-		s.scriptAuth != nil && s.scriptAuth.DBOk()
+		s.scriptAuth != nil && s.scriptAuth.DBOk() && s.platforms != nil && s.platforms.DBOk()
+}
+
+func bomPlatformRowToProto(p *biz.BomPlatformScript) (*v1.BomPlatformRow, error) {
+	if p == nil {
+		return nil, nil
+	}
+	var st *structpb.Struct
+	if len(p.RunParamsJSON) > 0 {
+		var m map[string]interface{}
+		if err := json.Unmarshal(p.RunParamsJSON, &m); err != nil {
+			return nil, err
+		}
+		var err error
+		st, err = structpb.NewStruct(m)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &v1.BomPlatformRow{
+		PlatformId:  p.PlatformID,
+		ScriptId:    p.ScriptID,
+		DisplayName: p.DisplayName,
+		Enabled:     p.Enabled,
+		RunParams:   st,
+		UpdatedAt:   timestamppb.New(p.UpdatedAt),
+	}, nil
 }
 
 // ListAgents 列出 Agent 及在线状态（与 BootstrapAgentOfflineThreshold 一致）。
@@ -255,6 +287,125 @@ func (s *AgentAdminService) DeleteAgentScriptAuth(ctx context.Context, req *v1.D
 		return nil, err
 	}
 	return &v1.DeleteAgentScriptAuthReply{}, nil
+}
+
+// ListBomPlatforms 列出 BOM 采集平台及 run_params。
+func (s *AgentAdminService) ListBomPlatforms(ctx context.Context, _ *v1.ListBomPlatformsRequest) (*v1.ListBomPlatformsReply, error) {
+	if !s.validateAdminKey(ctx) {
+		return nil, kerrors.Unauthorized("UNAUTHORIZED", "invalid or missing agent admin api key")
+	}
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	rows, err := s.platforms.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := &v1.ListBomPlatformsReply{Items: make([]*v1.BomPlatformRow, 0, len(rows))}
+	for i := range rows {
+		row, err := bomPlatformRowToProto(&rows[i])
+		if err != nil {
+			return nil, kerrors.InternalServer("BOM_PLATFORM_SERIALIZE", err.Error())
+		}
+		out.Items = append(out.Items, row)
+	}
+	return out, nil
+}
+
+// GetBomPlatform 按 platform_id 查询一行。
+func (s *AgentAdminService) GetBomPlatform(ctx context.Context, req *v1.GetBomPlatformRequest) (*v1.GetBomPlatformReply, error) {
+	if !s.validateAdminKey(ctx) {
+		return nil, kerrors.Unauthorized("UNAUTHORIZED", "invalid or missing agent admin api key")
+	}
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	pid := strings.TrimSpace(req.GetPlatformId())
+	if pid == "" {
+		return nil, kerrors.BadRequest("BAD_REQUEST", "platform_id required")
+	}
+	row, err := s.platforms.Get(ctx, pid)
+	if err != nil {
+		return nil, err
+	}
+	if row == nil {
+		return nil, kerrors.NotFound("BOM_PLATFORM_NOT_FOUND", "platform not found")
+	}
+	item, err := bomPlatformRowToProto(row)
+	if err != nil {
+		return nil, kerrors.InternalServer("BOM_PLATFORM_SERIALIZE", err.Error())
+	}
+	return &v1.GetBomPlatformReply{Item: item}, nil
+}
+
+// UpsertBomPlatform 创建或全量更新；要求 platform_id 与 script_id 一致。
+func (s *AgentAdminService) UpsertBomPlatform(ctx context.Context, req *v1.UpsertBomPlatformRequest) (*v1.UpsertBomPlatformReply, error) {
+	if !s.validateAdminKey(ctx) {
+		return nil, kerrors.Unauthorized("UNAUTHORIZED", "invalid or missing agent admin api key")
+	}
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	pid := strings.TrimSpace(req.GetPlatformId())
+	sid := strings.TrimSpace(req.GetScriptId())
+	if pid == "" || sid == "" {
+		return nil, kerrors.BadRequest("BAD_REQUEST", "platform_id and script_id required")
+	}
+	if pid != sid {
+		return nil, kerrors.BadRequest("BOM_PLATFORM_ID_MISMATCH", "platform_id must equal script_id")
+	}
+	var raw []byte
+	if req.GetRunParams() != nil {
+		m := req.GetRunParams().AsMap()
+		b, err := json.Marshal(m)
+		if err != nil {
+			return nil, kerrors.BadRequest("RUN_PARAMS_JSON", err.Error())
+		}
+		raw = b
+	}
+	if _, err := biz.ExpandRunParamsJSON(raw); err != nil {
+		return nil, kerrors.BadRequest("RUN_PARAMS_INVALID", err.Error())
+	}
+	row := &biz.BomPlatformScript{
+		PlatformID:    pid,
+		ScriptID:      sid,
+		DisplayName:   strings.TrimSpace(req.GetDisplayName()),
+		Enabled:       req.GetEnabled(),
+		RunParamsJSON: raw,
+	}
+	if err := s.platforms.Upsert(ctx, row); err != nil {
+		return nil, err
+	}
+	saved, err := s.platforms.Get(ctx, pid)
+	if err != nil {
+		return nil, err
+	}
+	if saved == nil {
+		return nil, kerrors.InternalServer("BOM_PLATFORM_UPSERT", "row missing after upsert")
+	}
+	item, err := bomPlatformRowToProto(saved)
+	if err != nil {
+		return nil, kerrors.InternalServer("BOM_PLATFORM_SERIALIZE", err.Error())
+	}
+	return &v1.UpsertBomPlatformReply{Item: item}, nil
+}
+
+// DeleteBomPlatform 物理删除一行（停用请用 Upsert enabled=false）。
+func (s *AgentAdminService) DeleteBomPlatform(ctx context.Context, req *v1.DeleteBomPlatformRequest) (*v1.DeleteBomPlatformReply, error) {
+	if !s.validateAdminKey(ctx) {
+		return nil, kerrors.Unauthorized("UNAUTHORIZED", "invalid or missing agent admin api key")
+	}
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	pid := strings.TrimSpace(req.GetPlatformId())
+	if pid == "" {
+		return nil, kerrors.BadRequest("BAD_REQUEST", "platform_id required")
+	}
+	if err := s.platforms.Delete(ctx, pid); err != nil {
+		return nil, err
+	}
+	return &v1.DeleteBomPlatformReply{}, nil
 }
 
 var _ v1.AgentAdminServiceHTTPServer = (*AgentAdminService)(nil)

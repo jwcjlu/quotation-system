@@ -18,29 +18,39 @@ import (
 
 // Injectors from wire.go:
 
-func wireApp(bootstrap *conf.Bootstrap, logger log.Logger) (*kratos.App, func(), error) {
+func wireApp(bootstrap *conf.Bootstrap, bootstrapProxy *conf.BootstrapProxy, logger log.Logger) (*kratos.App, func(), error) {
 	agentHub := biz.NewAgentHub(bootstrap)
 	dataData, cleanup, err := data.NewData(bootstrap)
 	if err != nil {
 		return nil, nil, err
 	}
 	agentScriptAuthRepo := data.NewAgentScriptAuthRepo(bootstrap, dataData)
-	dispatchTaskRepo := data.NewDispatchTaskRepo(dataData, agentScriptAuthRepo)
+	inprocKV := data.NewInprocKV()
+	cachedAgentScriptAuthRepo := data.NewCachedAgentScriptAuthRepo(agentScriptAuthRepo, inprocKV)
+	dispatchTaskRepo := data.NewDispatchTaskRepo(dataData, cachedAgentScriptAuthRepo)
 	agentRegistryRepo := data.NewAgentRegistryRepo(dataData)
-	taskScheduler := biz.NewAgentTaskScheduler(agentHub, dispatchTaskRepo, agentRegistryRepo, bootstrap)
+	cachedAgentRegistryRepo := data.NewCachedAgentRegistryRepo(agentRegistryRepo, inprocKV)
+	taskScheduler := biz.NewAgentTaskScheduler(agentHub, dispatchTaskRepo, cachedAgentRegistryRepo, bootstrap)
 	agentScriptPackageRepo := data.NewAgentScriptPackageRepo(dataData)
 	bomSearchTaskRepo := data.NewBOMSearchTaskRepo(dataData)
 	bomSessionRepo := data.NewBomSessionRepo(dataData)
-	agentService := service.NewAgentService(agentHub, taskScheduler, dispatchTaskRepo, agentRegistryRepo, agentScriptPackageRepo, bomSearchTaskRepo, bomSessionRepo, bootstrap, logger)
+	agentService := service.NewAgentService(agentHub, taskScheduler, dispatchTaskRepo, cachedAgentRegistryRepo, agentScriptPackageRepo, bomSearchTaskRepo, bomSessionRepo, bootstrap, logger)
 	scriptPackageAdmin := service.NewScriptPackageAdmin(bootstrap, agentScriptPackageRepo, logger)
-	bomMergeDispatch := data.NewBomMergeDispatch(dataData, dispatchTaskRepo, bomSearchTaskRepo, bomSessionRepo, agentScriptPackageRepo)
+	bomPlatformScriptRepo := data.NewBomPlatformScriptRepo(dataData)
+	cachedBomPlatformScriptRepo := data.NewCachedBomPlatformScriptRepo(bomPlatformScriptRepo, inprocKV)
+	bomMergeProxyWaitRepo := data.NewBomMergeProxyWaitRepo(dataData)
+	client := data.NewKuaidailiClient(bootstrapProxy, logger)
+	bomMergeDispatch := data.NewBomMergeDispatch(dataData, dispatchTaskRepo, bomSearchTaskRepo, bomSessionRepo, agentScriptPackageRepo, cachedBomPlatformScriptRepo, bomMergeProxyWaitRepo, client, bootstrapProxy)
 	openAIChat := data.NewOpenAIChat(bootstrap)
 	bomFxRateRepo := data.NewBomFxRateRepoFromData(dataData, logger)
 	bomManufacturerAliasRepo := data.NewBomManufacturerAliasRepo(dataData)
-	bomService := service.NewBomService(bomSessionRepo, bomSearchTaskRepo, bomMergeDispatch, openAIChat, bomFxRateRepo, bomManufacturerAliasRepo, bootstrap, logger)
-	agentAdminService := service.NewAgentAdminService(bootstrap, agentRegistryRepo, dispatchTaskRepo, agentScriptAuthRepo, logger)
+	cachedBomManufacturerAliasRepo := data.NewCachedBomManufacturerAliasRepo(bomManufacturerAliasRepo, inprocKV)
+	bomService := service.NewBomService(bomSessionRepo, bomSearchTaskRepo, bomMergeDispatch, openAIChat, bomFxRateRepo, cachedBomManufacturerAliasRepo, bootstrap, logger)
+	agentAdminService := service.NewAgentAdminService(bootstrap, cachedAgentRegistryRepo, dispatchTaskRepo, cachedAgentScriptAuthRepo, cachedBomPlatformScriptRepo, logger)
 	httpServer := server.NewHTTPServer(bootstrap, logger, agentService, scriptPackageAdmin, bomService, agentAdminService)
-	app := newApp(bootstrap, logger, httpServer)
+	tableCacheRefresher := data.NewTableCacheRefresher(inprocKV, dataData, bootstrap, logger, bomPlatformScriptRepo, bomManufacturerAliasRepo)
+	mergeProxyRetryWorker := data.NewMergeProxyRetryWorker(bootstrapProxy, logger, dataData, bomMergeDispatch, bomMergeProxyWaitRepo)
+	app := newApp(bootstrap, logger, httpServer, tableCacheRefresher, mergeProxyRetryWorker)
 	return app, func() {
 		cleanup()
 	}, nil

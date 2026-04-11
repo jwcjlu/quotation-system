@@ -31,13 +31,13 @@ type BomService struct {
 	merge    biz.MergeDispatchExecutor
 	openai   *data.OpenAIChat
 	fx       *data.BomFxRateRepo
-	alias    *data.BomManufacturerAliasRepo
+	alias    biz.BomManufacturerAliasRepo
 	bomMatch *conf.BomMatch
 	log      *log.Helper
 }
 
 // NewBomService ...
-func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, openai *data.OpenAIChat, fx *data.BomFxRateRepo, alias *data.BomManufacturerAliasRepo, bc *conf.Bootstrap, logger log.Logger) *BomService {
+func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, openai *data.OpenAIChat, fx *data.BomFxRateRepo, alias biz.BomManufacturerAliasRepo, bc *conf.Bootstrap, logger log.Logger) *BomService {
 	var bm *conf.BomMatch
 	if bc != nil {
 		bm = bc.BomMatch

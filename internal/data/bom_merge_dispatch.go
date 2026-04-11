@@ -2,6 +2,9 @@ package data
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -9,6 +12,8 @@ import (
 	"time"
 
 	"caichip/internal/biz"
+	"caichip/internal/conf"
+	"caichip/pkg/kuaidaili"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
@@ -18,24 +23,48 @@ import (
 
 // BomMergeDispatch 实现设计 §3.5：合并键调度（缓存短路 / 在途复用 / 新抓入队 + 事务内挂接）。
 type BomMergeDispatch struct {
-	db       *gorm.DB
-	dispatch *DispatchTaskRepo
-	search   *BOMSearchTaskRepo
-	session  *BomSessionRepo
-	scripts  *AgentScriptPackageRepo
+	db        *gorm.DB
+	dispatch  *DispatchTaskRepo
+	search    *BOMSearchTaskRepo
+	session   *BomSessionRepo
+	scripts   *AgentScriptPackageRepo
+	platforms biz.BomPlatformScriptRepo
+	proxyWait *BomMergeProxyWaitRepo
+	ku        *kuaidaili.Client
+	px        *conf.BootstrapProxy
+	backoff   biz.ProxyBackoffParams
 }
 
 // NewBomMergeDispatch ...
-func NewBomMergeDispatch(d *Data, disp *DispatchTaskRepo, search *BOMSearchTaskRepo, session *BomSessionRepo, scripts *AgentScriptPackageRepo) *BomMergeDispatch {
+func NewBomMergeDispatch(
+	d *Data,
+	disp *DispatchTaskRepo,
+	search *BOMSearchTaskRepo,
+	session *BomSessionRepo,
+	scripts *AgentScriptPackageRepo,
+	platforms biz.BomPlatformScriptRepo,
+	proxyWait *BomMergeProxyWaitRepo,
+	ku *kuaidaili.Client,
+	px *conf.BootstrapProxy,
+) *BomMergeDispatch {
 	if d == nil || d.DB == nil {
 		return &BomMergeDispatch{}
 	}
+	b := biz.DefaultProxyBackoffParams()
+	if px != nil {
+		b = biz.ProxyBackoffFromConf(px.ProxyBackoff)
+	}
 	return &BomMergeDispatch{
-		db:       d.DB,
-		dispatch: disp,
-		search:   search,
-		session:  session,
-		scripts:  scripts,
+		db:        d.DB,
+		dispatch:  disp,
+		search:    search,
+		session:   session,
+		scripts:   scripts,
+		platforms: platforms,
+		proxyWait: proxyWait,
+		ku:        ku,
+		px:        px,
+		backoff:   b,
 	}
 }
 
@@ -68,16 +97,160 @@ func attachPendingBOMTasks(tx *gorm.DB, taskID, mpnNorm, platformID, dateStr str
 	return res.RowsAffected, res.Error
 }
 
+func runParamsRequireProxy(runParamsJSON []byte) bool {
+	if len(runParamsJSON) == 0 || string(runParamsJSON) == "null" {
+		return false
+	}
+	var raw map[string]interface{}
+	if json.Unmarshal(runParamsJSON, &raw) != nil {
+		return false
+	}
+	v, ok := raw["require_proxy"]
+	if !ok || v == nil {
+		return false
+	}
+	switch t := v.(type) {
+	case bool:
+		return t
+	case string:
+		s := strings.ToLower(strings.TrimSpace(t))
+		return s == "1" || s == "true" || s == "yes"
+	case float64:
+		return t != 0
+	default:
+		return false
+	}
+}
+
+func (m *BomMergeDispatch) platformRequiresProxy(ctx context.Context, platformID string) (bool, error) {
+	pid := strings.TrimSpace(platformID)
+	if m.platforms != nil && m.platforms.DBOk() {
+		row, err := m.platforms.Get(ctx, pid)
+		if err != nil {
+			return false, err
+		}
+		if row != nil {
+			return runParamsRequireProxy(row.RunParamsJSON), nil
+		}
+	}
+	var runParams []byte
+	err := m.db.WithContext(ctx).Table(TableBomPlatformScript).
+		Select("run_params").
+		Where("platform_id = ? AND enabled = 1", pid).
+		Limit(1).
+		Scan(&runParams).Error
+	if err != nil {
+		return false, err
+	}
+	return runParamsRequireProxy(runParams), nil
+}
+
+func proxyBackoffJitterSec(baseSec int64) int64 {
+	if baseSec <= 0 {
+		return 0
+	}
+	var b [8]byte
+	_, _ = rand.Read(b[:])
+	u := binary.BigEndian.Uint64(b[:])
+	return int64(u % uint64(baseSec))
+}
+
+func (m *BomMergeDispatch) recordProxyAcquireFailure(ctx context.Context, mpnNorm, platformID string, bd time.Time, errMsg string) error {
+	if m.proxyWait == nil || !m.proxyWait.DBOk() {
+		return nil
+	}
+	now := time.Now()
+	prev := 0
+	var firstAt time.Time
+	existing, err := m.proxyWait.Get(ctx, mpnNorm, platformID, bd)
+	if err != nil {
+		return nil
+	}
+	if existing != nil {
+		prev = existing.Attempt
+		if existing.FirstFailedAt != nil {
+			firstAt = *existing.FirstFailedAt
+		} else if !existing.CreatedAt.IsZero() {
+			firstAt = existing.CreatedAt
+		}
+	}
+	nextAttempt := prev + 1
+	if firstAt.IsZero() {
+		firstAt = now
+	}
+	maxA := int(m.backoff.MaxAttempts)
+	if maxA <= 0 {
+		maxA = 12
+	}
+	wall := time.Duration(m.backoff.WallClockDeadlineSec) * time.Second
+	if m.backoff.WallClockDeadlineSec <= 0 {
+		wall = 172800 * time.Second
+	}
+	errSummary := strings.TrimSpace(errMsg)
+	if len(errSummary) > 512 {
+		errSummary = errSummary[:512]
+	}
+	if nextAttempt > maxA || now.Sub(firstAt) > wall {
+		msg := "proxy acquire exhausted: " + errSummary
+		if _, e := m.proxyWait.FailPendingTasksForMergeKey(ctx, mpnNorm, platformID, bd, msg); e != nil {
+			return nil
+		}
+		_ = m.proxyWait.Delete(ctx, mpnNorm, platformID, bd)
+		return nil
+	}
+	k := nextAttempt - 1
+	base := int64(m.backoff.BaseSec)
+	capS := int64(m.backoff.CapSec)
+	if base <= 0 {
+		base = 30
+	}
+	if capS <= 0 {
+		capS = 1800
+	}
+	j := proxyBackoffJitterSec(base)
+	delay := biz.DelayAfterFailureK(k, base, capS, j)
+	row := &BomMergeProxyWait{
+		MpnNorm:       mpnNorm,
+		PlatformID:    platformID,
+		BizDate:       bd,
+		NextRetryAt:   now.Add(delay),
+		Attempt:       nextAttempt,
+		LastError:     errSummary,
+		FirstFailedAt: &firstAt,
+	}
+	_ = m.proxyWait.UpsertAfterFailure(ctx, row)
+	return nil
+}
+
 func (m *BomMergeDispatch) buildQueuedTask(ctx context.Context, taskID, mpnNorm, platformID string) (*biz.QueuedTask, error) {
 	pid := strings.TrimSpace(platformID)
 	var scriptID string
-	_ = m.db.WithContext(ctx).Table(TableBomPlatformScript).
-		Select("script_id").
-		Where("platform_id = ? AND enabled = 1", pid).
-		Limit(1).
-		Scan(&scriptID).Error
+	var runParamsJSON []byte
+	if m.platforms != nil && m.platforms.DBOk() {
+		row, err := m.platforms.Get(ctx, pid)
+		if err != nil {
+			return nil, err
+		}
+		if row != nil {
+			if s := strings.TrimSpace(row.ScriptID); s != "" {
+				scriptID = s
+			}
+			runParamsJSON = row.RunParamsJSON
+		}
+	}
+	if strings.TrimSpace(scriptID) == "" {
+		_ = m.db.WithContext(ctx).Table(TableBomPlatformScript).
+			Select("script_id").
+			Where("platform_id = ? AND enabled = 1", pid).
+			Limit(1).
+			Scan(&scriptID).Error
+	}
 	if strings.TrimSpace(scriptID) == "" {
 		scriptID = pid
+	}
+	argv, err := biz.MergeBOMSearchArgv(runParamsJSON, mpnNorm)
+	if err != nil {
+		return nil, fmt.Errorf("bom merge argv: %w", err)
 	}
 	version := "0.0.1"
 	file := fmt.Sprintf("%s_crawler.py", pid)
@@ -102,7 +275,7 @@ func (m *BomMergeDispatch) buildQueuedTask(ctx context.Context, taskID, mpnNorm,
 				"mpn_norm":    mpnNorm,
 				"platform_id": pid,
 			},
-			Argv:      []string{"--model", mpnNorm, "--parse-workers", "8"},
+			Argv:      argv,
 			EntryFile: &file,
 		},
 		Queue: "default",
@@ -158,11 +331,14 @@ func (m *BomMergeDispatch) TryDispatchMergeKey(ctx context.Context, mpnNorm, pla
 				_ = biz.TryMarkSessionDataReady(ctx, m.session, m.search, sid)
 			}
 		}
+		if m.proxyWait != nil && m.proxyWait.DBOk() {
+			_ = m.proxyWait.Delete(ctx, mpnNorm, platformID, bd)
+		}
 		return nil
 	}
 
 	for attempt := 0; attempt < 6; attempt++ {
-		err := m.tryDispatchMergeKeyTx(ctx, mpnNorm, platformID, bd, dateStr)
+		err := m.tryDispatchMergeKeyWithProxy(ctx, mpnNorm, platformID, bd, dateStr)
 		if err == nil {
 			return nil
 		}
@@ -174,9 +350,43 @@ func (m *BomMergeDispatch) TryDispatchMergeKey(ctx context.Context, mpnNorm, pla
 	return errors.New("bom merge: exceeded retry")
 }
 
-func (m *BomMergeDispatch) tryDispatchMergeKeyTx(ctx context.Context, mpnNorm, platformID string, bd time.Time, dateStr string) error {
+func (m *BomMergeDispatch) tryDispatchMergeKeyWithProxy(ctx context.Context, mpnNorm, platformID string, bd time.Time, dateStr string) error {
+	needProxy, err := m.platformRequiresProxy(ctx, platformID)
+	if err != nil {
+		return err
+	}
+	var proxyParams map[string]interface{}
+	if needProxy {
+		if m.ku == nil {
+			_ = m.recordProxyAcquireFailure(ctx, mpnNorm, platformID, bd, "kuaidaili client not configured or disabled")
+			return nil
+		}
+		pr, err := m.ku.GetFirstProxy(ctx)
+		if err != nil {
+			_ = m.recordProxyAcquireFailure(ctx, mpnNorm, platformID, bd, err.Error())
+			return nil
+		}
+		proxyParams = map[string]interface{}{
+			"proxy_host": pr.Host,
+			"proxy_port": pr.Port,
+		}
+		if pr.User != "" {
+			proxyParams["proxy_user"] = pr.User
+			proxyParams["proxy_password"] = pr.Password
+		}
+	}
+	err = m.tryDispatchMergeKeyTx(ctx, mpnNorm, platformID, bd, dateStr, proxyParams)
+	if err != nil {
+		return err
+	}
+	if m.proxyWait != nil && m.proxyWait.DBOk() {
+		_ = m.proxyWait.Delete(ctx, mpnNorm, platformID, bd)
+	}
+	return nil
+}
+
+func (m *BomMergeDispatch) tryDispatchMergeKeyTx(ctx context.Context, mpnNorm, platformID string, bd time.Time, dateStr string, proxyParams map[string]interface{}) error {
 	return m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 清理已终态调度对应的 inflight 行
 		if err := tx.Exec(fmt.Sprintf(`
 DELETE mi FROM %s mi
 INNER JOIN %s d ON mi.task_id = d.task_id
@@ -221,6 +431,14 @@ WHERE d.state IN (?, ?)`, TableBomMergeInflight, TableCaichipDispatchTask), disp
 		qt, err := m.buildQueuedTask(ctx, tid, mpnNorm, platformID)
 		if err != nil {
 			return err
+		}
+		if len(proxyParams) > 0 {
+			if qt.Params == nil {
+				qt.Params = make(map[string]interface{})
+			}
+			for k, v := range proxyParams {
+				qt.Params[k] = v
+			}
 		}
 		if err := m.dispatch.EnqueuePendingTx(ctx, tx, qt); err != nil {
 			return err

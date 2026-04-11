@@ -14,15 +14,15 @@ import (
 	"github.com/google/wire"
 )
 
-func wireApp(*conf.Bootstrap, log.Logger) (*kratos.App, func(), error) {
+func wireApp(*conf.Bootstrap, *conf.BootstrapProxy, log.Logger) (*kratos.App, func(), error) {
 	panic(wire.Build(
 		wire.Bind(new(biz.DispatchTaskRepo), new(*data.DispatchTaskRepo)),
-		wire.Bind(new(biz.AgentRegistryRepo), new(*data.AgentRegistryRepo)),
 		wire.Bind(new(biz.BOMSearchTaskRepo), new(*data.BOMSearchTaskRepo)),
 		wire.Bind(new(biz.BOMSessionRepo), new(*data.BomSessionRepo)),
 		wire.Bind(new(biz.MergeDispatchExecutor), new(*data.BomMergeDispatch)),
 		wire.Bind(new(biz.AgentScriptPublishedLister), new(*data.AgentScriptPackageRepo)),
-		wire.Bind(new(biz.AgentScriptAuthRepo), new(*data.AgentScriptAuthRepo)),
+		// AgentScriptAuthRepo / BomPlatformScriptRepo / AgentRegistryRepo / BomManufacturerAliasRepo
+		// 绑定到 Cached* 实现在 data.ProviderSet。
 		server.ProviderSet,
 		data.ProviderSet,
 		biz.ProviderSet,

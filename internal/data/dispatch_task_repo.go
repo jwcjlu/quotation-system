@@ -106,7 +106,7 @@ func caichipDispatchRowFromQueuedTask(t *biz.QueuedTask) (*CaichipDispatchTask, 
 		}
 		argvJSON = b
 	}
-	return &CaichipDispatchTask{
+	row := &CaichipDispatchTask{
 		TaskID:       taskID,
 		Queue:        q,
 		ScriptID:     strings.TrimSpace(t.ScriptID),
@@ -118,7 +118,12 @@ func caichipDispatchRowFromQueuedTask(t *biz.QueuedTask) (*CaichipDispatchTask, 
 		ArgvJSON:     argvJSON,
 		Attempt:      att,
 		State:        dispatchStatePending,
-	}, nil
+	}
+	if t.NextClaimAt != nil && !t.NextClaimAt.IsZero() {
+		ts := *t.NextClaimAt
+		row.NextClaimAt = &ts
+	}
+	return row, nil
 }
 
 func enqueuePendingWithDB(db *gorm.DB, ctx context.Context, t *biz.QueuedTask) error {
@@ -259,6 +264,7 @@ func (r *DispatchTaskRepo) PullAndLeaseForAgent(ctx context.Context, queue, agen
 	perScript := tx.Model(&CaichipDispatchTask{}).
 		Select("MIN(id)").
 		Where("queue = ? AND state = ?", queue, dispatchStatePending).
+		Where("(next_claim_at IS NULL OR next_claim_at <= CURRENT_TIMESTAMP(3))").
 		Group("script_id")
 	q := tx.Model(&CaichipDispatchTask{}).
 		Select("id").

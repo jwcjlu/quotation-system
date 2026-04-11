@@ -68,7 +68,7 @@ func (r *BomManufacturerAliasRepo) CreateRow(ctx context.Context, canonicalID, d
 }
 
 // ListDistinctCanonicals 按 canonical_id 去重，display_name 取字典序最小的一条（便于下拉展示）。
-func (r *BomManufacturerAliasRepo) ListDistinctCanonicals(ctx context.Context, limit int) ([]ManufacturerCanonicalRow, error) {
+func (r *BomManufacturerAliasRepo) ListDistinctCanonicals(ctx context.Context, limit int) ([]biz.ManufacturerCanonicalDisplay, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("bom manufacturer alias: database not configured")
 	}
@@ -78,16 +78,23 @@ func (r *BomManufacturerAliasRepo) ListDistinctCanonicals(ctx context.Context, l
 	if limit > 1000 {
 		limit = 1000
 	}
-	var out []ManufacturerCanonicalRow
+	var raw []ManufacturerCanonicalRow
 	err := r.db.WithContext(ctx).
 		Model(&BomManufacturerAlias{}).
 		Select("canonical_id, MIN(display_name) AS display_name").
 		Group("canonical_id").
 		Order("canonical_id ASC").
 		Limit(limit).
-		Scan(&out).Error
+		Scan(&raw).Error
 	if err != nil {
 		return nil, err
+	}
+	out := make([]biz.ManufacturerCanonicalDisplay, 0, len(raw))
+	for _, row := range raw {
+		out = append(out, biz.ManufacturerCanonicalDisplay{
+			CanonicalID: row.CanonicalID,
+			DisplayName: row.DisplayName,
+		})
 	}
 	return out, nil
 }
@@ -98,3 +105,4 @@ func (r *BomManufacturerAliasRepo) DBOk() bool {
 }
 
 var _ biz.AliasLookup = (*BomManufacturerAliasRepo)(nil)
+var _ biz.BomManufacturerAliasRepo = (*BomManufacturerAliasRepo)(nil)

@@ -10,6 +10,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -857,11 +858,463 @@ func (*DeleteAgentScriptAuthReply) Descriptor() ([]byte, []int) {
 	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{15}
 }
 
+type ListBomPlatformsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBomPlatformsRequest) Reset() {
+	*x = ListBomPlatformsRequest{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBomPlatformsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBomPlatformsRequest) ProtoMessage() {}
+
+func (x *ListBomPlatformsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBomPlatformsRequest.ProtoReflect.Descriptor instead.
+func (*ListBomPlatformsRequest) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{16}
+}
+
+type BomPlatformRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlatformId    string                 `protobuf:"bytes,1,opt,name=platform_id,json=platformId,proto3" json:"platform_id,omitempty"`
+	ScriptId      string                 `protobuf:"bytes,2,opt,name=script_id,json=scriptId,proto3" json:"script_id,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Enabled       bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	RunParams     *structpb.Struct       `protobuf:"bytes,5,opt,name=run_params,json=runParams,proto3" json:"run_params,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BomPlatformRow) Reset() {
+	*x = BomPlatformRow{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BomPlatformRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BomPlatformRow) ProtoMessage() {}
+
+func (x *BomPlatformRow) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BomPlatformRow.ProtoReflect.Descriptor instead.
+func (*BomPlatformRow) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *BomPlatformRow) GetPlatformId() string {
+	if x != nil {
+		return x.PlatformId
+	}
+	return ""
+}
+
+func (x *BomPlatformRow) GetScriptId() string {
+	if x != nil {
+		return x.ScriptId
+	}
+	return ""
+}
+
+func (x *BomPlatformRow) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *BomPlatformRow) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *BomPlatformRow) GetRunParams() *structpb.Struct {
+	if x != nil {
+		return x.RunParams
+	}
+	return nil
+}
+
+func (x *BomPlatformRow) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type ListBomPlatformsReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*BomPlatformRow      `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBomPlatformsReply) Reset() {
+	*x = ListBomPlatformsReply{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBomPlatformsReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBomPlatformsReply) ProtoMessage() {}
+
+func (x *ListBomPlatformsReply) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBomPlatformsReply.ProtoReflect.Descriptor instead.
+func (*ListBomPlatformsReply) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListBomPlatformsReply) GetItems() []*BomPlatformRow {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type GetBomPlatformRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlatformId    string                 `protobuf:"bytes,1,opt,name=platform_id,json=platformId,proto3" json:"platform_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBomPlatformRequest) Reset() {
+	*x = GetBomPlatformRequest{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBomPlatformRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBomPlatformRequest) ProtoMessage() {}
+
+func (x *GetBomPlatformRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBomPlatformRequest.ProtoReflect.Descriptor instead.
+func (*GetBomPlatformRequest) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetBomPlatformRequest) GetPlatformId() string {
+	if x != nil {
+		return x.PlatformId
+	}
+	return ""
+}
+
+type GetBomPlatformReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Item          *BomPlatformRow        `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBomPlatformReply) Reset() {
+	*x = GetBomPlatformReply{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBomPlatformReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBomPlatformReply) ProtoMessage() {}
+
+func (x *GetBomPlatformReply) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBomPlatformReply.ProtoReflect.Descriptor instead.
+func (*GetBomPlatformReply) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetBomPlatformReply) GetItem() *BomPlatformRow {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+type UpsertBomPlatformRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlatformId    string                 `protobuf:"bytes,1,opt,name=platform_id,json=platformId,proto3" json:"platform_id,omitempty"`
+	ScriptId      string                 `protobuf:"bytes,2,opt,name=script_id,json=scriptId,proto3" json:"script_id,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	Enabled       bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	RunParams     *structpb.Struct       `protobuf:"bytes,5,opt,name=run_params,json=runParams,proto3" json:"run_params,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertBomPlatformRequest) Reset() {
+	*x = UpsertBomPlatformRequest{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertBomPlatformRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertBomPlatformRequest) ProtoMessage() {}
+
+func (x *UpsertBomPlatformRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertBomPlatformRequest.ProtoReflect.Descriptor instead.
+func (*UpsertBomPlatformRequest) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *UpsertBomPlatformRequest) GetPlatformId() string {
+	if x != nil {
+		return x.PlatformId
+	}
+	return ""
+}
+
+func (x *UpsertBomPlatformRequest) GetScriptId() string {
+	if x != nil {
+		return x.ScriptId
+	}
+	return ""
+}
+
+func (x *UpsertBomPlatformRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *UpsertBomPlatformRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *UpsertBomPlatformRequest) GetRunParams() *structpb.Struct {
+	if x != nil {
+		return x.RunParams
+	}
+	return nil
+}
+
+type UpsertBomPlatformReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Item          *BomPlatformRow        `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertBomPlatformReply) Reset() {
+	*x = UpsertBomPlatformReply{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertBomPlatformReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertBomPlatformReply) ProtoMessage() {}
+
+func (x *UpsertBomPlatformReply) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertBomPlatformReply.ProtoReflect.Descriptor instead.
+func (*UpsertBomPlatformReply) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *UpsertBomPlatformReply) GetItem() *BomPlatformRow {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+type DeleteBomPlatformRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlatformId    string                 `protobuf:"bytes,1,opt,name=platform_id,json=platformId,proto3" json:"platform_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteBomPlatformRequest) Reset() {
+	*x = DeleteBomPlatformRequest{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteBomPlatformRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteBomPlatformRequest) ProtoMessage() {}
+
+func (x *DeleteBomPlatformRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteBomPlatformRequest.ProtoReflect.Descriptor instead.
+func (*DeleteBomPlatformRequest) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *DeleteBomPlatformRequest) GetPlatformId() string {
+	if x != nil {
+		return x.PlatformId
+	}
+	return ""
+}
+
+type DeleteBomPlatformReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteBomPlatformReply) Reset() {
+	*x = DeleteBomPlatformReply{}
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteBomPlatformReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteBomPlatformReply) ProtoMessage() {}
+
+func (x *DeleteBomPlatformReply) ProtoReflect() protoreflect.Message {
+	mi := &file_admin_v1_agent_admin_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteBomPlatformReply.ProtoReflect.Descriptor instead.
+func (*DeleteBomPlatformReply) Descriptor() ([]byte, []int) {
+	return file_admin_v1_agent_admin_proto_rawDescGZIP(), []int{24}
+}
+
 var File_admin_v1_agent_admin_proto protoreflect.FileDescriptor
 
 const file_admin_v1_agent_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x1aadmin/v1/agent_admin.proto\x12\fapi.admin.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x13\n" +
+	"\x1aadmin/v1/agent_admin.proto\x12\fapi.admin.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x13\n" +
 	"\x11ListAgentsRequest\"\xdc\x01\n" +
 	"\fAgentSummary\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x14\n" +
@@ -912,7 +1365,39 @@ const file_admin_v1_agent_admin_proto_rawDesc = "" +
 	"\x1cDeleteAgentScriptAuthRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1b\n" +
 	"\tscript_id\x18\x02 \x01(\tR\bscriptId\"\x1c\n" +
-	"\x1aDeleteAgentScriptAuthReply2\xe3\a\n" +
+	"\x1aDeleteAgentScriptAuthReply\"\x19\n" +
+	"\x17ListBomPlatformsRequest\"\xfe\x01\n" +
+	"\x0eBomPlatformRow\x12\x1f\n" +
+	"\vplatform_id\x18\x01 \x01(\tR\n" +
+	"platformId\x12\x1b\n" +
+	"\tscript_id\x18\x02 \x01(\tR\bscriptId\x12!\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x18\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\x126\n" +
+	"\n" +
+	"run_params\x18\x05 \x01(\v2\x17.google.protobuf.StructR\trunParams\x129\n" +
+	"\n" +
+	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"K\n" +
+	"\x15ListBomPlatformsReply\x122\n" +
+	"\x05items\x18\x01 \x03(\v2\x1c.api.admin.v1.BomPlatformRowR\x05items\"8\n" +
+	"\x15GetBomPlatformRequest\x12\x1f\n" +
+	"\vplatform_id\x18\x01 \x01(\tR\n" +
+	"platformId\"G\n" +
+	"\x13GetBomPlatformReply\x120\n" +
+	"\x04item\x18\x01 \x01(\v2\x1c.api.admin.v1.BomPlatformRowR\x04item\"\xcd\x01\n" +
+	"\x18UpsertBomPlatformRequest\x12\x1f\n" +
+	"\vplatform_id\x18\x01 \x01(\tR\n" +
+	"platformId\x12\x1b\n" +
+	"\tscript_id\x18\x02 \x01(\tR\bscriptId\x12!\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x18\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\x126\n" +
+	"\n" +
+	"run_params\x18\x05 \x01(\v2\x17.google.protobuf.StructR\trunParams\"J\n" +
+	"\x16UpsertBomPlatformReply\x120\n" +
+	"\x04item\x18\x01 \x01(\v2\x1c.api.admin.v1.BomPlatformRowR\x04item\";\n" +
+	"\x18DeleteBomPlatformRequest\x12\x1f\n" +
+	"\vplatform_id\x18\x01 \x01(\tR\n" +
+	"platformId\"\x18\n" +
+	"\x16DeleteBomPlatformReply2\xa8\f\n" +
 	"\x11AgentAdminService\x12j\n" +
 	"\n" +
 	"ListAgents\x12\x1f.api.admin.v1.ListAgentsRequest\x1a\x1d.api.admin.v1.ListAgentsReply\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/api/v1/admin/agents\x12\xa0\x01\n" +
@@ -920,7 +1405,11 @@ const file_admin_v1_agent_admin_proto_rawDesc = "" +
 	"\x19ListAgentInstalledScripts\x12..api.admin.v1.ListAgentInstalledScriptsRequest\x1a,.api.admin.v1.ListAgentInstalledScriptsReply\"9\x82\xd3\xe4\x93\x023\x121/api/v1/admin/agents/{agent_id}/installed-scripts\x12\xa0\x01\n" +
 	"\x14ListAgentScriptAuths\x12).api.admin.v1.ListAgentScriptAuthsRequest\x1a'.api.admin.v1.ListAgentScriptAuthsReply\"4\x82\xd3\xe4\x93\x02.\x12,/api/v1/admin/agents/{agent_id}/script-auths\x12\xb2\x01\n" +
 	"\x15UpsertAgentScriptAuth\x12*.api.admin.v1.UpsertAgentScriptAuthRequest\x1a(.api.admin.v1.UpsertAgentScriptAuthReply\"C\x82\xd3\xe4\x93\x02=:\x01*\x1a8/api/v1/admin/agents/{agent_id}/script-auths/{script_id}\x12\xaf\x01\n" +
-	"\x15DeleteAgentScriptAuth\x12*.api.admin.v1.DeleteAgentScriptAuthRequest\x1a(.api.admin.v1.DeleteAgentScriptAuthReply\"@\x82\xd3\xe4\x93\x02:*8/api/v1/admin/agents/{agent_id}/script-auths/{script_id}B\x19Z\x17caichip/api/admin/v1;v1b\x06proto3"
+	"\x15DeleteAgentScriptAuth\x12*.api.admin.v1.DeleteAgentScriptAuthRequest\x1a(.api.admin.v1.DeleteAgentScriptAuthReply\"@\x82\xd3\xe4\x93\x02:*8/api/v1/admin/agents/{agent_id}/script-auths/{script_id}\x12\x83\x01\n" +
+	"\x10ListBomPlatforms\x12%.api.admin.v1.ListBomPlatformsRequest\x1a#.api.admin.v1.ListBomPlatformsReply\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/api/v1/admin/bom-platforms\x12\x8b\x01\n" +
+	"\x0eGetBomPlatform\x12#.api.admin.v1.GetBomPlatformRequest\x1a!.api.admin.v1.GetBomPlatformReply\"1\x82\xd3\xe4\x93\x02+\x12)/api/v1/admin/bom-platforms/{platform_id}\x12\x97\x01\n" +
+	"\x11UpsertBomPlatform\x12&.api.admin.v1.UpsertBomPlatformRequest\x1a$.api.admin.v1.UpsertBomPlatformReply\"4\x82\xd3\xe4\x93\x02.:\x01*\x1a)/api/v1/admin/bom-platforms/{platform_id}\x12\x94\x01\n" +
+	"\x11DeleteBomPlatform\x12&.api.admin.v1.DeleteBomPlatformRequest\x1a$.api.admin.v1.DeleteBomPlatformReply\"1\x82\xd3\xe4\x93\x02+*)/api/v1/admin/bom-platforms/{platform_id}B\x19Z\x17caichip/api/admin/v1;v1b\x06proto3"
 
 var (
 	file_admin_v1_agent_admin_proto_rawDescOnce sync.Once
@@ -934,7 +1423,7 @@ func file_admin_v1_agent_admin_proto_rawDescGZIP() []byte {
 	return file_admin_v1_agent_admin_proto_rawDescData
 }
 
-var file_admin_v1_agent_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_admin_v1_agent_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_admin_v1_agent_admin_proto_goTypes = []any{
 	(*ListAgentsRequest)(nil),                // 0: api.admin.v1.ListAgentsRequest
 	(*AgentSummary)(nil),                     // 1: api.admin.v1.AgentSummary
@@ -952,35 +1441,59 @@ var file_admin_v1_agent_admin_proto_goTypes = []any{
 	(*UpsertAgentScriptAuthReply)(nil),       // 13: api.admin.v1.UpsertAgentScriptAuthReply
 	(*DeleteAgentScriptAuthRequest)(nil),     // 14: api.admin.v1.DeleteAgentScriptAuthRequest
 	(*DeleteAgentScriptAuthReply)(nil),       // 15: api.admin.v1.DeleteAgentScriptAuthReply
-	(*timestamppb.Timestamp)(nil),            // 16: google.protobuf.Timestamp
+	(*ListBomPlatformsRequest)(nil),          // 16: api.admin.v1.ListBomPlatformsRequest
+	(*BomPlatformRow)(nil),                   // 17: api.admin.v1.BomPlatformRow
+	(*ListBomPlatformsReply)(nil),            // 18: api.admin.v1.ListBomPlatformsReply
+	(*GetBomPlatformRequest)(nil),            // 19: api.admin.v1.GetBomPlatformRequest
+	(*GetBomPlatformReply)(nil),              // 20: api.admin.v1.GetBomPlatformReply
+	(*UpsertBomPlatformRequest)(nil),         // 21: api.admin.v1.UpsertBomPlatformRequest
+	(*UpsertBomPlatformReply)(nil),           // 22: api.admin.v1.UpsertBomPlatformReply
+	(*DeleteBomPlatformRequest)(nil),         // 23: api.admin.v1.DeleteBomPlatformRequest
+	(*DeleteBomPlatformReply)(nil),           // 24: api.admin.v1.DeleteBomPlatformReply
+	(*timestamppb.Timestamp)(nil),            // 25: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                  // 26: google.protobuf.Struct
 }
 var file_admin_v1_agent_admin_proto_depIdxs = []int32{
-	16, // 0: api.admin.v1.AgentSummary.last_task_heartbeat_at:type_name -> google.protobuf.Timestamp
+	25, // 0: api.admin.v1.AgentSummary.last_task_heartbeat_at:type_name -> google.protobuf.Timestamp
 	1,  // 1: api.admin.v1.ListAgentsReply.agents:type_name -> api.admin.v1.AgentSummary
-	16, // 2: api.admin.v1.LeasedTaskRow.leased_at:type_name -> google.protobuf.Timestamp
-	16, // 3: api.admin.v1.LeasedTaskRow.lease_deadline_at:type_name -> google.protobuf.Timestamp
+	25, // 2: api.admin.v1.LeasedTaskRow.leased_at:type_name -> google.protobuf.Timestamp
+	25, // 3: api.admin.v1.LeasedTaskRow.lease_deadline_at:type_name -> google.protobuf.Timestamp
 	4,  // 4: api.admin.v1.ListAgentLeasedTasksReply.tasks:type_name -> api.admin.v1.LeasedTaskRow
-	16, // 5: api.admin.v1.InstalledScriptRow.updated_at:type_name -> google.protobuf.Timestamp
+	25, // 5: api.admin.v1.InstalledScriptRow.updated_at:type_name -> google.protobuf.Timestamp
 	7,  // 6: api.admin.v1.ListAgentInstalledScriptsReply.scripts:type_name -> api.admin.v1.InstalledScriptRow
-	16, // 7: api.admin.v1.AgentScriptAuthRow.updated_at:type_name -> google.protobuf.Timestamp
+	25, // 7: api.admin.v1.AgentScriptAuthRow.updated_at:type_name -> google.protobuf.Timestamp
 	10, // 8: api.admin.v1.ListAgentScriptAuthsReply.rows:type_name -> api.admin.v1.AgentScriptAuthRow
-	0,  // 9: api.admin.v1.AgentAdminService.ListAgents:input_type -> api.admin.v1.ListAgentsRequest
-	3,  // 10: api.admin.v1.AgentAdminService.ListAgentLeasedTasks:input_type -> api.admin.v1.ListAgentLeasedTasksRequest
-	6,  // 11: api.admin.v1.AgentAdminService.ListAgentInstalledScripts:input_type -> api.admin.v1.ListAgentInstalledScriptsRequest
-	9,  // 12: api.admin.v1.AgentAdminService.ListAgentScriptAuths:input_type -> api.admin.v1.ListAgentScriptAuthsRequest
-	12, // 13: api.admin.v1.AgentAdminService.UpsertAgentScriptAuth:input_type -> api.admin.v1.UpsertAgentScriptAuthRequest
-	14, // 14: api.admin.v1.AgentAdminService.DeleteAgentScriptAuth:input_type -> api.admin.v1.DeleteAgentScriptAuthRequest
-	2,  // 15: api.admin.v1.AgentAdminService.ListAgents:output_type -> api.admin.v1.ListAgentsReply
-	5,  // 16: api.admin.v1.AgentAdminService.ListAgentLeasedTasks:output_type -> api.admin.v1.ListAgentLeasedTasksReply
-	8,  // 17: api.admin.v1.AgentAdminService.ListAgentInstalledScripts:output_type -> api.admin.v1.ListAgentInstalledScriptsReply
-	11, // 18: api.admin.v1.AgentAdminService.ListAgentScriptAuths:output_type -> api.admin.v1.ListAgentScriptAuthsReply
-	13, // 19: api.admin.v1.AgentAdminService.UpsertAgentScriptAuth:output_type -> api.admin.v1.UpsertAgentScriptAuthReply
-	15, // 20: api.admin.v1.AgentAdminService.DeleteAgentScriptAuth:output_type -> api.admin.v1.DeleteAgentScriptAuthReply
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	26, // 9: api.admin.v1.BomPlatformRow.run_params:type_name -> google.protobuf.Struct
+	25, // 10: api.admin.v1.BomPlatformRow.updated_at:type_name -> google.protobuf.Timestamp
+	17, // 11: api.admin.v1.ListBomPlatformsReply.items:type_name -> api.admin.v1.BomPlatformRow
+	17, // 12: api.admin.v1.GetBomPlatformReply.item:type_name -> api.admin.v1.BomPlatformRow
+	26, // 13: api.admin.v1.UpsertBomPlatformRequest.run_params:type_name -> google.protobuf.Struct
+	17, // 14: api.admin.v1.UpsertBomPlatformReply.item:type_name -> api.admin.v1.BomPlatformRow
+	0,  // 15: api.admin.v1.AgentAdminService.ListAgents:input_type -> api.admin.v1.ListAgentsRequest
+	3,  // 16: api.admin.v1.AgentAdminService.ListAgentLeasedTasks:input_type -> api.admin.v1.ListAgentLeasedTasksRequest
+	6,  // 17: api.admin.v1.AgentAdminService.ListAgentInstalledScripts:input_type -> api.admin.v1.ListAgentInstalledScriptsRequest
+	9,  // 18: api.admin.v1.AgentAdminService.ListAgentScriptAuths:input_type -> api.admin.v1.ListAgentScriptAuthsRequest
+	12, // 19: api.admin.v1.AgentAdminService.UpsertAgentScriptAuth:input_type -> api.admin.v1.UpsertAgentScriptAuthRequest
+	14, // 20: api.admin.v1.AgentAdminService.DeleteAgentScriptAuth:input_type -> api.admin.v1.DeleteAgentScriptAuthRequest
+	16, // 21: api.admin.v1.AgentAdminService.ListBomPlatforms:input_type -> api.admin.v1.ListBomPlatformsRequest
+	19, // 22: api.admin.v1.AgentAdminService.GetBomPlatform:input_type -> api.admin.v1.GetBomPlatformRequest
+	21, // 23: api.admin.v1.AgentAdminService.UpsertBomPlatform:input_type -> api.admin.v1.UpsertBomPlatformRequest
+	23, // 24: api.admin.v1.AgentAdminService.DeleteBomPlatform:input_type -> api.admin.v1.DeleteBomPlatformRequest
+	2,  // 25: api.admin.v1.AgentAdminService.ListAgents:output_type -> api.admin.v1.ListAgentsReply
+	5,  // 26: api.admin.v1.AgentAdminService.ListAgentLeasedTasks:output_type -> api.admin.v1.ListAgentLeasedTasksReply
+	8,  // 27: api.admin.v1.AgentAdminService.ListAgentInstalledScripts:output_type -> api.admin.v1.ListAgentInstalledScriptsReply
+	11, // 28: api.admin.v1.AgentAdminService.ListAgentScriptAuths:output_type -> api.admin.v1.ListAgentScriptAuthsReply
+	13, // 29: api.admin.v1.AgentAdminService.UpsertAgentScriptAuth:output_type -> api.admin.v1.UpsertAgentScriptAuthReply
+	15, // 30: api.admin.v1.AgentAdminService.DeleteAgentScriptAuth:output_type -> api.admin.v1.DeleteAgentScriptAuthReply
+	18, // 31: api.admin.v1.AgentAdminService.ListBomPlatforms:output_type -> api.admin.v1.ListBomPlatformsReply
+	20, // 32: api.admin.v1.AgentAdminService.GetBomPlatform:output_type -> api.admin.v1.GetBomPlatformReply
+	22, // 33: api.admin.v1.AgentAdminService.UpsertBomPlatform:output_type -> api.admin.v1.UpsertBomPlatformReply
+	24, // 34: api.admin.v1.AgentAdminService.DeleteBomPlatform:output_type -> api.admin.v1.DeleteBomPlatformReply
+	25, // [25:35] is the sub-list for method output_type
+	15, // [15:25] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_admin_v1_agent_admin_proto_init() }
@@ -994,7 +1507,7 @@ func file_admin_v1_agent_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_admin_v1_agent_admin_proto_rawDesc), len(file_admin_v1_agent_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

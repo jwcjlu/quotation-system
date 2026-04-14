@@ -12,8 +12,8 @@ import (
 type fakePolicyRepo struct{}
 
 func (f *fakePolicyRepo) DBOk() bool { return true }
-func (f *fakePolicyRepo) LoadByDeclarationDate(context.Context, time.Time) (*HSClassifyPolicy, error) {
-	return &HSClassifyPolicy{VersionID: "mvp-v1", AutoPassConfidenceMin: 85, AutoPassCompletenessMin: 0.9, AutoPassTopGapMin: 8, QuickReviewTopGapMin: 5, ForceReviewConfidenceMax: 70, ForceReviewCompleteness: 0.6}, nil
+func (f *fakePolicyRepo) LoadByDeclarationDate(context.Context, time.Time) (*HSClassifyPolicy, bool, error) {
+	return &HSClassifyPolicy{VersionID: "mvp-v1", AutoPassConfidenceMin: 85, AutoPassCompletenessMin: 0.9, AutoPassTopGapMin: 8, QuickReviewTopGapMin: 5, ForceReviewConfidenceMax: 70, ForceReviewCompleteness: 0.6}, false, nil
 }
 
 type fakeCaseRepo struct{}
@@ -28,7 +28,7 @@ func (f *fakeCaseRepo) SearchTopCases(_ context.Context, req *HSClassifyRequest,
 
 type fakeReviewRepo struct{}
 
-func (f *fakeReviewRepo) DBOk() bool                                { return true }
+func (f *fakeReviewRepo) DBOk() bool                                        { return true }
 func (f *fakeReviewRepo) SaveDecision(context.Context, HSReviewWrite) error { return nil }
 
 func TestHsClassify(t *testing.T) {

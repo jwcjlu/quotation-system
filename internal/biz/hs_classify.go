@@ -28,7 +28,7 @@ func (uc *HSClassifyUsecase) ClassifyByModel(ctx context.Context, req *HSClassif
 	if err != nil {
 		return nil, errors.New("declaration_date format invalid, expected YYYY-MM-DD")
 	}
-	policy, err := uc.policyRepo.LoadByDeclarationDate(ctx, day)
+	policy, policySourceUnavailable, err := uc.policyRepo.LoadByDeclarationDate(ctx, day)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,10 @@ func (uc *HSClassifyUsecase) ClassifyByModel(ctx context.Context, req *HSClassif
 	}
 	topConfidence, topGap := scoreStats(cases)
 	completeness := estimateCompleteness(req)
-	final := uc.engine.Decide(policy, topConfidence, completeness, topGap, hardConflicts(req), false)
+	final := uc.engine.Decide(policy, topConfidence, completeness, topGap, hardConflicts(req), policySourceUnavailable)
+	if policySourceUnavailable {
+		result.Trace.RuleHits = append(result.Trace.RuleHits, "FR_POLICY_SOURCE_UNAVAILABLE")
+	}
 	if len(result.Candidates) > 0 {
 		final.HSCode = result.Candidates[0].HSCode
 	}

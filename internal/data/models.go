@@ -215,3 +215,54 @@ type BomFxRate struct {
 }
 
 func (BomFxRate) TableName() string { return TableBomFxRate }
+
+// HsPolicyVersion 对应 t_hs_policy_version（按生效日版本化阈值）。
+type HsPolicyVersion struct {
+	ID                       uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	VersionID                string    `gorm:"column:version_id;size:64;not null;uniqueIndex:uk_hs_policy_version_id"`
+	EffectiveFrom            time.Time `gorm:"column:effective_from;type:date;not null;index:idx_hs_policy_effective"`
+	AutoPassConfidenceMin    float64   `gorm:"column:auto_pass_confidence_min;type:decimal(10,4);not null"`
+	AutoPassCompletenessMin  float64   `gorm:"column:auto_pass_completeness_min;type:decimal(10,4);not null"`
+	AutoPassTopGapMin        float64   `gorm:"column:auto_pass_top_gap_min;type:decimal(10,4);not null"`
+	QuickReviewTopGapMin     float64   `gorm:"column:quick_review_top_gap_min;type:decimal(10,4);not null"`
+	QuickReviewConfidenceMin float64   `gorm:"column:quick_review_confidence_min;type:decimal(10,4);not null"`
+	ForceReviewConfidenceMax float64   `gorm:"column:force_review_confidence_max;type:decimal(10,4);not null"`
+	ForceReviewCompleteness  float64   `gorm:"column:force_review_completeness;type:decimal(10,4);not null"`
+	Enabled                  bool      `gorm:"column:enabled;not null;default:true;index:idx_hs_policy_effective"`
+	CreatedAt                time.Time `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt                time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (HsPolicyVersion) TableName() string { return TableHsPolicyVersion }
+
+// HsCase 对应 t_hs_case（历史归类案例库）。
+type HsCase struct {
+	ID            uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	Model         string    `gorm:"column:model;size:256;index:idx_hs_case_model"`
+	ProductNameCN string    `gorm:"column:product_name_cn;size:512;index:idx_hs_case_name"`
+	Manufacturer  string    `gorm:"column:manufacturer;size:256"`
+	Package       string    `gorm:"column:package;size:128"`
+	HSCode        string    `gorm:"column:hs_code;size:16;not null;index:idx_hs_case_hs_code"`
+	Title         string    `gorm:"column:title;size:512"`
+	Reason        string    `gorm:"column:reason;type:text"`
+	EvidenceJSON  []byte    `gorm:"column:evidence_json;type:json"`
+	SourceTrust   float64   `gorm:"column:source_trust;type:decimal(10,4);not null;default:1"`
+	CreatedAt     time.Time `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt     time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (HsCase) TableName() string { return TableHsCase }
+
+// HsReviewDecision 对应 t_hs_review_decision（复核闭环记录）。
+type HsReviewDecision struct {
+	ID              uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	RequestKey      string    `gorm:"column:request_key;size:512;not null;index:idx_hs_review_req_key"`
+	FinalHSCode     string    `gorm:"column:final_hs_code;size:16;not null"`
+	ReviewRequired  bool      `gorm:"column:review_required;not null"`
+	ReviewReasons   string    `gorm:"column:review_reasons;type:json"`
+	PolicyVersionID string    `gorm:"column:policy_version_id;size:64;not null;index:idx_hs_review_policy"`
+	CreatedAt       time.Time `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt       time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (HsReviewDecision) TableName() string { return TableHsReviewDecision }

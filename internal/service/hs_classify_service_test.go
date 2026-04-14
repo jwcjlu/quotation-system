@@ -40,8 +40,8 @@ func TestClassifyByModel(t *testing.T) {
 type fakePolicyRepo2 struct{}
 
 func (f *fakePolicyRepo2) DBOk() bool { return true }
-func (f *fakePolicyRepo2) LoadByDeclarationDate(context.Context, time.Time) (*biz.HSClassifyPolicy, error) {
-	return &biz.HSClassifyPolicy{VersionID: "mvp-v1", AutoPassConfidenceMin: 85, AutoPassCompletenessMin: 0.9, AutoPassTopGapMin: 8, QuickReviewTopGapMin: 5, ForceReviewConfidenceMax: 70, ForceReviewCompleteness: 0.6}, nil
+func (f *fakePolicyRepo2) LoadByDeclarationDate(context.Context, time.Time) (*biz.HSClassifyPolicy, bool, error) {
+	return &biz.HSClassifyPolicy{VersionID: "mvp-v1", AutoPassConfidenceMin: 85, AutoPassCompletenessMin: 0.9, AutoPassTopGapMin: 8, QuickReviewTopGapMin: 5, ForceReviewConfidenceMax: 70, ForceReviewCompleteness: 0.6}, false, nil
 }
 
 type fakeCaseRepo2 struct{}
@@ -53,5 +53,5 @@ func (f *fakeCaseRepo2) SearchTopCases(context.Context, *biz.HSClassifyRequest, 
 
 type fakeReviewRepo2 struct{}
 
-func (f *fakeReviewRepo2) DBOk() bool { return true }
+func (f *fakeReviewRepo2) DBOk() bool                                            { return true }
 func (f *fakeReviewRepo2) SaveDecision(context.Context, biz.HSReviewWrite) error { return nil }

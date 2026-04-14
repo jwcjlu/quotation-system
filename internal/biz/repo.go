@@ -11,6 +11,7 @@ var ErrDispatchLeaseMismatch = errors.New("dispatch: lease mismatch or task not 
 
 // ErrBOMSessionRevisionMismatch PutPlatforms 时 expected_revision 与库内不一致。
 var ErrBOMSessionRevisionMismatch = errors.New("bom_session: selection_revision mismatch")
+var ErrHSPolicySourceUnavailable = errors.New("hs policy source unavailable")
 
 // AgentRegistrySummary 运维列表用 Agent 一行快照。
 type AgentRegistrySummary struct {
@@ -228,7 +229,7 @@ type HSReviewWrite struct {
 
 type HSPolicyRepo interface {
 	DBOk() bool
-	LoadByDeclarationDate(ctx context.Context, declarationDate time.Time) (*HSClassifyPolicy, error)
+	LoadByDeclarationDate(ctx context.Context, declarationDate time.Time) (*HSClassifyPolicy, bool, error)
 }
 
 type HSCaseRepo interface {

@@ -17,4 +17,7 @@ const (
 	TableBomManufacturerAlias        = "t_bom_manufacturer_alias"
 	TableBomFxRate                   = "t_bom_fx_rate"
 	TableAgentScriptPackage          = "t_agent_script_package"
+	TableHsPolicyVersion             = "t_hs_policy_version"
+	TableHsCase                      = "t_hs_case"
+	TableHsReviewDecision            = "t_hs_review_decision"
 )

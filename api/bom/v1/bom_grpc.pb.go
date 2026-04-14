@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	BomService_ClassifyByModel_FullMethodName              = "/api.bom.v1.BomService/ClassifyByModel"
 	BomService_UploadBOM_FullMethodName                    = "/api.bom.v1.BomService/UploadBOM"
 	BomService_SearchQuotes_FullMethodName                 = "/api.bom.v1.BomService/SearchQuotes"
 	BomService_AutoMatch_FullMethodName                    = "/api.bom.v1.BomService/AutoMatch"
@@ -51,6 +52,8 @@ const (
 //
 // BOM 配单服务
 type BomServiceClient interface {
+	// 按型号进行 HS 归类与税检建议
+	ClassifyByModel(ctx context.Context, in *ClassifyByModelRequest, opts ...grpc.CallOption) (*ClassifyByModelReply, error)
 	// 上传并解析 BOM
 	UploadBOM(ctx context.Context, in *UploadBOMRequest, opts ...grpc.CallOption) (*UploadBOMReply, error)
 	// 多平台搜索报价
@@ -101,6 +104,16 @@ type bomServiceClient struct {
 
 func NewBomServiceClient(cc grpc.ClientConnInterface) BomServiceClient {
 	return &bomServiceClient{cc}
+}
+
+func (c *bomServiceClient) ClassifyByModel(ctx context.Context, in *ClassifyByModelRequest, opts ...grpc.CallOption) (*ClassifyByModelReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClassifyByModelReply)
+	err := c.cc.Invoke(ctx, BomService_ClassifyByModel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *bomServiceClient) UploadBOM(ctx context.Context, in *UploadBOMRequest, opts ...grpc.CallOption) (*UploadBOMReply, error) {
@@ -349,6 +362,8 @@ func (c *bomServiceClient) ListManufacturerCanonicals(ctx context.Context, in *L
 //
 // BOM 配单服务
 type BomServiceServer interface {
+	// 按型号进行 HS 归类与税检建议
+	ClassifyByModel(context.Context, *ClassifyByModelRequest) (*ClassifyByModelReply, error)
 	// 上传并解析 BOM
 	UploadBOM(context.Context, *UploadBOMRequest) (*UploadBOMReply, error)
 	// 多平台搜索报价
@@ -401,6 +416,9 @@ type BomServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedBomServiceServer struct{}
 
+func (UnimplementedBomServiceServer) ClassifyByModel(context.Context, *ClassifyByModelRequest) (*ClassifyByModelReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClassifyByModel not implemented")
+}
 func (UnimplementedBomServiceServer) UploadBOM(context.Context, *UploadBOMRequest) (*UploadBOMReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method UploadBOM not implemented")
 }
@@ -492,6 +510,24 @@ func RegisterBomServiceServer(s grpc.ServiceRegistrar, srv BomServiceServer) {
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&BomService_ServiceDesc, srv)
+}
+
+func _BomService_ClassifyByModel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClassifyByModelRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ClassifyByModel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ClassifyByModel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ClassifyByModel(ctx, req.(*ClassifyByModelRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _BomService_UploadBOM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -933,6 +969,10 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "api.bom.v1.BomService",
 	HandlerType: (*BomServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ClassifyByModel",
+			Handler:    _BomService_ClassifyByModel_Handler,
+		},
 		{
 			MethodName: "UploadBOM",
 			Handler:    _BomService_UploadBOM_Handler,

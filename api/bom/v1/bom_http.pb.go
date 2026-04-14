@@ -20,6 +20,7 @@ var _ = binding.EncodeURL
 const _ = http.SupportPackageIsVersion1
 
 const OperationBomServiceAutoMatch = "/api.bom.v1.BomService/AutoMatch"
+const OperationBomServiceClassifyByModel = "/api.bom.v1.BomService/ClassifyByModel"
 const OperationBomServiceCreateManufacturerAlias = "/api.bom.v1.BomService/CreateManufacturerAlias"
 const OperationBomServiceCreateSession = "/api.bom.v1.BomService/CreateSession"
 const OperationBomServiceCreateSessionLine = "/api.bom.v1.BomService/CreateSessionLine"
@@ -47,6 +48,8 @@ const OperationBomServiceUploadBOM = "/api.bom.v1.BomService/UploadBOM"
 type BomServiceHTTPServer interface {
 	// AutoMatch 自动配单
 	AutoMatch(context.Context, *AutoMatchRequest) (*AutoMatchReply, error)
+	// ClassifyByModel 按型号进行 HS 归类与税检建议
+	ClassifyByModel(context.Context, *ClassifyByModelRequest) (*ClassifyByModelReply, error)
 	// CreateManufacturerAlias 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
 	CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error)
 	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error)
@@ -91,6 +94,7 @@ type BomServiceHTTPServer interface {
 
 func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r := s.Route("/")
+	r.POST("/api/v1/classify/by-model", _BomService_ClassifyByModel0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom/upload", _BomService_UploadBOM0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom/search", _BomService_SearchQuotes0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom/match", _BomService_AutoMatch0_HTTP_Handler(srv))
@@ -115,6 +119,28 @@ func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r.GET("/api/v1/bom-sessions/{session_id}/export", _BomService_ExportSession0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom/manufacturer-alias", _BomService_CreateManufacturerAlias0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/manufacturer-alias/canonicals", _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv))
+}
+
+func _BomService_ClassifyByModel0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ClassifyByModelRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceClassifyByModel)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ClassifyByModel(ctx, req.(*ClassifyByModelRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ClassifyByModelReply)
+		return ctx.Result(200, reply)
+	}
 }
 
 func _BomService_UploadBOM0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
@@ -657,6 +683,8 @@ func _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv BomServiceHTTPServ
 type BomServiceHTTPClient interface {
 	// AutoMatch 自动配单
 	AutoMatch(ctx context.Context, req *AutoMatchRequest, opts ...http.CallOption) (rsp *AutoMatchReply, err error)
+	// ClassifyByModel 按型号进行 HS 归类与税检建议
+	ClassifyByModel(ctx context.Context, req *ClassifyByModelRequest, opts ...http.CallOption) (rsp *ClassifyByModelReply, err error)
 	// CreateManufacturerAlias 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
 	CreateManufacturerAlias(ctx context.Context, req *CreateManufacturerAliasRequest, opts ...http.CallOption) (rsp *CreateManufacturerAliasReply, err error)
 	CreateSession(ctx context.Context, req *CreateSessionRequest, opts ...http.CallOption) (rsp *CreateSessionReply, err error)
@@ -713,6 +741,20 @@ func (c *BomServiceHTTPClientImpl) AutoMatch(ctx context.Context, in *AutoMatchR
 	pattern := "/api/v1/bom/match"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationBomServiceAutoMatch))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ClassifyByModel 按型号进行 HS 归类与税检建议
+func (c *BomServiceHTTPClientImpl) ClassifyByModel(ctx context.Context, in *ClassifyByModelRequest, opts ...http.CallOption) (*ClassifyByModelReply, error) {
+	var out ClassifyByModelReply
+	pattern := "/api/v1/classify/by-model"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationBomServiceClassifyByModel))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {

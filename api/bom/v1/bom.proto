@@ -8,6 +8,14 @@ option go_package = "caichip/api/bom/v1;v1";
 
 // BOM 配单服务
 service BomService {
+  // 按型号进行 HS 归类与税检建议
+  rpc ClassifyByModel(ClassifyByModelRequest) returns (ClassifyByModelReply) {
+    option (google.api.http) = {
+      post: "/api/v1/classify/by-model"
+      body: "*"
+    };
+  }
+
   // 上传并解析 BOM
   rpc UploadBOM(UploadBOMRequest) returns (UploadBOMReply) {
     option (google.api.http) = {
@@ -198,6 +206,66 @@ message UploadBOMReply {
   string bom_id = 1;
   repeated ParsedItem items = 2;
   int32 total = 3;
+}
+
+// ========== HS Classify ==========
+message ClassifyByModelRequest {
+  string trade_direction = 1;     // import | export
+  string declaration_date = 2;    // YYYY-MM-DD
+  string model = 3;
+  string product_name_cn = 4;
+  string product_name_en = 5;
+  string manufacturer = 6;
+  string brand = 7;
+  string package = 8;
+  string description = 9;
+  string category_hint = 10;
+}
+
+message HSClassifyCandidate {
+  string hs_code = 1;
+  double score = 2;
+  string reason = 3;
+  repeated string evidence = 4;
+  repeated string required_elements_missing = 5;
+}
+
+message HSFinalSuggestion {
+  string hs_code = 1;
+  double confidence = 2;
+  bool review_required = 3;
+  repeated string review_reason_codes = 4;
+}
+
+message HSInspectionCompliance {
+  bool needs_ci = 1;
+  repeated string regulatory_conditions = 2;
+  repeated string license_requirements = 3;
+}
+
+message HSTaxInfo {
+  string mfn_rate = 1;
+  string provisional_rate = 2;
+  string vat_rate = 3;
+  string consumption_tax_rate = 4;
+  string export_tariff_rate = 5;
+  string rebate_hint = 6;
+}
+
+message HSClassifyTrace {
+  repeated string rule_hits = 1;
+  repeated string retrieval_refs = 2;
+  string source_snapshot_time = 3;
+  string llm_version = 4;
+  string policy_version_id = 5;
+}
+
+message ClassifyByModelReply {
+  repeated HSClassifyCandidate candidates = 1;
+  HSFinalSuggestion final_suggestion = 2;
+  HSInspectionCompliance inspection_and_compliance = 3;
+  HSTaxInfo tax = 4;
+  HSClassifyTrace trace = 5;
 }
 
 message ParsedItem {

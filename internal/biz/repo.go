@@ -198,3 +198,45 @@ type BomManufacturerAliasRepo interface {
 	ListDistinctCanonicals(ctx context.Context, limit int) ([]ManufacturerCanonicalDisplay, error)
 	CreateRow(ctx context.Context, canonicalID, displayName, alias, aliasNorm string) error
 }
+
+type HSClassifyPolicy struct {
+	VersionID                string
+	AutoPassConfidenceMin    float64
+	AutoPassCompletenessMin  float64
+	AutoPassTopGapMin        float64
+	QuickReviewTopGapMin     float64
+	QuickReviewConfidenceMin float64
+	ForceReviewConfidenceMax float64
+	ForceReviewCompleteness  float64
+}
+
+type HSReferenceCase struct {
+	HSCode   string
+	Title    string
+	Reason   string
+	Score    float64
+	Evidence []string
+}
+
+type HSReviewWrite struct {
+	RequestKey      string
+	FinalHSCode     string
+	ReviewRequired  bool
+	ReviewReasons   []string
+	PolicyVersionID string
+}
+
+type HSPolicyRepo interface {
+	DBOk() bool
+	LoadByDeclarationDate(ctx context.Context, declarationDate time.Time) (*HSClassifyPolicy, error)
+}
+
+type HSCaseRepo interface {
+	DBOk() bool
+	SearchTopCases(ctx context.Context, req *HSClassifyRequest, topN int) ([]HSReferenceCase, error)
+}
+
+type HSReviewRepo interface {
+	DBOk() bool
+	SaveDecision(ctx context.Context, row HSReviewWrite) error
+}

@@ -29,6 +29,7 @@ type BomService struct {
 	session  biz.BOMSessionRepo
 	search   biz.BOMSearchTaskRepo
 	merge    biz.MergeDispatchExecutor
+	hsUC     *biz.HSClassifyUsecase
 	openai   *data.OpenAIChat
 	fx       *data.BomFxRateRepo
 	alias    biz.BomManufacturerAliasRepo
@@ -37,7 +38,7 @@ type BomService struct {
 }
 
 // NewBomService ...
-func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, openai *data.OpenAIChat, fx *data.BomFxRateRepo, alias biz.BomManufacturerAliasRepo, bc *conf.Bootstrap, logger log.Logger) *BomService {
+func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, hsUC *biz.HSClassifyUsecase, openai *data.OpenAIChat, fx *data.BomFxRateRepo, alias biz.BomManufacturerAliasRepo, bc *conf.Bootstrap, logger log.Logger) *BomService {
 	var bm *conf.BomMatch
 	if bc != nil {
 		bm = bc.BomMatch
@@ -46,12 +47,62 @@ func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, mer
 		session:  session,
 		search:   search,
 		merge:    merge,
+		hsUC:     hsUC,
 		openai:   openai,
 		fx:       fx,
 		alias:    alias,
 		bomMatch: bm,
 		log:      log.NewHelper(logger),
 	}
+}
+
+func (s *BomService) ClassifyByModel(ctx context.Context, req *v1.ClassifyByModelRequest) (*v1.ClassifyByModelReply, error) {
+	if s.hsUC == nil {
+		return nil, kerrors.ServiceUnavailable("HS_CLASSIFY_DISABLED", "hs classify usecase not configured")
+	}
+	if strings.TrimSpace(req.GetDeclarationDate()) == "" || strings.TrimSpace(req.GetModel()) == "" || strings.TrimSpace(req.GetProductNameCn()) == "" {
+		return nil, kerrors.BadRequest("INVALID_ARGUMENT", "declaration_date, model, product_name_cn are required")
+	}
+	res, err := s.hsUC.ClassifyByModel(ctx, &biz.HSClassifyRequest{
+		TradeDirection:  req.GetTradeDirection(),
+		DeclarationDate: req.GetDeclarationDate(),
+		Model:           req.GetModel(),
+		ProductNameCN:   req.GetProductNameCn(),
+		ProductNameEN:   req.GetProductNameEn(),
+		Manufacturer:    req.GetManufacturer(),
+		Brand:           req.GetBrand(),
+		Package:         req.GetPackage(),
+		Description:     req.GetDescription(),
+		CategoryHint:    req.GetCategoryHint(),
+	})
+	if err != nil {
+		return nil, kerrors.BadRequest("INVALID_ARGUMENT", err.Error())
+	}
+	reply := &v1.ClassifyByModelReply{
+		FinalSuggestion: &v1.HSFinalSuggestion{
+			HsCode:            res.FinalSuggestion.HSCode,
+			Confidence:        res.FinalSuggestion.Confidence,
+			ReviewRequired:    res.FinalSuggestion.ReviewRequired,
+			ReviewReasonCodes: append([]string(nil), res.FinalSuggestion.ReviewReasonCodes...),
+		},
+		Trace: &v1.HSClassifyTrace{
+			RuleHits:           append([]string(nil), res.Trace.RuleHits...),
+			RetrievalRefs:      append([]string(nil), res.Trace.RetrievalRefs...),
+			SourceSnapshotTime: res.Trace.SourceSnapshotTime,
+			LlmVersion:         res.Trace.LLMVersion,
+			PolicyVersionId:    res.Trace.PolicyVersionID,
+		},
+	}
+	for _, c := range res.Candidates {
+		reply.Candidates = append(reply.Candidates, &v1.HSClassifyCandidate{
+			HsCode:                  c.HSCode,
+			Score:                   c.Score,
+			Reason:                  c.Reason,
+			Evidence:                append([]string(nil), c.Evidence...),
+			RequiredElementsMissing: append([]string(nil), c.RequiredElementsMissing...),
+		})
+	}
+	return reply, nil
 }
 
 func (s *BomService) tryMergeDispatchSession(ctx context.Context, sessionID string) {

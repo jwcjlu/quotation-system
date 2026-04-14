@@ -32,4 +32,10 @@ var ProviderSet = wire.NewSet(
 	NewCachedAgentRegistryRepo,
 	wire.Bind(new(biz.AgentRegistryRepo), new(*CachedAgentRegistryRepo)),
 	NewTableCacheRefresher,
+	NewHSPolicyRepo,
+	wire.Bind(new(biz.HSPolicyRepo), new(*HSPolicyRepo)),
+	NewHSCaseRepo,
+	wire.Bind(new(biz.HSCaseRepo), new(*HSCaseRepo)),
+	NewHSReviewRepo,
+	wire.Bind(new(biz.HSReviewRepo), new(*HSReviewRepo)),
 )

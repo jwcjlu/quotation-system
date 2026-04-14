@@ -1,0 +1,18 @@
+{
+  "candidates": [
+    { "hs_code": "8542319000", "score": 79.1, "reason": "分值接近", "evidence": ["top-gap-low"], "required_elements_missing": [] }
+  ],
+  "final_suggestion": {
+    "hs_code": "8542319000",
+    "confidence": 79.1,
+    "review_required": true,
+    "review_reason_codes": ["QR_TOP_GAP_LOW", "QR_CONFIDENCE_RANGE"]
+  },
+  "trace": {
+    "rule_hits": ["QUICK_REVIEW"],
+    "retrieval_refs": ["case-quick-1"],
+    "source_snapshot_time": "2026-04-14T08:00:00Z",
+    "llm_version": "rule-only-mvp",
+    "policy_version_id": "mvp-2026-04-13-v1"
+  }
+}

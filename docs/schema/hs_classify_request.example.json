@@ -1,0 +1,12 @@
+{
+  "trade_direction": "import",
+  "declaration_date": "2026-04-14",
+  "model": "STM32F103C8T6",
+  "product_name_cn": "微控制器",
+  "product_name_en": "Microcontroller",
+  "manufacturer": "ST",
+  "brand": "ST",
+  "package": "LQFP48",
+  "description": "32-bit MCU",
+  "category_hint": "ic"
+}

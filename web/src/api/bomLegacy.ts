@@ -3,7 +3,7 @@
  * 与 docs/BOM货源搜索-接口清单.md 中「无会话」旧路径一致。
  */
 import { fetchJson } from './http'
-import type { MatchItem, ParsedItem, PlatformQuote } from './types'
+import type { HSClassifyReply, HSClassifyRequest, MatchItem, ParsedItem, PlatformQuote } from './types'
 
 const BASE = '/api/v1/bom'
 
@@ -338,4 +338,53 @@ export async function createManufacturerAlias(
     }),
   })
   return { alias_norm: String(json.alias_norm ?? json.aliasNorm ?? '') }
+}
+
+function normHSClassifyCandidate(row: Record<string, unknown>) {
+  return {
+    hs_code: String(row.hs_code ?? row.hsCode ?? ''),
+    score: Number(row.score ?? 0),
+    reason: String(row.reason ?? ''),
+    evidence: Array.isArray(row.evidence) ? row.evidence.map((x) => String(x)) : [],
+    required_elements_missing: Array.isArray(row.required_elements_missing ?? row.requiredElementsMissing)
+      ? ((row.required_elements_missing ?? row.requiredElementsMissing) as unknown[]).map((x) => String(x))
+      : [],
+  }
+}
+
+export async function classifyByModel(req: HSClassifyRequest): Promise<HSClassifyReply> {
+  const json = await fetchJson<Record<string, unknown>>('/api/v1/classify/by-model', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  const candidatesRaw = (json.candidates ?? []) as Record<string, unknown>[]
+  const finalRaw = (json.final_suggestion ?? json.finalSuggestion) as Record<string, unknown> | undefined
+  const traceRaw = (json.trace ?? {}) as Record<string, unknown>
+  return {
+    candidates: candidatesRaw.map(normHSClassifyCandidate),
+    final_suggestion: finalRaw
+      ? {
+          hs_code: String(finalRaw.hs_code ?? finalRaw.hsCode ?? ''),
+          confidence: Number(finalRaw.confidence ?? 0),
+          review_required: Boolean(finalRaw.review_required ?? finalRaw.reviewRequired ?? false),
+          review_reason_codes: Array.isArray(finalRaw.review_reason_codes ?? finalRaw.reviewReasonCodes)
+            ? ((finalRaw.review_reason_codes ?? finalRaw.reviewReasonCodes) as unknown[]).map((x) => String(x))
+            : [],
+        }
+      : undefined,
+    trace: traceRaw
+      ? {
+          rule_hits: Array.isArray(traceRaw.rule_hits ?? traceRaw.ruleHits)
+            ? ((traceRaw.rule_hits ?? traceRaw.ruleHits) as unknown[]).map((x) => String(x))
+            : [],
+          retrieval_refs: Array.isArray(traceRaw.retrieval_refs ?? traceRaw.retrievalRefs)
+            ? ((traceRaw.retrieval_refs ?? traceRaw.retrievalRefs) as unknown[]).map((x) => String(x))
+            : [],
+          source_snapshot_time: String(traceRaw.source_snapshot_time ?? traceRaw.sourceSnapshotTime ?? ''),
+          llm_version: String(traceRaw.llm_version ?? traceRaw.llmVersion ?? ''),
+          policy_version_id: String(traceRaw.policy_version_id ?? traceRaw.policyVersionId ?? ''),
+        }
+      : undefined,
+  }
 }

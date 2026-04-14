@@ -16,6 +16,7 @@ import {
   type GetSessionSearchTaskCoverageReply,
 } from '../api'
 import { validateSessionHeaderFields, type ReadinessMode } from '../utils/sessionFields'
+import { HSClassifySection } from './HSClassifySection'
 
 interface SourcingSessionPageProps {
   sessionId: string
@@ -382,6 +383,8 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
           {err}
         </div>
       )}
+
+      <HSClassifySection defaultModel={lines[0]?.mpn ?? ''} />
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="font-semibold text-slate-800 mb-3">单据信息（PATCH /bom-sessions）</h3>

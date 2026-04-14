@@ -134,3 +134,45 @@ export interface BOMLineRow {
 export interface GetBOMLinesReply {
   lines: BOMLineRow[]
 }
+
+export interface HSClassifyRequest {
+  trade_direction: 'import' | 'export'
+  declaration_date: string
+  model: string
+  product_name_cn: string
+  product_name_en?: string
+  manufacturer?: string
+  brand?: string
+  package?: string
+  description?: string
+  category_hint?: string
+}
+
+export interface HSClassifyCandidate {
+  hs_code: string
+  score: number
+  reason: string
+  evidence: string[]
+  required_elements_missing: string[]
+}
+
+export interface HSFinalSuggestion {
+  hs_code: string
+  confidence: number
+  review_required: boolean
+  review_reason_codes: string[]
+}
+
+export interface HSClassifyTrace {
+  rule_hits: string[]
+  retrieval_refs: string[]
+  source_snapshot_time: string
+  llm_version: string
+  policy_version_id: string
+}
+
+export interface HSClassifyReply {
+  candidates: HSClassifyCandidate[]
+  final_suggestion?: HSFinalSuggestion
+  trace?: HSClassifyTrace
+}

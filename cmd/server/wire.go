@@ -23,6 +23,7 @@ func wireApp(*conf.Bootstrap, *conf.BootstrapProxy, log.Logger) (*kratos.App, fu
 		wire.Bind(new(biz.AgentScriptPublishedLister), new(*data.AgentScriptPackageRepo)),
 		// AgentScriptAuthRepo / BomPlatformScriptRepo / AgentRegistryRepo / BomManufacturerAliasRepo
 		// 绑定到 Cached* 实现在 data.ProviderSet。
+		// HsResolveService 由 service.ProviderSet 提供默认实现。
 		server.ProviderSet,
 		data.ProviderSet,
 		biz.ProviderSet,

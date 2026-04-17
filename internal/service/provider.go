@@ -7,4 +7,7 @@ var ProviderSet = wire.NewSet(
 	NewScriptPackageAdmin,
 	NewBomService,
 	NewAgentAdminService,
+	NewDefaultHsResolveService,
+	NewHsMetaService,
+	NewHsSyncService,
 )

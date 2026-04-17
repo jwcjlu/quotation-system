@@ -179,6 +179,48 @@ def _extract_delivery_from_block(block: str) -> str:
     return m.group(1).strip() if m else 'N/A'
 
 
+def _normalize_url(url: str) -> str:
+    """标准化链接地址，处理 // 与相对路径。"""
+    if not url:
+        return 'N/A'
+    url = url.strip()
+    if url.startswith('//'):
+        return f"https:{url}"
+    if url.startswith('/'):
+        return f"https://search.ickey.cn{url}"
+    return url
+
+
+def _extract_datasheet_url_from_block(block: str) -> str:
+    """从 HTML 块中提取“数据手册”下载地址。"""
+    if not block:
+        return 'N/A'
+
+    # 优先匹配锚点文本为“数据手册”
+    m = re.search(
+        r'<a[^>]*href=["\']([^"\']+)["\'][^>]*>\s*数据手册\s*</a>',
+        block,
+        flags=re.IGNORECASE,
+    )
+    if m:
+        href = _normalize_url(m.group(1))
+        if href and not href.lower().startswith('javascript:'):
+            return href
+
+    # 兜底：匹配 href 中包含 datasheet 关键字
+    m = re.search(
+        r'<a[^>]*href=["\']([^"\']*datasheet[^"\']*)["\']',
+        block,
+        flags=re.IGNORECASE,
+    )
+    if m:
+        href = _normalize_url(m.group(1))
+        if href and not href.lower().startswith('javascript:'):
+            return href
+
+    return 'N/A'
+
+
 def _extract_prices_from_section(section: str) -> list:
     """从 HTML 片段中提取价格列表，支持 ￥/¥ 和 $"""
     prices = []
@@ -251,6 +293,7 @@ def _parse_single_block(idx: int, block: str, tag: str) -> dict | None:
         'manufacturer': ma,
         'package': _extract_package_from_block(block),
         'desc': _extract_desc_from_block(block),
+        'datasheet_url': _extract_datasheet_url_from_block(block),
         'stock': st,
         'moq': _extract_moq_from_block(block),
         'price_tiers': price_data['price_tiers'],
@@ -299,6 +342,7 @@ def _parse_single_row_from_html(idx: int, attrs: dict, html_block: str) -> dict:
         'stock': attrs.get('stock', 'N/A'),
         'package': _extract_package_from_block(html_block),
         'desc': _extract_desc_from_block(html_block),
+        'datasheet_url': _extract_datasheet_url_from_block(html_block),
         'moq': _extract_moq_from_block(html_block),
         'lead_time': _extract_delivery_from_block(html_block),
     }
@@ -401,7 +445,7 @@ def save_to_csv(data, filename=None):
         filename = f'ickey_results_{timestamp}.csv'
     
     # 确定字段顺序（与 JSON 输出一致）
-    fieldnames = ['seq', 'model', 'manufacturer', 'package', 'desc', 'stock', 'moq', 'price_tiers', 'hk_price', 'mainland_price', 'lead_time']
+    fieldnames = ['seq', 'model', 'manufacturer', 'package', 'desc', 'datasheet_url', 'stock', 'moq', 'price_tiers', 'hk_price', 'mainland_price', 'lead_time']
     
     with open(filename, 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

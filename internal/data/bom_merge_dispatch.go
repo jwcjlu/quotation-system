@@ -291,6 +291,7 @@ func finalizePendingFromCache(ctx context.Context, search *BOMSearchTaskRepo, L 
 	if qo == "" {
 		qo = "ok"
 	}
+	// snap.QuotesJSON 在 data 层由 t_bom_quote_item 组装，回写时会再次落到明细子表。
 	return search.FinalizeSearchTask(ctx, L.SessionID, L.MpnNorm, L.PlatformID, L.BizDate, "", "succeeded", nil, qo, snap.QuotesJSON, snap.NoMpnDetail)
 }
 

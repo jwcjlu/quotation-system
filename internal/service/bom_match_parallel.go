@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"sync"
 	"time"
@@ -79,13 +80,21 @@ func (s *BomService) matchOneLine(
 			}
 			continue
 		}
+		rows, rowsOK := parseQuoteRowsForMatch(snap.QuotesJSON)
+		if !rowsOK {
+			s.log.Debugf(
+				"bom match skip: session=%s line_no=%d mpn=%q merge_mpn=%q platform=%s reason=quotes_json_invalid_for_match",
+				sid, line.LineNo, line.Mpn, mergeKey, pid,
+			)
+			continue
+		}
 		in := biz.LineMatchInput{
 			BomMpn:           line.Mpn,
 			BomPackage:       derefStrPtr(line.Package),
 			BomMfr:           derefStrPtr(line.Mfr),
 			BomQty:           qtyI,
 			PlatformID:       pid,
-			QuotesJSON:       snap.QuotesJSON,
+			QuoteRows:        rows,
 			BizDate:          view.BizDate,
 			RequestDay:       reqDay,
 			BaseCCY:          baseCCY,
@@ -224,4 +233,18 @@ func (s *BomService) computeMatchItems(ctx context.Context, view *biz.BOMSession
 		total += items[i].GetSubtotal()
 	}
 	return out, total, nil
+}
+
+func parseQuoteRowsForMatch(raw []byte) ([]biz.AgentQuoteRow, bool) {
+	if len(raw) == 0 {
+		return nil, false
+	}
+	var rows []biz.AgentQuoteRow
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		return nil, false
+	}
+	if len(rows) == 0 {
+		return nil, false
+	}
+	return rows, true
 }

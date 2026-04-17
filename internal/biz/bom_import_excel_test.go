@@ -2,6 +2,8 @@ package biz
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/xuri/excelize/v2"
@@ -128,6 +130,21 @@ func TestBomImport_ColumnMappingCustomHeader(t *testing.T) {
 	}
 	if lines[0].Qty == nil || *lines[0].Qty != 3 {
 		t.Fatalf("qty %+v", lines[0].Qty)
+	}
+}
+
+// 可选：仓库根目录放置 Tolen1226_req_221222_1.xls 等老版 .xls 时，验证不再出现 row0/file 格式错误。
+func TestBomImport_LegacyXLS_NoFileFormatError(t *testing.T) {
+	path := filepath.Join("..", "..", "Tolen1226_req_221222_1.xls")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Skip("optional sample .xls at repo root:", err)
+	}
+	_, errs := ParseBomImportRows(bytes.NewReader(data), true)
+	for _, e := range errs {
+		if e.Row == 0 && e.Field == "file" {
+			t.Fatalf("file-level error (expected legacy .xls to open): %v", e)
+		}
 	}
 }
 

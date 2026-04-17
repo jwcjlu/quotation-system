@@ -2,17 +2,16 @@ package biz
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
 	"time"
 )
 
-// LineMatchInput drives single-line multi-platform quote pick from cached quotes_json (design §1–§3).
+// LineMatchInput drives single-line multi-platform quote pick from cached quote rows (design §1–§3).
 //
 // Matching V1 (strict):
-//   - quotes_json: JSON array of AgentQuoteRow (same shape as bom_quote_cache). Invalid JSON or empty array → no candidate.
+//   - quote_rows: AgentQuoteRow array loaded from t_bom_quote_item; empty array → no candidate.
 //   - Model: NormalizeMPNForBOMSearch(bom_mpn) must equal NormalizeMPNForBOMSearch(quote.model); empty model rows are skipped.
 //   - Package: if BomPackage is non-empty after TrimSpace, quote.package must match after NormalizeMfrString on both sides
 //     (trim → NFKC → ASCII upper); empty BomPackage → no package constraint.
@@ -35,7 +34,7 @@ type LineMatchInput struct {
 	BomMfr           string // empty = no manufacturer constraint (§2.5)
 	BomQty           int
 	PlatformID       string
-	QuotesJSON       []byte
+	QuoteRows        []AgentQuoteRow
 	BizDate          time.Time
 	RequestDay       time.Time
 	BaseCCY          string
@@ -61,7 +60,6 @@ type LineMatchPick struct {
 }
 
 const (
-	lineMatchReasonQuotesInvalid       = "quotes_json_invalid"
 	lineMatchReasonNoQuotes            = "no_quotes"
 	lineMatchReasonBomManufacturerMiss = "bom_manufacturer_alias_miss"
 	lineMatchReasonNoCandidate         = "no_matching_quote"
@@ -101,10 +99,7 @@ func PickBestQuoteForLine(ctx context.Context, in LineMatchInput, fx FXRateLooku
 		}
 	}
 
-	var rows []AgentQuoteRow
-	if err := json.Unmarshal(in.QuotesJSON, &rows); err != nil {
-		return LineMatchPick{Ok: false, Reason: lineMatchReasonQuotesInvalid}, nil
-	}
+	rows := append([]AgentQuoteRow(nil), in.QuoteRows...)
 	if len(rows) == 0 {
 		return LineMatchPick{Ok: false, Reason: lineMatchReasonNoQuotes}, nil
 	}

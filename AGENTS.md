@@ -18,6 +18,25 @@
 
 **持久化约定：** 操作 MySQL 请使用 **GORM**。状态机、就绪判定、合并调度等 **业务规则放在 `internal/biz`**，不要在 `data` 层实现「带业务决策的更新」。
 
+### 数据库访问规则（新增）
+
+- 所有数据库读写必须通过 GORM 完成。
+- 禁止在业务代码中拼接 SQL 字符串执行查询或更新。
+- 仅以下场景允许使用原生 SQL：
+  - `docs/schema/migrations/` 下的 schema migration
+  - 必要的只读运维/排障脚本
+- 必须使用原生 SQL 时，必须参数化并在评审中说明原因。
+
+### 单文件长度规则（新增）
+
+- 默认要求：每个代码文件不超过 300 行。
+- 超过 300 行时，优先按职责拆分为更小模块（函数、结构体、服务、仓储等）。
+- 例外场景：
+  - 自动生成文件（如 `*.pb.go`、`wire_gen.go`）
+  - 数据库 migration SQL
+  - 必要的第三方协议/数据映射大文件
+- 发生例外时，需在评审中说明无法拆分的原因。
+
 **详细规则与延伸阅读：** [docs/kratos-project-layout.md](docs/kratos-project-layout.md)（含官方文档链接与 §3 边界说明）。
 
 Cursor 中已通过 `.cursor/rules/kratos-project-layout.mdc` 启用同一条约定。

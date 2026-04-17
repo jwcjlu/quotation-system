@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   PLATFORM_IDS,
-  autoMatch,
   createSessionLine,
   deleteSessionLine,
   exportSessionFile,
@@ -15,8 +14,6 @@ import {
   type BOMLineRow,
   type GetSessionSearchTaskCoverageReply,
 } from '../api'
-import { validateSessionHeaderFields, type ReadinessMode } from '../utils/sessionFields'
-import { HSClassifySection } from './HSClassifySection'
 
 interface SourcingSessionPageProps {
   sessionId: string
@@ -33,7 +30,6 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
   const [contactPhone, setContactPhone] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [contactExtra, setContactExtra] = useState('')
-  const [readinessMode, setReadinessMode] = useState<ReadinessMode>('lenient')
   const [revision, setRevision] = useState(1)
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([...PLATFORM_IDS])
   const [lines, setLines] = useState<BOMLineRow[]>([])
@@ -45,8 +41,6 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
   const [exporting, setExporting] = useState(false)
   const [savingHeader, setSavingHeader] = useState(false)
   const [lineMsg, setLineMsg] = useState<string | null>(null)
-  const [sessionStatus, setSessionStatus] = useState('')
-  const [oneClickMatchRunning, setOneClickMatchRunning] = useState(false)
 
   const [newLine, setNewLine] = useState<LineDraft>({ mpn: '', mfr: '', package: '', qty: '' })
   const [addingLine, setAddingLine] = useState(false)
@@ -62,9 +56,6 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
       setContactPhone(s.contact_phone || '')
       setContactEmail(s.contact_email || '')
       setContactExtra(s.contact_extra || '')
-      const rm = (s.readiness_mode || 'lenient').toLowerCase()
-      setReadinessMode(rm === 'strict' ? 'strict' : 'lenient')
-      setSessionStatus((s.status || '').trim())
       setRevision(s.selection_revision)
       if (s.platform_ids?.length) setSelectedPlatforms(s.platform_ids)
     } catch (e) {
@@ -108,17 +99,6 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
   }
 
   const handleSaveHeader = async () => {
-    const fieldErr = validateSessionHeaderFields({
-      title: sessionTitle,
-      customerName,
-      contactPhone,
-      contactEmail,
-      contactExtra,
-    })
-    if (fieldErr) {
-      setLineMsg(fieldErr)
-      return
-    }
     setSavingHeader(true)
     setLineMsg(null)
     try {
@@ -128,7 +108,6 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
         contact_phone: contactPhone,
         contact_email: contactEmail,
         contact_extra: contactExtra,
-        readiness_mode: readinessMode,
       })
       await loadSession()
       setLineMsg('单据信息已保存')
@@ -171,22 +150,6 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
       setErr(e instanceof Error ? e.message : '导出失败')
     } finally {
       setExporting(false)
-    }
-  }
-
-  const dataReady = sessionStatus.toLowerCase() === 'data_ready'
-
-  const handleOneClickMatch = async () => {
-    if (!dataReady) return
-    setOneClickMatchRunning(true)
-    setLineMsg(null)
-    try {
-      await autoMatch(sessionId, 'price_first')
-      onOpenMatch()
-    } catch (e) {
-      setLineMsg(e instanceof Error ? e.message : '一键配单失败')
-    } finally {
-      setOneClickMatchRunning(false)
     }
   }
 
@@ -311,19 +274,6 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
           <span className="font-medium text-slate-800">{sessionTitle}</span>
           {' · '}
           <span className="font-mono text-sm">{sessionId}</span>
-          {sessionStatus ? (
-            <>
-              {' · '}
-              <span
-                className={`text-xs font-medium px-2 py-0.5 rounded ${
-                  dataReady ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                }`}
-                title="bom_session.status"
-              >
-                {sessionStatus}
-              </span>
-            </>
-          ) : null}
         </p>
         <div className="mt-3 flex flex-wrap gap-2 items-center">
           <button
@@ -344,34 +294,17 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
           </button>
           <button
             type="button"
-            onClick={() => {
-              void loadLines()
-              void loadSession()
-            }}
+            onClick={() => void loadLines()}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
           >
-            刷新行列表与状态
-          </button>
-          <button
-            type="button"
-            disabled={!dataReady || oneClickMatchRunning}
-            title={
-              dataReady
-                ? '调用配单接口后跳转匹配单页'
-                : '仅当会话状态为 data_ready（数据就绪）时可一键配单'
-            }
-            onClick={() => void handleOneClickMatch()}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700 disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-emerald-600"
-          >
-            {oneClickMatchRunning ? '配单中…' : '一键配单'}
+            刷新行列表
           </button>
           <button
             type="button"
             onClick={onOpenMatch}
-            className="rounded-lg border border-blue-600 bg-white px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50"
-            title="仅跳转匹配单页（不先跑配单；未就绪时接口可能返回错误）"
+            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
           >
-            打开配单页
+            打开经典配单页
           </button>
           <span className="text-xs text-slate-500 self-center">GET /bom-sessions/.../export</span>
         </div>
@@ -383,8 +316,6 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
           {err}
         </div>
       )}
-
-      <HSClassifySection defaultModel={lines[0]?.mpn ?? ''} />
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="font-semibold text-slate-800 mb-3">单据信息（PATCH /bom-sessions）</h3>
@@ -433,17 +364,6 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
               onChange={(e) => setContactExtra(e.target.value)}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
             />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-xs text-slate-500 mb-1">数据就绪策略（readiness_mode）</label>
-            <select
-              value={readinessMode}
-              onChange={(e) => setReadinessMode(e.target.value as ReadinessMode)}
-              className="w-full max-w-lg border border-slate-300 rounded-lg px-3 py-2 text-sm"
-            >
-              <option value="lenient">宽松：各平台终态即可</option>
-              <option value="strict">严格：每行至少一平台 succeeded</option>
-            </select>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">

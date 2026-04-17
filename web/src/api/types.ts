@@ -42,7 +42,7 @@ export interface MatchItem {
   all_quotes: PlatformQuote[]
   demand_manufacturer: string
   demand_package: string
-  /** BOM 有厂牌要求时，型号/封装对齐但厂牌未与需求对齐的报价 manufacturer（去重） */
+  /** 型号/封装已对齐但厂牌与需求不一致的报价原文（去重），与后端 MatchItem 扩展字段对齐 */
   mfr_mismatch_quote_manufacturers?: string[]
 }
 
@@ -67,7 +67,6 @@ export interface GetSessionReply {
   contact_phone?: string
   contact_email?: string
   contact_extra?: string
-  /** lenient | strict，与后端 readiness_mode 一致 */
   readiness_mode?: string
 }
 
@@ -133,46 +132,4 @@ export interface BOMLineRow {
 
 export interface GetBOMLinesReply {
   lines: BOMLineRow[]
-}
-
-export interface HSClassifyRequest {
-  trade_direction: 'import' | 'export'
-  declaration_date: string
-  model: string
-  product_name_cn: string
-  product_name_en?: string
-  manufacturer?: string
-  brand?: string
-  package?: string
-  description?: string
-  category_hint?: string
-}
-
-export interface HSClassifyCandidate {
-  hs_code: string
-  score: number
-  reason: string
-  evidence: string[]
-  required_elements_missing: string[]
-}
-
-export interface HSFinalSuggestion {
-  hs_code: string
-  confidence: number
-  review_required: boolean
-  review_reason_codes: string[]
-}
-
-export interface HSClassifyTrace {
-  rule_hits: string[]
-  retrieval_refs: string[]
-  source_snapshot_time: string
-  llm_version: string
-  policy_version_id: string
-}
-
-export interface HSClassifyReply {
-  candidates: HSClassifyCandidate[]
-  final_suggestion?: HSFinalSuggestion
-  trace?: HSClassifyTrace
 }

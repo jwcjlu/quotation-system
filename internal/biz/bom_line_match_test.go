@@ -7,6 +7,15 @@ import (
 	"time"
 )
 
+func mustRows(t *testing.T, s string) []AgentQuoteRow {
+	t.Helper()
+	rows, ok := ParseTaskStdoutQuoteRows(s)
+	if !ok {
+		t.Fatalf("ParseTaskStdoutQuoteRows failed: %s", s)
+	}
+	return rows
+}
+
 type stringAliasMap map[string]string
 
 func (m stringAliasMap) CanonicalID(ctx context.Context, aliasNorm string) (canonicalID string, ok bool, err error) {
@@ -35,10 +44,10 @@ func (f fakeFX) Rate(ctx context.Context, from, to string, date time.Time) (rate
 
 func TestLineMatch_TwoPricesFXCheaper(t *testing.T) {
 	// Two USD tier quotes; base CNY @ 7 — pick lower USD (8 vs 10).
-	quotes := []byte(`[
+	quotes := `[
   {"seq":1,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ $10.0000","hk_price":"","mainland_price":"","lead_time":"5天"},
   {"seq":2,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ $8.0000","hk_price":"","mainland_price":"","lead_time":"5天"}
-]`)
+]`
 	alias := stringAliasMap{
 		"TI": "MFR_TI",
 	}
@@ -49,7 +58,7 @@ func TestLineMatch_TwoPricesFXCheaper(t *testing.T) {
 		BomMfr:           "TI",
 		BomQty:           50,
 		PlatformID:       "find_chips",
-		QuotesJSON:       quotes,
+		QuoteRows:        mustRows(t, quotes),
 		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
 		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
 		BaseCCY:          "CNY",
@@ -79,7 +88,7 @@ func TestLineMatch_TwoPricesFXCheaper(t *testing.T) {
 }
 
 func TestLineMatch_BomMfrHintMatchesResolve(t *testing.T) {
-	quotes := []byte(`[{"seq":1,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ $10.0000","hk_price":"","mainland_price":"","lead_time":"5天"}]`)
+	quotes := `[{"seq":1,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ $10.0000","hk_price":"","mainland_price":"","lead_time":"5天"}]`
 	alias := stringAliasMap{"TI": "MFR_TI"}
 	ctx := context.Background()
 	base := LineMatchInput{
@@ -88,7 +97,7 @@ func TestLineMatch_BomMfrHintMatchesResolve(t *testing.T) {
 		BomMfr:           "TI",
 		BomQty:           50,
 		PlatformID:       "find_chips",
-		QuotesJSON:       quotes,
+		QuoteRows:        mustRows(t, quotes),
 		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
 		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
 		BaseCCY:          "CNY",
@@ -115,10 +124,10 @@ func TestLineMatch_BomMfrHintMatchesResolve(t *testing.T) {
 
 func TestLineMatch_MfrMismatchCollected(t *testing.T) {
 	// BOM 要 TI；同型号封装有一条 ON Semi，应记入 MfrMismatchQuoteManufacturers，仍能从 TI 行配单成功。
-	quotes := []byte(`[
+	quotes := `[
   {"seq":1,"model":"LM358","manufacturer":"ON Semi","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ ￥1.0000","hk_price":"","mainland_price":"","lead_time":"5天"},
   {"seq":2,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ ￥2.0000","hk_price":"","mainland_price":"","lead_time":"5天"}
-]`)
+]`
 	alias := stringAliasMap{
 		"TI":      "MFR_TI",
 		"ON SEMI": "MFR_ON",
@@ -130,7 +139,7 @@ func TestLineMatch_MfrMismatchCollected(t *testing.T) {
 		BomMfr:           "TI",
 		BomQty:           1,
 		PlatformID:       "ickey",
-		QuotesJSON:       quotes,
+		QuoteRows:        mustRows(t, quotes),
 		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
 		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
 		BaseCCY:          "CNY",
@@ -151,10 +160,10 @@ func TestLineMatch_MfrMismatchCollected(t *testing.T) {
 
 func TestLineMatch_TiePriceShorterLead(t *testing.T) {
 	// Same CNY unit price after quantize; shorter lead wins (§1.10).
-	quotes := []byte(`[
+	quotes := `[
   {"seq":1,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ ￥10.000000","hk_price":"","mainland_price":"","lead_time":"7天"},
   {"seq":2,"model":"LM358","manufacturer":"TI","package":"SOP-8","desc":"","stock":"500","moq":"1","price_tiers":"1+ ￥10.000000","hk_price":"","mainland_price":"","lead_time":"3天"}
-]`)
+]`
 	alias := stringAliasMap{"TI": "MFR_TI"}
 	ctx := context.Background()
 	in := LineMatchInput{
@@ -163,7 +172,7 @@ func TestLineMatch_TiePriceShorterLead(t *testing.T) {
 		BomMfr:           "TI",
 		BomQty:           1,
 		PlatformID:       "ickey",
-		QuotesJSON:       quotes,
+		QuoteRows:        mustRows(t, quotes),
 		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
 		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
 		BaseCCY:          "CNY",
@@ -196,19 +205,19 @@ func TestLineMatch_Table(t *testing.T) {
 		err     bool
 	}{
 		{
-			name: "invalid json",
+			name: "no quote rows",
 			in: LineMatchInput{
 				BomMpn: "X", BomQty: 1, BaseCCY: "CNY",
-				QuotesJSON: []byte(`not-json`),
+				QuoteRows: nil,
 			},
 			wantOk: false,
-			reason: lineMatchReasonQuotesInvalid,
+			reason: lineMatchReasonNoQuotes,
 		},
 		{
 			name: "bom mfr required alias miss",
 			in: LineMatchInput{
 				BomMpn: "X", BomMfr: "UNKNOWNBRAND", BomQty: 1, BaseCCY: "CNY",
-				QuotesJSON: []byte(`[]`),
+				QuoteRows: []AgentQuoteRow{},
 			},
 			alias:  stringAliasMap{"TI": "MFR_TI"},
 			wantOk: false,
@@ -218,7 +227,7 @@ func TestLineMatch_Table(t *testing.T) {
 			name: "programmer bom_qty",
 			in: LineMatchInput{
 				BomMpn: "X", BomQty: 0, BaseCCY: "CNY",
-				QuotesJSON: []byte(`[]`),
+				QuoteRows: []AgentQuoteRow{},
 			},
 			err: true,
 		},

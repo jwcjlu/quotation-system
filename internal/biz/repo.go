@@ -6,12 +6,11 @@ import (
 	"time"
 )
 
-// ErrDispatchLeaseMismatch 调度结果上报时 lease 与当前不一致或非 leased 态（由 data 层返回；service 可映射为 ErrLeaseReassigned）。
+// ErrDispatchLeaseMismatch 调度结果上报时 lease 与当前不一致或非 leased 态。
 var ErrDispatchLeaseMismatch = errors.New("dispatch: lease mismatch or task not leased")
 
 // ErrBOMSessionRevisionMismatch PutPlatforms 时 expected_revision 与库内不一致。
 var ErrBOMSessionRevisionMismatch = errors.New("bom_session: selection_revision mismatch")
-var ErrHSPolicySourceUnavailable = errors.New("hs policy source unavailable")
 
 // AgentRegistrySummary 运维列表用 Agent 一行快照。
 type AgentRegistrySummary struct {
@@ -53,7 +52,6 @@ type DispatchTaskRepo interface {
 type AgentRegistryRepo interface {
 	DBOk() bool
 	UpsertTaskHeartbeat(ctx context.Context, agentID, queue, hostname string, scripts []InstalledScript, tags []string) error
-	// MarkAgentsOfflineBefore 将「无任务心跳或心跳早于 cutoff」的 Agent 标为 offline（运维列表与库内状态一致）。
 	MarkAgentsOfflineBefore(ctx context.Context, cutoff time.Time) (int64, error)
 	LoadSchedulingMeta(ctx context.Context, agentID string) (*AgentSchedulingMeta, error)
 	ListAgentRegistrySummaries(ctx context.Context) ([]AgentRegistrySummary, error)
@@ -92,7 +90,6 @@ type BOMSearchTaskRepo interface {
 	ListSearchTaskLookupsByCaichipTaskID(ctx context.Context, caichipTaskID string) ([]BOMSearchTaskLookup, error)
 	ListPendingLookupsByMergeKey(ctx context.Context, mpnNorm, platformID string, bizDate time.Time) ([]BOMSearchTaskLookup, error)
 	LoadQuoteCacheByMergeKey(ctx context.Context, mpnNorm, platformID string, bizDate time.Time) (*QuoteCacheSnapshot, bool, error)
-	// LoadQuoteCachesForKeys 按业务日批量加载报价缓存；返回 map 仅含命中行，键为 MpnNorm+"\x00"+PlatformID（与 Normalize 后一致）。
 	LoadQuoteCachesForKeys(ctx context.Context, bizDate time.Time, pairs []MpnPlatformPair) (map[string]*QuoteCacheSnapshot, error)
 	DistinctPendingMergeKeysForSession(ctx context.Context, sessionID string) ([]MergeKey, error)
 }
@@ -186,7 +183,7 @@ type BomPlatformScriptRepo interface {
 	Delete(ctx context.Context, platformID string) error
 }
 
-// ManufacturerCanonicalDisplay 厂牌 canonical 下拉一行（与 t_bom_manufacturer_alias 聚合查询一致）。
+// ManufacturerCanonicalDisplay 厂牌 canonical 下拉一行。
 type ManufacturerCanonicalDisplay struct {
 	CanonicalID string
 	DisplayName string
@@ -200,44 +197,155 @@ type BomManufacturerAliasRepo interface {
 	CreateRow(ctx context.Context, canonicalID, displayName, alias, aliasNorm string) error
 }
 
-type HSClassifyPolicy struct {
-	VersionID                string
-	AutoPassConfidenceMin    float64
-	AutoPassCompletenessMin  float64
-	AutoPassTopGapMin        float64
-	QuickReviewTopGapMin     float64
-	QuickReviewConfidenceMin float64
-	ForceReviewConfidenceMax float64
-	ForceReviewCompleteness  float64
+// HsModelMappingRecord 型号到 code_ts 的映射记录。
+type HsModelMappingRecord struct {
+	Model                 string
+	Manufacturer          string
+	CodeTS                string
+	Source                string
+	Confidence            float64
+	Status                string
+	FeaturesVersion       string
+	RecommendationVersion string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
-type HSReferenceCase struct {
-	HSCode   string
-	Title    string
-	Reason   string
-	Score    float64
-	Evidence []string
+// HsDatasheetAssetRecord datasheet 资产记录。
+type HsDatasheetAssetRecord struct {
+	ID             uint64
+	Model          string
+	Manufacturer   string
+	DatasheetURL   string
+	LocalPath      string
+	SHA256         string
+	DownloadStatus string
+	ErrorMsg       string
+	UpdatedAt      time.Time
 }
 
-type HSReviewWrite struct {
-	RequestKey      string
-	FinalHSCode     string
-	ReviewRequired  bool
-	ReviewReasons   []string
-	PolicyVersionID string
+// HsModelFeaturesRecord datasheet 抽取结构化特征。
+type HsModelFeaturesRecord struct {
+	ID             uint64
+	Model          string
+	Manufacturer   string
+	AssetID        uint64
+	TechCategory   string
+	ComponentName  string
+	PackageForm    string
+	KeySpecsJSON   []byte
+	RawExtractJSON []byte
+	ExtractModel   string
+	ExtractVersion string
+	CreatedAt      time.Time
 }
 
-type HSPolicyRepo interface {
+// HsPrefilterInput 候选预筛输入特征。
+type HsPrefilterInput struct {
+	TechCategory  string
+	ComponentName string
+	PackageForm   string
+	KeySpecs      map[string]string
+}
+
+// HsPrefilterScoreDetail 预筛评分明细（供审计）。
+type HsPrefilterScoreDetail struct {
+	TechCategoryMatched  bool
+	ComponentNameMatched bool
+	PackageFormMatched   bool
+	KeySpecsMatched      []string
+	KeySpecsMissed       []string
+}
+
+// HsItemCandidate HS 候选条目（含评分与明细）。
+type HsItemCandidate struct {
+	CodeTS        string
+	GName         string
+	Unit1         string
+	Unit2         string
+	ControlMark   string
+	SourceCoreHS6 string
+	RawJSON       []byte
+	Score         float64
+	ScoreDetail   HsPrefilterScoreDetail
+}
+
+// HsItemQueryRepo 从 t_hs_item 按规则检索候选。
+type HsItemQueryRepo interface {
 	DBOk() bool
-	LoadByDeclarationDate(ctx context.Context, declarationDate time.Time) (*HSClassifyPolicy, bool, error)
+	QueryCandidatesByRules(ctx context.Context, input HsPrefilterInput, limit int) ([]HsItemCandidate, error)
 }
 
-type HSCaseRepo interface {
-	DBOk() bool
-	SearchTopCases(ctx context.Context, req *HSClassifyRequest, topN int) ([]HSReferenceCase, error)
+// HsMetaRecord 一行 HS 元数据（配置侧）。
+type HsMetaRecord struct {
+	ID            uint64
+	Category      string
+	ComponentName string
+	CoreHS6       string
+	Description   string
+	Enabled       bool
+	SortOrder     int32
+	UpdatedAt     time.Time
 }
 
-type HSReviewRepo interface {
+// HsMetaListFilter 元数据列表查询条件。
+type HsMetaListFilter struct {
+	Page, PageSize int32
+	Category       string
+	ComponentName  string
+	CoreHS6        string
+	Enabled        *bool
+}
+
+// HsMetaRepo t_hs_meta 读写（无 DB 时 DBOk=false，写操作失败）。
+type HsMetaRepo interface {
 	DBOk() bool
-	SaveDecision(ctx context.Context, row HSReviewWrite) error
+	List(ctx context.Context, filter HsMetaListFilter) ([]HsMetaRecord, int64, error)
+	Create(ctx context.Context, row *HsMetaRecord) error
+	Update(ctx context.Context, row *HsMetaRecord) error
+	Delete(ctx context.Context, id uint64) error
+	CountByCoreAndComponent(ctx context.Context, coreHS6, componentName string, excludeID uint64) (int64, error)
+}
+
+// HsModelRecommendationRecord 单轮推荐候选审计记录。
+type HsModelRecommendationRecord struct {
+	Model             string
+	Manufacturer      string
+	RunID             string
+	CandidateRank     uint8
+	CodeTS            string
+	GName             string
+	Score             float64
+	Reason            string
+	InputSnapshotJSON []byte
+	RecommendModel    string
+	RecommendVersion  string
+	CreatedAt         time.Time
+}
+
+// HsModelMappingRepo 持久化最终映射（仅仓储职责，不承载业务判定）。
+type HsModelMappingRepo interface {
+	DBOk() bool
+	GetConfirmedByModelManufacturer(ctx context.Context, model, manufacturer string) (*HsModelMappingRecord, error)
+	Save(ctx context.Context, row *HsModelMappingRecord) error
+}
+
+// HsDatasheetAssetRepo 持久化 datasheet 资产。
+type HsDatasheetAssetRepo interface {
+	DBOk() bool
+	GetLatestByModelManufacturer(ctx context.Context, model, manufacturer string) (*HsDatasheetAssetRecord, error)
+	Save(ctx context.Context, row *HsDatasheetAssetRecord) error
+}
+
+// HsModelFeaturesRepo 持久化抽取特征。
+type HsModelFeaturesRepo interface {
+	DBOk() bool
+	Create(ctx context.Context, row *HsModelFeaturesRecord) (uint64, error)
+}
+
+// HsModelRecommendationRepo 持久化推荐审计结果。
+type HsModelRecommendationRepo interface {
+	DBOk() bool
+	SaveTopN(ctx context.Context, rows []HsModelRecommendationRecord) error
+	ListByRunID(ctx context.Context, runID string) ([]HsModelRecommendationRecord, error)
 }

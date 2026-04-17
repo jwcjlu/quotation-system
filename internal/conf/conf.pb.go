@@ -40,7 +40,17 @@ type Bootstrap struct {
 	// BOM 配单：基准币种、阶梯价解析、舍入（见 docs/superpowers/specs/2026-03-28-bom-match-currency-mfr-design.md）
 	BomMatch *BomMatch `protobuf:"bytes,11,opt,name=bom_match,json=bomMatch,proto3" json:"bom_match,omitempty"`
 	// 四表进程内缓存：定时全量预热 + 读穿 + 写后失效（单实例，无 Redis）；见 docs/superpowers/specs/2026-03-30-four-tables-inproc-cache-design.md
-	TableCache    *TableCache `protobuf:"bytes,12,opt,name=table_cache,json=tableCache,proto3" json:"table_cache,omitempty"`
+	TableCache *TableCache `protobuf:"bytes,12,opt,name=table_cache,json=tableCache,proto3" json:"table_cache,omitempty"`
+	// HS 解析同步等待超时（毫秒）；<=0 时使用默认值。
+	HsResolveSyncTimeoutMs int32 `protobuf:"varint,13,opt,name=hs_resolve_sync_timeout_ms,json=hsResolveSyncTimeoutMs,proto3" json:"hs_resolve_sync_timeout_ms,omitempty"`
+	// HS 自动确认阈值；范围 [0,1]，越界将被钳制。未显式配置时由业务默认值兜底。
+	HsAutoAcceptThreshold *float64 `protobuf:"fixed64,14,opt,name=hs_auto_accept_threshold,json=hsAutoAcceptThreshold,proto3,oneof" json:"hs_auto_accept_threshold,omitempty"`
+	// HS 候选返回上限；<=0 时使用默认值。
+	HsResolveMaxCandidates int32 `protobuf:"varint,15,opt,name=hs_resolve_max_candidates,json=hsResolveMaxCandidates,proto3" json:"hs_resolve_max_candidates,omitempty"`
+	// HS 每阶段最大重试次数；<0 时使用默认值。
+	HsResolveRetryMax int32 `protobuf:"varint,16,opt,name=hs_resolve_retry_max,json=hsResolveRetryMax,proto3" json:"hs_resolve_retry_max,omitempty"`
+	// HS 查询第三方接口地址（为空时由环境变量/默认值兜底）。
+	HsQueryApiUrl string `protobuf:"bytes,17,opt,name=hs_query_api_url,json=hsQueryApiUrl,proto3" json:"hs_query_api_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -157,6 +167,41 @@ func (x *Bootstrap) GetTableCache() *TableCache {
 		return x.TableCache
 	}
 	return nil
+}
+
+func (x *Bootstrap) GetHsResolveSyncTimeoutMs() int32 {
+	if x != nil {
+		return x.HsResolveSyncTimeoutMs
+	}
+	return 0
+}
+
+func (x *Bootstrap) GetHsAutoAcceptThreshold() float64 {
+	if x != nil && x.HsAutoAcceptThreshold != nil {
+		return *x.HsAutoAcceptThreshold
+	}
+	return 0
+}
+
+func (x *Bootstrap) GetHsResolveMaxCandidates() int32 {
+	if x != nil {
+		return x.HsResolveMaxCandidates
+	}
+	return 0
+}
+
+func (x *Bootstrap) GetHsResolveRetryMax() int32 {
+	if x != nil {
+		return x.HsResolveRetryMax
+	}
+	return 0
+}
+
+func (x *Bootstrap) GetHsQueryApiUrl() string {
+	if x != nil {
+		return x.HsQueryApiUrl
+	}
+	return ""
 }
 
 // TableCache 热表缓存；enabled=false 时不启定时刷新，读路径仍可走读穿（若已接装饰器）。
@@ -1206,7 +1251,7 @@ var File_conf_proto protoreflect.FileDescriptor
 const file_conf_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"conf.proto\x12\x04conf\"\xd1\x04\n" +
+	"conf.proto\x12\x04conf\"\xd4\x06\n" +
 	"\tBootstrap\x12$\n" +
 	"\x06server\x18\x01 \x01(\v2\f.conf.ServerR\x06server\x12\x1e\n" +
 	"\x04data\x18\x02 \x01(\v2\n" +
@@ -1223,7 +1268,12 @@ const file_conf_proto_rawDesc = "" +
 	" \x01(\v2\x15.conf.AgentScriptAuthR\x0fagentScriptAuth\x12+\n" +
 	"\tbom_match\x18\v \x01(\v2\x0e.conf.BomMatchR\bbomMatch\x121\n" +
 	"\vtable_cache\x18\f \x01(\v2\x10.conf.TableCacheR\n" +
-	"tableCache\"X\n" +
+	"tableCache\x12:\n" +
+	"\x1ahs_resolve_sync_timeout_ms\x18\r \x01(\x05R\x16hsResolveSyncTimeoutMs\x12<\n" +
+	"\x18hs_auto_accept_threshold\x18\x0e \x01(\x01H\x00R\x15hsAutoAcceptThreshold\x88\x01\x01\x129\n" +
+	"\x19hs_resolve_max_candidates\x18\x0f \x01(\x05R\x16hsResolveMaxCandidates\x12/\n" +
+	"\x14hs_resolve_retry_max\x18\x10 \x01(\x05R\x11hsResolveRetryMaxB\x1b\n" +
+	"\x19_hs_auto_accept_threshold\"X\n" +
 	"\n" +
 	"TableCache\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x120\n" +
@@ -1370,6 +1420,7 @@ func file_conf_proto_init() {
 	if File_conf_proto != nil {
 		return
 	}
+	file_conf_proto_msgTypes[0].OneofWrappers = []any{}
 	file_conf_proto_msgTypes[3].OneofWrappers = []any{}
 	file_conf_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}

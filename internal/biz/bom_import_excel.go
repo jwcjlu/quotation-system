@@ -1,11 +1,14 @@
 package biz
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
+
+	"caichip/pkg/xlsread"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -152,7 +155,26 @@ func ReadBomImportFirstSheetFromReader(r io.Reader) ([][]string, []BomImportErro
 }
 
 func readBomImportFirstSheetRows(r io.Reader) ([][]string, []BomImportError) {
-	f, err := excelize.OpenReader(r)
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, []BomImportError{{Row: 0, Field: "file", Reason: err.Error()}}
+	}
+	if len(data) == 0 {
+		return nil, []BomImportError{{Row: 0, Field: "file", Reason: "empty file"}}
+	}
+
+	if xlsread.IsOLECompound(data) {
+		rows, xerr := xlsread.FirstSheetRows(data)
+		if xerr != nil {
+			return nil, []BomImportError{{Row: 0, Field: "file", Reason: xlsread.FormatError(xerr)}}
+		}
+		if len(rows) == 0 {
+			return nil, []BomImportError{{Row: 1, Field: "header", Reason: "empty sheet"}}
+		}
+		return rows, nil
+	}
+
+	f, err := excelize.OpenReader(bytes.NewReader(data))
 	if err != nil {
 		return nil, []BomImportError{{Row: 0, Field: "file", Reason: err.Error()}}
 	}

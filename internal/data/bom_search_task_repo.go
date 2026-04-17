@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// BOMSearchTaskRepo 仅保留 Agent 任务回写 bom_search_task / bom_quote_cache 所需方法（无 DB 时为部分 no-op）。
+// BOMSearchTaskRepo 仅保留 Agent 任务回写 bom_search_task / bom_quote_cache(+bom_quote_item) 所需方法（无 DB 时为部分 no-op）。
 type BOMSearchTaskRepo struct {
 	db *gorm.DB
 }
@@ -81,34 +82,54 @@ func (r *BOMSearchTaskRepo) upsertQuoteCache(ctx context.Context, x *gorm.DB, mp
 	if err != nil {
 		return err
 	}
-	var qj, nd interface{}
-	if len(quotesJSON) > 0 {
-		qj = quotesJSON
-	}
+	var nd interface{}
 	if len(noMpnDetail) > 0 {
 		nd = noMpnDetail
 	}
-	cache := BomQuoteCache{
-		MpnNorm:     mpnNorm,
-		PlatformID:  platformID,
-		BizDate:     bd,
-		Outcome:     outcome,
-		QuotesJSON:  quotesJSON,
-		NoMpnDetail: noMpnDetail,
+	if err := x.WithContext(ctx).Exec(`
+INSERT INTO t_bom_quote_cache (mpn_norm, platform_id, biz_date, outcome, no_mpn_detail, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
+ON DUPLICATE KEY UPDATE
+  outcome = VALUES(outcome),
+  no_mpn_detail = VALUES(no_mpn_detail),
+  updated_at = CURRENT_TIMESTAMP(3)
+`, mpnNorm, platformID, bd, outcome, nd).Error; err != nil {
+		return err
 	}
-	return x.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{
-			{Name: "mpn_norm"},
-			{Name: "platform_id"},
-			{Name: "biz_date"},
-		},
-		DoUpdates: clause.Assignments(map[string]interface{}{
-			"outcome":       outcome,
-			"quotes_json":   qj,
-			"no_mpn_detail": nd,
-			"updated_at":    gorm.Expr("CURRENT_TIMESTAMP(3)"),
-		}),
-	}).Create(&cache).Error
+	var cacheID uint64
+	if err := x.WithContext(ctx).Raw(`
+SELECT id
+FROM t_bom_quote_cache
+WHERE mpn_norm = ? AND platform_id = ? AND biz_date = ?
+LIMIT 1
+`, mpnNorm, platformID, bd).Scan(&cacheID).Error; err != nil {
+		return err
+	}
+	if cacheID == 0 {
+		return errors.New("upsertQuoteCache: cache id not found after upsert")
+	}
+	if err := x.WithContext(ctx).Exec(`DELETE FROM t_bom_quote_item WHERE quote_id = ?`, cacheID).Error; err != nil {
+		return err
+	}
+	if len(quotesJSON) == 0 {
+		return nil
+	}
+	var rows []biz.AgentQuoteRow
+	if err := json.Unmarshal(quotesJSON, &rows); err != nil {
+		return err
+	}
+	for i := range rows {
+		row := rows[i]
+		if err := x.WithContext(ctx).Exec(`
+INSERT INTO t_bom_quote_item (
+  quote_id, model, manufacturer, stock, package, `+"`desc`"+`, moq, lead_time,
+  price_tiers, hk_price, mainland_price, query_model, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
+`, cacheID, row.Model, row.Manufacturer, row.Stock, row.Package, row.Desc, row.MOQ, row.LeadTime, row.PriceTiers, row.HKPrice, row.MainlandPrice, row.QueryModel).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // FinalizeSearchTask 事务内校验任务行、更新 state（并视状态 UPSERT 报价缓存）。
@@ -422,7 +443,7 @@ func (r *BOMSearchTaskRepo) ListPendingLookupsByMergeKey(ctx context.Context, mp
 	return out, nil
 }
 
-// LoadQuoteCacheByMergeKey 读取报价缓存；无行则 ok=false。
+// LoadQuoteCacheByMergeKey 读取报价缓存（明细来自 t_bom_quote_item）；无行则 ok=false。
 func (r *BOMSearchTaskRepo) LoadQuoteCacheByMergeKey(ctx context.Context, mpnNorm, platformID string, bizDate time.Time) (*biz.QuoteCacheSnapshot, bool, error) {
 	if !r.DBOk() {
 		return nil, false, nil
@@ -434,17 +455,28 @@ func (r *BOMSearchTaskRepo) LoadQuoteCacheByMergeKey(ctx context.Context, mpnNor
 	if err != nil {
 		return nil, false, err
 	}
-	var row BomQuoteCache
-	err = r.db.WithContext(ctx).
-		Where("mpn_norm = ? AND platform_id = ? AND biz_date = ?", mpnNorm, platformID, bd).
-		First(&row).Error
+	type cacheRow struct {
+		ID          uint64 `gorm:"column:id"`
+		Outcome     string `gorm:"column:outcome"`
+		NoMpnDetail []byte `gorm:"column:no_mpn_detail"`
+	}
+	var row cacheRow
+	err = r.db.WithContext(ctx).Raw(`
+SELECT id, outcome, no_mpn_detail
+FROM t_bom_quote_cache
+WHERE mpn_norm = ? AND platform_id = ? AND biz_date = ?
+LIMIT 1
+`, mpnNorm, platformID, bd).Scan(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
-	qj := row.QuotesJSON
+	qj, err := r.loadQuoteRowsJSONByCacheID(ctx, row.ID)
+	if err != nil {
+		return nil, false, err
+	}
 	nd := row.NoMpnDetail
 	return &biz.QuoteCacheSnapshot{
 		Outcome:     row.Outcome,
@@ -453,7 +485,7 @@ func (r *BOMSearchTaskRepo) LoadQuoteCacheByMergeKey(ctx context.Context, mpnNor
 	}, true, nil
 }
 
-// LoadQuoteCachesForKeys 同一 biz_date 下批量读取 t_bom_quote_cache，减少配单 N×M 次往返。
+// LoadQuoteCachesForKeys 同一 biz_date 下批量读取 t_bom_quote_cache 并装配 t_bom_quote_item，减少配单 N×M 次往返。
 func (r *BOMSearchTaskRepo) LoadQuoteCachesForKeys(ctx context.Context, bizDate time.Time, pairs []biz.MpnPlatformPair) (map[string]*biz.QuoteCacheSnapshot, error) {
 	out := make(map[string]*biz.QuoteCacheSnapshot)
 	if !r.DBOk() || len(pairs) == 0 {
@@ -479,7 +511,7 @@ func (r *BOMSearchTaskRepo) LoadQuoteCachesForKeys(ctx context.Context, bizDate 
 	if len(uniq) == 0 {
 		return out, nil
 	}
-	q := r.db.WithContext(ctx).Model(&BomQuoteCache{}).Where("biz_date = ?", bd)
+	q := r.db.WithContext(ctx).Table(TableBomQuoteCache).Where("biz_date = ?", bd)
 	{
 		var parts []string
 		var args []interface{}
@@ -489,14 +521,24 @@ func (r *BOMSearchTaskRepo) LoadQuoteCachesForKeys(ctx context.Context, bizDate 
 		}
 		q = q.Where(strings.Join(parts, " OR "), args...)
 	}
-	var rows []BomQuoteCache
+	type cacheRow struct {
+		ID          uint64 `gorm:"column:id"`
+		MpnNorm     string `gorm:"column:mpn_norm"`
+		PlatformID  string `gorm:"column:platform_id"`
+		Outcome     string `gorm:"column:outcome"`
+		NoMpnDetail []byte `gorm:"column:no_mpn_detail"`
+	}
+	var rows []cacheRow
 	if err := q.Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	for i := range rows {
 		row := &rows[i]
 		key := row.MpnNorm + "\x00" + row.PlatformID
-		qj := row.QuotesJSON
+		qj, err := r.loadQuoteRowsJSONByCacheID(ctx, row.ID)
+		if err != nil {
+			return nil, err
+		}
 		nd := row.NoMpnDetail
 		out[key] = &biz.QuoteCacheSnapshot{
 			Outcome:     row.Outcome,
@@ -505,6 +547,56 @@ func (r *BOMSearchTaskRepo) LoadQuoteCachesForKeys(ctx context.Context, bizDate 
 		}
 	}
 	return out, nil
+}
+
+func (r *BOMSearchTaskRepo) loadQuoteRowsJSONByCacheID(ctx context.Context, quoteID uint64) ([]byte, error) {
+	if quoteID == 0 {
+		return []byte("[]"), nil
+	}
+	type itemRow struct {
+		Model         string `gorm:"column:model"`
+		Manufacturer  string `gorm:"column:manufacturer"`
+		Package       string `gorm:"column:package"`
+		Desc          string `gorm:"column:desc"`
+		Stock         string `gorm:"column:stock"`
+		MOQ           string `gorm:"column:moq"`
+		PriceTiers    string `gorm:"column:price_tiers"`
+		HKPrice       string `gorm:"column:hk_price"`
+		MainlandPrice string `gorm:"column:mainland_price"`
+		LeadTime      string `gorm:"column:lead_time"`
+		QueryModel    string `gorm:"column:query_model"`
+	}
+	var items []itemRow
+	if err := r.db.WithContext(ctx).Raw(`
+SELECT model, manufacturer, package, `+"`desc`"+`, stock, moq, price_tiers, hk_price, mainland_price, lead_time, query_model
+FROM t_bom_quote_item
+WHERE quote_id = ?
+ORDER BY id ASC
+`, quoteID).Scan(&items).Error; err != nil {
+		return nil, err
+	}
+	rows := make([]biz.AgentQuoteRow, 0, len(items))
+	for i := range items {
+		it := items[i]
+		rows = append(rows, biz.AgentQuoteRow{
+			Seq:           i + 1,
+			Model:         it.Model,
+			Manufacturer:  it.Manufacturer,
+			Package:       it.Package,
+			Desc:          it.Desc,
+			Stock:         it.Stock,
+			MOQ:           it.MOQ,
+			PriceTiers:    it.PriceTiers,
+			HKPrice:       it.HKPrice,
+			MainlandPrice: it.MainlandPrice,
+			LeadTime:      it.LeadTime,
+			QueryModel:    it.QueryModel,
+		})
+	}
+	if len(rows) == 0 {
+		return []byte("[]"), nil
+	}
+	return json.Marshal(rows)
 }
 
 // DistinctPendingMergeKeysForSession 会话内 pending 任务涉及的合并键去重。

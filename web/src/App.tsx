@@ -3,10 +3,12 @@ import { MatchResultPage } from './pages/MatchResultPage'
 import { BomSessionListPage } from './pages/BomSessionListPage'
 import { AgentScriptsPage } from './pages/AgentScriptsPage'
 import { AgentAdminPage } from './pages/AgentAdminPage'
+import { HsResolvePage } from './pages/HsResolvePage'
+import { HsMetaAdminPage } from './pages/HsMetaAdminPage'
 
 const LAST_BOM_KEY = 'bom_last_bom_id'
 
-type Page = 'bom-list' | 'result' | 'agent-scripts' | 'agent-admin'
+type Page = 'bom-list' | 'result' | 'agent-scripts' | 'agent-admin' | 'hs-resolve' | 'hs-meta'
 
 function App() {
   const [page, setPage] = useState<Page>('bom-list')
@@ -56,6 +58,20 @@ function App() {
             >
               Agent 运维
             </button>
+            <button
+              type="button"
+              onClick={() => setPage('hs-resolve')}
+              className={`px-3 py-1 rounded text-sm ${page === 'hs-resolve' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
+            >
+              HS 型号解析
+            </button>
+            <button
+              type="button"
+              onClick={() => setPage('hs-meta')}
+              className={`px-3 py-1 rounded text-sm ${page === 'hs-meta' ? 'bg-slate-600' : 'hover:bg-slate-700'}`}
+            >
+              HS 元数据
+            </button>
           </nav>
         </div>
       </header>
@@ -73,6 +89,8 @@ function App() {
         {page === 'result' && effectiveBomId && <MatchResultPage bomId={effectiveBomId} />}
         {page === 'agent-scripts' && <AgentScriptsPage />}
         {page === 'agent-admin' && <AgentAdminPage />}
+        {page === 'hs-resolve' && <HsResolvePage />}
+        {page === 'hs-meta' && <HsMetaAdminPage />}
       </main>
     </div>
   )

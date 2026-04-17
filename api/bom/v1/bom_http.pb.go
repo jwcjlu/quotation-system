@@ -20,8 +20,6 @@ var _ = binding.EncodeURL
 const _ = http.SupportPackageIsVersion1
 
 const OperationBomServiceAutoMatch = "/api.bom.v1.BomService/AutoMatch"
-const OperationBomServiceClassifyByModel = "/api.bom.v1.BomService/ClassifyByModel"
-const OperationBomServiceCreateManufacturerAlias = "/api.bom.v1.BomService/CreateManufacturerAlias"
 const OperationBomServiceCreateSession = "/api.bom.v1.BomService/CreateSession"
 const OperationBomServiceCreateSessionLine = "/api.bom.v1.BomService/CreateSessionLine"
 const OperationBomServiceDeleteSessionLine = "/api.bom.v1.BomService/DeleteSessionLine"
@@ -30,12 +28,9 @@ const OperationBomServiceExportSession = "/api.bom.v1.BomService/ExportSession"
 const OperationBomServiceGetBOM = "/api.bom.v1.BomService/GetBOM"
 const OperationBomServiceGetBOMLines = "/api.bom.v1.BomService/GetBOMLines"
 const OperationBomServiceGetMatchResult = "/api.bom.v1.BomService/GetMatchResult"
-const OperationBomServiceGetMatchSourceDetail = "/api.bom.v1.BomService/GetMatchSourceDetail"
 const OperationBomServiceGetReadiness = "/api.bom.v1.BomService/GetReadiness"
 const OperationBomServiceGetSession = "/api.bom.v1.BomService/GetSession"
 const OperationBomServiceGetSessionSearchTaskCoverage = "/api.bom.v1.BomService/GetSessionSearchTaskCoverage"
-const OperationBomServiceListManufacturerCanonicals = "/api.bom.v1.BomService/ListManufacturerCanonicals"
-const OperationBomServiceListMatchSourceRecords = "/api.bom.v1.BomService/ListMatchSourceRecords"
 const OperationBomServiceListSessions = "/api.bom.v1.BomService/ListSessions"
 const OperationBomServicePatchSession = "/api.bom.v1.BomService/PatchSession"
 const OperationBomServicePatchSessionLine = "/api.bom.v1.BomService/PatchSessionLine"
@@ -48,10 +43,6 @@ const OperationBomServiceUploadBOM = "/api.bom.v1.BomService/UploadBOM"
 type BomServiceHTTPServer interface {
 	// AutoMatch 自动配单
 	AutoMatch(context.Context, *AutoMatchRequest) (*AutoMatchReply, error)
-	// ClassifyByModel 按型号进行 HS 归类与税检建议
-	ClassifyByModel(context.Context, *ClassifyByModelRequest) (*ClassifyByModelReply, error)
-	// CreateManufacturerAlias 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
-	CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error)
 	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error)
 	// CreateSessionLine 追加一行
 	CreateSessionLine(context.Context, *CreateSessionLineRequest) (*CreateSessionLineReply, error)
@@ -59,23 +50,17 @@ type BomServiceHTTPServer interface {
 	DeleteSessionLine(context.Context, *DeleteSessionLineRequest) (*DeleteSessionLineReply, error)
 	// DownloadTemplate 下载 BOM 模板
 	DownloadTemplate(context.Context, *DownloadTemplateRequest) (*DownloadTemplateReply, error)
-	// ExportSession 导出会话 BOM 行（Excel/CSV）
+	// ExportSession 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
 	ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error)
 	// GetBOM 获取 BOM 详情（含解析结果）
 	GetBOM(context.Context, *GetBOMRequest) (*GetBOMReply, error)
 	GetBOMLines(context.Context, *GetBOMLinesRequest) (*GetBOMLinesReply, error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error)
-	// GetMatchSourceDetail 单行×单平台的报价缓存明细（quotes_json / outcome 等）
-	GetMatchSourceDetail(context.Context, *GetMatchSourceDetailRequest) (*GetMatchSourceDetailReply, error)
 	GetReadiness(context.Context, *GetReadinessRequest) (*GetReadinessReply, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionReply, error)
 	// GetSessionSearchTaskCoverage 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
 	GetSessionSearchTaskCoverage(context.Context, *GetSessionSearchTaskCoverageRequest) (*GetSessionSearchTaskCoverageReply, error)
-	// ListManufacturerCanonicals 列举已有规范厂牌（distinct canonical_id），供审核时对照/选择
-	ListManufacturerCanonicals(context.Context, *ListManufacturerCanonicalsRequest) (*ListManufacturerCanonicalsReply, error)
-	// ListMatchSourceRecords 配单用到的报价缓存摘要（按行×平台；不含 quotes_json 大字段，详情另拉）
-	ListMatchSourceRecords(context.Context, *ListMatchSourceRecordsRequest) (*ListMatchSourceRecordsReply, error)
 	// ListSessions 会话列表（分页、筛选）
 	ListSessions(context.Context, *ListSessionsRequest) (*ListSessionsReply, error)
 	// PatchSession 更新会话头信息（标题、客户联系方式等）
@@ -94,15 +79,12 @@ type BomServiceHTTPServer interface {
 
 func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r := s.Route("/")
-	r.POST("/api/v1/classify/by-model", _BomService_ClassifyByModel0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom/upload", _BomService_UploadBOM0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom/search", _BomService_SearchQuotes0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom/match", _BomService_AutoMatch0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/template", _BomService_DownloadTemplate0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}", _BomService_GetBOM0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match", _BomService_GetMatchResult0_HTTP_Handler(srv))
-	r.GET("/api/v1/bom/{bom_id}/match-sources", _BomService_ListMatchSourceRecords0_HTTP_Handler(srv))
-	r.GET("/api/v1/bom/{bom_id}/match-sources/detail", _BomService_GetMatchSourceDetail0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom-sessions", _BomService_CreateSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions/{session_id}", _BomService_GetSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions", _BomService_ListSessions0_HTTP_Handler(srv))
@@ -117,30 +99,6 @@ func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r.POST("/api/v1/bom-sessions/{session_id}/search-tasks/retry", _BomService_RetrySearchTasks0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom-sessions/{session_id}/search-results", _BomService_SubmitBomSearchResult0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions/{session_id}/export", _BomService_ExportSession0_HTTP_Handler(srv))
-	r.POST("/api/v1/bom/manufacturer-alias", _BomService_CreateManufacturerAlias0_HTTP_Handler(srv))
-	r.GET("/api/v1/bom/manufacturer-alias/canonicals", _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv))
-}
-
-func _BomService_ClassifyByModel0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
-	return func(ctx http.Context) error {
-		var in ClassifyByModelRequest
-		if err := ctx.Bind(&in); err != nil {
-			return err
-		}
-		if err := ctx.BindQuery(&in); err != nil {
-			return err
-		}
-		http.SetOperation(ctx, OperationBomServiceClassifyByModel)
-		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
-			return srv.ClassifyByModel(ctx, req.(*ClassifyByModelRequest))
-		})
-		out, err := h(ctx, &in)
-		if err != nil {
-			return err
-		}
-		reply := out.(*ClassifyByModelReply)
-		return ctx.Result(200, reply)
-	}
 }
 
 func _BomService_UploadBOM0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
@@ -268,50 +226,6 @@ func _BomService_GetMatchResult0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx
 			return err
 		}
 		reply := out.(*GetMatchResultReply)
-		return ctx.Result(200, reply)
-	}
-}
-
-func _BomService_ListMatchSourceRecords0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
-	return func(ctx http.Context) error {
-		var in ListMatchSourceRecordsRequest
-		if err := ctx.BindQuery(&in); err != nil {
-			return err
-		}
-		if err := ctx.BindVars(&in); err != nil {
-			return err
-		}
-		http.SetOperation(ctx, OperationBomServiceListMatchSourceRecords)
-		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
-			return srv.ListMatchSourceRecords(ctx, req.(*ListMatchSourceRecordsRequest))
-		})
-		out, err := h(ctx, &in)
-		if err != nil {
-			return err
-		}
-		reply := out.(*ListMatchSourceRecordsReply)
-		return ctx.Result(200, reply)
-	}
-}
-
-func _BomService_GetMatchSourceDetail0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
-	return func(ctx http.Context) error {
-		var in GetMatchSourceDetailRequest
-		if err := ctx.BindQuery(&in); err != nil {
-			return err
-		}
-		if err := ctx.BindVars(&in); err != nil {
-			return err
-		}
-		http.SetOperation(ctx, OperationBomServiceGetMatchSourceDetail)
-		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
-			return srv.GetMatchSourceDetail(ctx, req.(*GetMatchSourceDetailRequest))
-		})
-		out, err := h(ctx, &in)
-		if err != nil {
-			return err
-		}
-		reply := out.(*GetMatchSourceDetailReply)
 		return ctx.Result(200, reply)
 	}
 }
@@ -639,54 +553,9 @@ func _BomService_ExportSession0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx 
 	}
 }
 
-func _BomService_CreateManufacturerAlias0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
-	return func(ctx http.Context) error {
-		var in CreateManufacturerAliasRequest
-		if err := ctx.Bind(&in); err != nil {
-			return err
-		}
-		if err := ctx.BindQuery(&in); err != nil {
-			return err
-		}
-		http.SetOperation(ctx, OperationBomServiceCreateManufacturerAlias)
-		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
-			return srv.CreateManufacturerAlias(ctx, req.(*CreateManufacturerAliasRequest))
-		})
-		out, err := h(ctx, &in)
-		if err != nil {
-			return err
-		}
-		reply := out.(*CreateManufacturerAliasReply)
-		return ctx.Result(200, reply)
-	}
-}
-
-func _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
-	return func(ctx http.Context) error {
-		var in ListManufacturerCanonicalsRequest
-		if err := ctx.BindQuery(&in); err != nil {
-			return err
-		}
-		http.SetOperation(ctx, OperationBomServiceListManufacturerCanonicals)
-		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
-			return srv.ListManufacturerCanonicals(ctx, req.(*ListManufacturerCanonicalsRequest))
-		})
-		out, err := h(ctx, &in)
-		if err != nil {
-			return err
-		}
-		reply := out.(*ListManufacturerCanonicalsReply)
-		return ctx.Result(200, reply)
-	}
-}
-
 type BomServiceHTTPClient interface {
 	// AutoMatch 自动配单
 	AutoMatch(ctx context.Context, req *AutoMatchRequest, opts ...http.CallOption) (rsp *AutoMatchReply, err error)
-	// ClassifyByModel 按型号进行 HS 归类与税检建议
-	ClassifyByModel(ctx context.Context, req *ClassifyByModelRequest, opts ...http.CallOption) (rsp *ClassifyByModelReply, err error)
-	// CreateManufacturerAlias 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
-	CreateManufacturerAlias(ctx context.Context, req *CreateManufacturerAliasRequest, opts ...http.CallOption) (rsp *CreateManufacturerAliasReply, err error)
 	CreateSession(ctx context.Context, req *CreateSessionRequest, opts ...http.CallOption) (rsp *CreateSessionReply, err error)
 	// CreateSessionLine 追加一行
 	CreateSessionLine(ctx context.Context, req *CreateSessionLineRequest, opts ...http.CallOption) (rsp *CreateSessionLineReply, err error)
@@ -694,23 +563,17 @@ type BomServiceHTTPClient interface {
 	DeleteSessionLine(ctx context.Context, req *DeleteSessionLineRequest, opts ...http.CallOption) (rsp *DeleteSessionLineReply, err error)
 	// DownloadTemplate 下载 BOM 模板
 	DownloadTemplate(ctx context.Context, req *DownloadTemplateRequest, opts ...http.CallOption) (rsp *DownloadTemplateReply, err error)
-	// ExportSession 导出会话 BOM 行（Excel/CSV）
+	// ExportSession 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
 	ExportSession(ctx context.Context, req *ExportSessionRequest, opts ...http.CallOption) (rsp *ExportSessionReply, err error)
 	// GetBOM 获取 BOM 详情（含解析结果）
 	GetBOM(ctx context.Context, req *GetBOMRequest, opts ...http.CallOption) (rsp *GetBOMReply, err error)
 	GetBOMLines(ctx context.Context, req *GetBOMLinesRequest, opts ...http.CallOption) (rsp *GetBOMLinesReply, err error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(ctx context.Context, req *GetMatchResultRequest, opts ...http.CallOption) (rsp *GetMatchResultReply, err error)
-	// GetMatchSourceDetail 单行×单平台的报价缓存明细（quotes_json / outcome 等）
-	GetMatchSourceDetail(ctx context.Context, req *GetMatchSourceDetailRequest, opts ...http.CallOption) (rsp *GetMatchSourceDetailReply, err error)
 	GetReadiness(ctx context.Context, req *GetReadinessRequest, opts ...http.CallOption) (rsp *GetReadinessReply, err error)
 	GetSession(ctx context.Context, req *GetSessionRequest, opts ...http.CallOption) (rsp *GetSessionReply, err error)
 	// GetSessionSearchTaskCoverage 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
 	GetSessionSearchTaskCoverage(ctx context.Context, req *GetSessionSearchTaskCoverageRequest, opts ...http.CallOption) (rsp *GetSessionSearchTaskCoverageReply, err error)
-	// ListManufacturerCanonicals 列举已有规范厂牌（distinct canonical_id），供审核时对照/选择
-	ListManufacturerCanonicals(ctx context.Context, req *ListManufacturerCanonicalsRequest, opts ...http.CallOption) (rsp *ListManufacturerCanonicalsReply, err error)
-	// ListMatchSourceRecords 配单用到的报价缓存摘要（按行×平台；不含 quotes_json 大字段，详情另拉）
-	ListMatchSourceRecords(ctx context.Context, req *ListMatchSourceRecordsRequest, opts ...http.CallOption) (rsp *ListMatchSourceRecordsReply, err error)
 	// ListSessions 会话列表（分页、筛选）
 	ListSessions(ctx context.Context, req *ListSessionsRequest, opts ...http.CallOption) (rsp *ListSessionsReply, err error)
 	// PatchSession 更新会话头信息（标题、客户联系方式等）
@@ -741,34 +604,6 @@ func (c *BomServiceHTTPClientImpl) AutoMatch(ctx context.Context, in *AutoMatchR
 	pattern := "/api/v1/bom/match"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationBomServiceAutoMatch))
-	opts = append(opts, http.PathTemplate(pattern))
-	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-// ClassifyByModel 按型号进行 HS 归类与税检建议
-func (c *BomServiceHTTPClientImpl) ClassifyByModel(ctx context.Context, in *ClassifyByModelRequest, opts ...http.CallOption) (*ClassifyByModelReply, error) {
-	var out ClassifyByModelReply
-	pattern := "/api/v1/classify/by-model"
-	path := binding.EncodeURL(pattern, in, false)
-	opts = append(opts, http.Operation(OperationBomServiceClassifyByModel))
-	opts = append(opts, http.PathTemplate(pattern))
-	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-// CreateManufacturerAlias 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
-func (c *BomServiceHTTPClientImpl) CreateManufacturerAlias(ctx context.Context, in *CreateManufacturerAliasRequest, opts ...http.CallOption) (*CreateManufacturerAliasReply, error) {
-	var out CreateManufacturerAliasReply
-	pattern := "/api/v1/bom/manufacturer-alias"
-	path := binding.EncodeURL(pattern, in, false)
-	opts = append(opts, http.Operation(OperationBomServiceCreateManufacturerAlias))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {
@@ -832,7 +667,7 @@ func (c *BomServiceHTTPClientImpl) DownloadTemplate(ctx context.Context, in *Dow
 	return &out, nil
 }
 
-// ExportSession 导出会话 BOM 行（Excel/CSV）
+// ExportSession 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
 func (c *BomServiceHTTPClientImpl) ExportSession(ctx context.Context, in *ExportSessionRequest, opts ...http.CallOption) (*ExportSessionReply, error) {
 	var out ExportSessionReply
 	pattern := "/api/v1/bom-sessions/{session_id}/export"
@@ -887,20 +722,6 @@ func (c *BomServiceHTTPClientImpl) GetMatchResult(ctx context.Context, in *GetMa
 	return &out, nil
 }
 
-// GetMatchSourceDetail 单行×单平台的报价缓存明细（quotes_json / outcome 等）
-func (c *BomServiceHTTPClientImpl) GetMatchSourceDetail(ctx context.Context, in *GetMatchSourceDetailRequest, opts ...http.CallOption) (*GetMatchSourceDetailReply, error) {
-	var out GetMatchSourceDetailReply
-	pattern := "/api/v1/bom/{bom_id}/match-sources/detail"
-	path := binding.EncodeURL(pattern, in, true)
-	opts = append(opts, http.Operation(OperationBomServiceGetMatchSourceDetail))
-	opts = append(opts, http.PathTemplate(pattern))
-	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
 func (c *BomServiceHTTPClientImpl) GetReadiness(ctx context.Context, in *GetReadinessRequest, opts ...http.CallOption) (*GetReadinessReply, error) {
 	var out GetReadinessReply
 	pattern := "/api/v1/bom-sessions/{session_id}/readiness"
@@ -933,34 +754,6 @@ func (c *BomServiceHTTPClientImpl) GetSessionSearchTaskCoverage(ctx context.Cont
 	pattern := "/api/v1/bom-sessions/{session_id}/search-tasks/coverage"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationBomServiceGetSessionSearchTaskCoverage))
-	opts = append(opts, http.PathTemplate(pattern))
-	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-// ListManufacturerCanonicals 列举已有规范厂牌（distinct canonical_id），供审核时对照/选择
-func (c *BomServiceHTTPClientImpl) ListManufacturerCanonicals(ctx context.Context, in *ListManufacturerCanonicalsRequest, opts ...http.CallOption) (*ListManufacturerCanonicalsReply, error) {
-	var out ListManufacturerCanonicalsReply
-	pattern := "/api/v1/bom/manufacturer-alias/canonicals"
-	path := binding.EncodeURL(pattern, in, true)
-	opts = append(opts, http.Operation(OperationBomServiceListManufacturerCanonicals))
-	opts = append(opts, http.PathTemplate(pattern))
-	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &out, nil
-}
-
-// ListMatchSourceRecords 配单用到的报价缓存摘要（按行×平台；不含 quotes_json 大字段，详情另拉）
-func (c *BomServiceHTTPClientImpl) ListMatchSourceRecords(ctx context.Context, in *ListMatchSourceRecordsRequest, opts ...http.CallOption) (*ListMatchSourceRecordsReply, error) {
-	var out ListMatchSourceRecordsReply
-	pattern := "/api/v1/bom/{bom_id}/match-sources"
-	path := binding.EncodeURL(pattern, in, true)
-	opts = append(opts, http.Operation(OperationBomServiceListMatchSourceRecords))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {
@@ -1071,6 +864,359 @@ func (c *BomServiceHTTPClientImpl) UploadBOM(ctx context.Context, in *UploadBOMR
 	pattern := "/api/v1/bom/upload"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationBomServiceUploadBOM))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+const OperationHsResolveServiceConfirmResolve = "/api.bom.v1.HsResolveService/ConfirmResolve"
+const OperationHsResolveServiceGetResolveHistory = "/api.bom.v1.HsResolveService/GetResolveHistory"
+const OperationHsResolveServiceGetResolveTask = "/api.bom.v1.HsResolveService/GetResolveTask"
+const OperationHsResolveServiceResolveByModel = "/api.bom.v1.HsResolveService/ResolveByModel"
+
+type HsResolveServiceHTTPServer interface {
+	// ConfirmResolve 人工确认候选
+	ConfirmResolve(context.Context, *HsResolveConfirmRequest) (*HsResolveConfirmReply, error)
+	// GetResolveHistory 查询历史结果与候选
+	GetResolveHistory(context.Context, *HsResolveHistoryRequest) (*HsResolveHistoryReply, error)
+	// GetResolveTask 查询单个任务状态与结果
+	GetResolveTask(context.Context, *HsResolveTaskRequest) (*HsResolveTaskReply, error)
+	// ResolveByModel 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
+	ResolveByModel(context.Context, *HsResolveByModelRequest) (*HsResolveByModelReply, error)
+}
+
+func RegisterHsResolveServiceHTTPServer(s *http.Server, srv HsResolveServiceHTTPServer) {
+	r := s.Route("/")
+	r.POST("/api/hs/resolve/by-model", _HsResolveService_ResolveByModel0_HTTP_Handler(srv))
+	r.GET("/api/hs/resolve/task", _HsResolveService_GetResolveTask0_HTTP_Handler(srv))
+	r.POST("/api/hs/resolve/confirm", _HsResolveService_ConfirmResolve0_HTTP_Handler(srv))
+	r.GET("/api/hs/resolve/history", _HsResolveService_GetResolveHistory0_HTTP_Handler(srv))
+}
+
+func _HsResolveService_ResolveByModel0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsResolveByModelRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsResolveServiceResolveByModel)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ResolveByModel(ctx, req.(*HsResolveByModelRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsResolveByModelReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _HsResolveService_GetResolveTask0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsResolveTaskRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsResolveServiceGetResolveTask)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetResolveTask(ctx, req.(*HsResolveTaskRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsResolveTaskReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _HsResolveService_ConfirmResolve0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsResolveConfirmRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsResolveServiceConfirmResolve)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ConfirmResolve(ctx, req.(*HsResolveConfirmRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsResolveConfirmReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _HsResolveService_GetResolveHistory0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsResolveHistoryRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsResolveServiceGetResolveHistory)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetResolveHistory(ctx, req.(*HsResolveHistoryRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsResolveHistoryReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+type HsResolveServiceHTTPClient interface {
+	// ConfirmResolve 人工确认候选
+	ConfirmResolve(ctx context.Context, req *HsResolveConfirmRequest, opts ...http.CallOption) (rsp *HsResolveConfirmReply, err error)
+	// GetResolveHistory 查询历史结果与候选
+	GetResolveHistory(ctx context.Context, req *HsResolveHistoryRequest, opts ...http.CallOption) (rsp *HsResolveHistoryReply, err error)
+	// GetResolveTask 查询单个任务状态与结果
+	GetResolveTask(ctx context.Context, req *HsResolveTaskRequest, opts ...http.CallOption) (rsp *HsResolveTaskReply, err error)
+	// ResolveByModel 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
+	ResolveByModel(ctx context.Context, req *HsResolveByModelRequest, opts ...http.CallOption) (rsp *HsResolveByModelReply, err error)
+}
+
+type HsResolveServiceHTTPClientImpl struct {
+	cc *http.Client
+}
+
+func NewHsResolveServiceHTTPClient(client *http.Client) HsResolveServiceHTTPClient {
+	return &HsResolveServiceHTTPClientImpl{client}
+}
+
+// ConfirmResolve 人工确认候选
+func (c *HsResolveServiceHTTPClientImpl) ConfirmResolve(ctx context.Context, in *HsResolveConfirmRequest, opts ...http.CallOption) (*HsResolveConfirmReply, error) {
+	var out HsResolveConfirmReply
+	pattern := "/api/hs/resolve/confirm"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationHsResolveServiceConfirmResolve))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetResolveHistory 查询历史结果与候选
+func (c *HsResolveServiceHTTPClientImpl) GetResolveHistory(ctx context.Context, in *HsResolveHistoryRequest, opts ...http.CallOption) (*HsResolveHistoryReply, error) {
+	var out HsResolveHistoryReply
+	pattern := "/api/hs/resolve/history"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationHsResolveServiceGetResolveHistory))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetResolveTask 查询单个任务状态与结果
+func (c *HsResolveServiceHTTPClientImpl) GetResolveTask(ctx context.Context, in *HsResolveTaskRequest, opts ...http.CallOption) (*HsResolveTaskReply, error) {
+	var out HsResolveTaskReply
+	pattern := "/api/hs/resolve/task"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationHsResolveServiceGetResolveTask))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ResolveByModel 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
+func (c *HsResolveServiceHTTPClientImpl) ResolveByModel(ctx context.Context, in *HsResolveByModelRequest, opts ...http.CallOption) (*HsResolveByModelReply, error) {
+	var out HsResolveByModelReply
+	pattern := "/api/hs/resolve/by-model"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationHsResolveServiceResolveByModel))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+const OperationHsMetaServiceCreateHsMeta = "/api.bom.v1.HsMetaService/CreateHsMeta"
+const OperationHsMetaServiceDeleteHsMeta = "/api.bom.v1.HsMetaService/DeleteHsMeta"
+const OperationHsMetaServiceListHsMeta = "/api.bom.v1.HsMetaService/ListHsMeta"
+const OperationHsMetaServiceUpdateHsMeta = "/api.bom.v1.HsMetaService/UpdateHsMeta"
+
+type HsMetaServiceHTTPServer interface {
+	CreateHsMeta(context.Context, *HsMetaCreateRequest) (*HsMetaMutationReply, error)
+	DeleteHsMeta(context.Context, *HsMetaDeleteRequest) (*HsMetaMutationReply, error)
+	ListHsMeta(context.Context, *HsMetaListRequest) (*HsMetaListReply, error)
+	UpdateHsMeta(context.Context, *HsMetaUpdateRequest) (*HsMetaMutationReply, error)
+}
+
+func RegisterHsMetaServiceHTTPServer(s *http.Server, srv HsMetaServiceHTTPServer) {
+	r := s.Route("/")
+	r.GET("/api/hs/meta/list", _HsMetaService_ListHsMeta0_HTTP_Handler(srv))
+	r.POST("/api/hs/meta/create", _HsMetaService_CreateHsMeta0_HTTP_Handler(srv))
+	r.POST("/api/hs/meta/update", _HsMetaService_UpdateHsMeta0_HTTP_Handler(srv))
+	r.POST("/api/hs/meta/delete", _HsMetaService_DeleteHsMeta0_HTTP_Handler(srv))
+}
+
+func _HsMetaService_ListHsMeta0_HTTP_Handler(srv HsMetaServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsMetaListRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsMetaServiceListHsMeta)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListHsMeta(ctx, req.(*HsMetaListRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsMetaListReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _HsMetaService_CreateHsMeta0_HTTP_Handler(srv HsMetaServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsMetaCreateRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsMetaServiceCreateHsMeta)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.CreateHsMeta(ctx, req.(*HsMetaCreateRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsMetaMutationReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _HsMetaService_UpdateHsMeta0_HTTP_Handler(srv HsMetaServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsMetaUpdateRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsMetaServiceUpdateHsMeta)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.UpdateHsMeta(ctx, req.(*HsMetaUpdateRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsMetaMutationReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _HsMetaService_DeleteHsMeta0_HTTP_Handler(srv HsMetaServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsMetaDeleteRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsMetaServiceDeleteHsMeta)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.DeleteHsMeta(ctx, req.(*HsMetaDeleteRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsMetaMutationReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+type HsMetaServiceHTTPClient interface {
+	CreateHsMeta(ctx context.Context, req *HsMetaCreateRequest, opts ...http.CallOption) (rsp *HsMetaMutationReply, err error)
+	DeleteHsMeta(ctx context.Context, req *HsMetaDeleteRequest, opts ...http.CallOption) (rsp *HsMetaMutationReply, err error)
+	ListHsMeta(ctx context.Context, req *HsMetaListRequest, opts ...http.CallOption) (rsp *HsMetaListReply, err error)
+	UpdateHsMeta(ctx context.Context, req *HsMetaUpdateRequest, opts ...http.CallOption) (rsp *HsMetaMutationReply, err error)
+}
+
+type HsMetaServiceHTTPClientImpl struct {
+	cc *http.Client
+}
+
+func NewHsMetaServiceHTTPClient(client *http.Client) HsMetaServiceHTTPClient {
+	return &HsMetaServiceHTTPClientImpl{client}
+}
+
+func (c *HsMetaServiceHTTPClientImpl) CreateHsMeta(ctx context.Context, in *HsMetaCreateRequest, opts ...http.CallOption) (*HsMetaMutationReply, error) {
+	var out HsMetaMutationReply
+	pattern := "/api/hs/meta/create"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationHsMetaServiceCreateHsMeta))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *HsMetaServiceHTTPClientImpl) DeleteHsMeta(ctx context.Context, in *HsMetaDeleteRequest, opts ...http.CallOption) (*HsMetaMutationReply, error) {
+	var out HsMetaMutationReply
+	pattern := "/api/hs/meta/delete"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationHsMetaServiceDeleteHsMeta))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *HsMetaServiceHTTPClientImpl) ListHsMeta(ctx context.Context, in *HsMetaListRequest, opts ...http.CallOption) (*HsMetaListReply, error) {
+	var out HsMetaListReply
+	pattern := "/api/hs/meta/list"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationHsMetaServiceListHsMeta))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *HsMetaServiceHTTPClientImpl) UpdateHsMeta(ctx context.Context, in *HsMetaUpdateRequest, opts ...http.CallOption) (*HsMetaMutationReply, error) {
+	var out HsMetaMutationReply
+	pattern := "/api/hs/meta/update"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationHsMetaServiceUpdateHsMeta))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {

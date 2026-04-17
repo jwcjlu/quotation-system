@@ -64,19 +64,44 @@ CREATE TABLE IF NOT EXISTS t_bom_session_line (
 COMMENT='BOM 会话行明细：一行对应多平台搜索任务的物料维度';
 
 CREATE TABLE IF NOT EXISTS t_bom_quote_cache (
+    id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '报价缓存主键',
     mpn_norm                VARCHAR(256) NOT NULL COMMENT '规范化型号，与搜索任务一致',
     platform_id             VARCHAR(32)  NOT NULL COMMENT '平台 ID，见 bom_platform_script',
     biz_date                DATE         NOT NULL COMMENT '业务日，与任务/报价批次对齐',
     outcome                 VARCHAR(32)  NOT NULL COMMENT '结果概要：有报价/无结果/失败等，枚举以应用为准',
-    quotes_json             JSON NULL COMMENT '结构化报价列表（成功时）',
     no_mpn_detail           JSON NULL COMMENT '无型号或无结果时的详情',
     raw_ref                 VARCHAR(512) NULL COMMENT '原始抓取引用（URL、快照键等）',
     created_at              DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '首次写入时间',
     updated_at              DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '最后更新时间',
-    PRIMARY KEY (mpn_norm, platform_id, biz_date),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_bom_quote_cache_merge (mpn_norm, platform_id, biz_date),
     KEY idx_bom_quote_cache_updated (updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='按 (型号,平台,业务日) 缓存报价；任务作废后历史行可保留供审计';
+
+CREATE TABLE IF NOT EXISTS t_bom_quote_item (
+    id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '报价明细主键',
+    quote_id                BIGINT UNSIGNED NOT NULL COMMENT '关联 t_bom_quote_cache.id',
+    model                   VARCHAR(255) NULL COMMENT '报价型号（平台返回）',
+    manufacturer            VARCHAR(255) NULL COMMENT '厂牌原文',
+    stock                   VARCHAR(64)  NULL COMMENT '库存原文，允许 N/A',
+    package                 VARCHAR(255) NULL COMMENT '封装原文',
+    `desc`                  TEXT NULL COMMENT '描述原文',
+    datasheet_url           TEXT NULL COMMENT '数据手册 URL',
+    moq                     VARCHAR(64)  NULL COMMENT '起订量原文，允许 N/A',
+    lead_time               VARCHAR(128) NULL COMMENT '交期原文，如 1工作日',
+    price_tiers             TEXT NULL COMMENT '阶梯价原文',
+    hk_price                TEXT NULL COMMENT '香港价原文',
+    mainland_price          TEXT NULL COMMENT '大陆价原文',
+    query_model             VARCHAR(255) NULL COMMENT '查询型号（用于回溯）',
+    created_at              DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at              DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '最后更新时间',
+    PRIMARY KEY (id),
+    KEY idx_bom_quote_item_quote_id (quote_id),
+    KEY idx_bom_quote_item_query_model (query_model),
+    CONSTRAINT fk_bom_quote_item_cache FOREIGN KEY (quote_id) REFERENCES t_bom_quote_cache (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='BOM 报价明细：由缓存主表一对多展开';
 
 CREATE TABLE IF NOT EXISTS t_bom_search_task (
     id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '搜索任务主键',
@@ -130,6 +155,23 @@ INSERT INTO t_bom_platform_script (platform_id, script_id, display_name) VALUES
     ('szlcsc', 'szlcsc', '立创商城')
 ON DUPLICATE KEY UPDATE script_id = VALUES(script_id);
 
+CREATE TABLE IF NOT EXISTS t_hs_item (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+    code_ts         VARCHAR(16) NOT NULL COMMENT '税则编码',
+    g_name          VARCHAR(512) NOT NULL COMMENT '商品名称',
+    unit_1          VARCHAR(16) NOT NULL DEFAULT '' COMMENT '第一计量单位',
+    unit_2          VARCHAR(16) NOT NULL DEFAULT '' COMMENT '第二计量单位',
+    control_mark    VARCHAR(64) NOT NULL DEFAULT '' COMMENT '监管条件',
+    source_core_hs6 CHAR(6) NOT NULL DEFAULT '' COMMENT '来源 hs6',
+    raw_json        JSON NULL COMMENT '原始返回',
+    updated_at      DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_hs_item_code_ts (code_ts),
+    KEY idx_hs_item_source_core_hs6 (source_core_hs6),
+    KEY idx_hs_item_updated (updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='HS 条目缓存表（按 code_ts 唯一，支持 upsert）';
+
 -- -----------------------------------------------------------------------------
 -- 第二部分：旧库增量（幂等；新库执行第一部分后此处多为 no-op）
 -- 设计：readiness — specs 2026-03-27-bom-sourcing-design §2.3
@@ -162,3 +204,165 @@ CREATE TABLE IF NOT EXISTS t_bom_merge_inflight (
     KEY idx_bom_merge_inflight_task (task_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 COMMENT='合并键→在途调度 task_id；finished/cancelled 后删除以允许新一轮抓取';
+
+-- t_bom_quote_cache.id（无则 ADD，已有则跳过）
+SET @__bom_has_cache_id := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = @__bom_db AND TABLE_NAME = 't_bom_quote_cache' AND COLUMN_NAME = 'id'
+);
+SET @__bom_sql_add_cache_id := IF(@__bom_has_cache_id = 0,
+    'ALTER TABLE t_bom_quote_cache ADD COLUMN id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT FIRST',
+    'SELECT ''t_bom_quote_cache.id already exists'' AS bom_migration_msg'
+);
+PREPARE __bom_stmt_add_cache_id FROM @__bom_sql_add_cache_id;
+EXECUTE __bom_stmt_add_cache_id;
+DEALLOCATE PREPARE __bom_stmt_add_cache_id;
+
+-- t_bom_quote_cache 主键切换到 id（若尚未切换）
+SET @__bom_cache_pk_is_id := (
+    SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = @__bom_db
+      AND TABLE_NAME = 't_bom_quote_cache'
+      AND CONSTRAINT_NAME = 'PRIMARY'
+      AND COLUMN_NAME = 'id'
+);
+SET @__bom_sql_switch_cache_pk := IF(@__bom_cache_pk_is_id = 0,
+    'ALTER TABLE t_bom_quote_cache DROP PRIMARY KEY, ADD PRIMARY KEY (id)',
+    'SELECT ''t_bom_quote_cache primary key already uses id'' AS bom_migration_msg'
+);
+PREPARE __bom_stmt_switch_cache_pk FROM @__bom_sql_switch_cache_pk;
+EXECUTE __bom_stmt_switch_cache_pk;
+DEALLOCATE PREPARE __bom_stmt_switch_cache_pk;
+
+-- t_bom_quote_cache 合并键唯一索引（无则补）
+SET @__bom_has_cache_merge_uk := (
+    SELECT COUNT(*) FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = @__bom_db
+      AND TABLE_NAME = 't_bom_quote_cache'
+      AND INDEX_NAME = 'uk_bom_quote_cache_merge'
+);
+SET @__bom_sql_add_cache_merge_uk := IF(@__bom_has_cache_merge_uk = 0,
+    'ALTER TABLE t_bom_quote_cache ADD UNIQUE KEY uk_bom_quote_cache_merge (mpn_norm, platform_id, biz_date)',
+    'SELECT ''uk_bom_quote_cache_merge already exists'' AS bom_migration_msg'
+);
+PREPARE __bom_stmt_add_cache_merge_uk FROM @__bom_sql_add_cache_merge_uk;
+EXECUTE __bom_stmt_add_cache_merge_uk;
+DEALLOCATE PREPARE __bom_stmt_add_cache_merge_uk;
+
+-- t_hs_item.uk_hs_item_code_ts（无则补）
+SET @__bom_has_hs_item_uk := (
+    SELECT COUNT(*) FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = @__bom_db
+      AND TABLE_NAME = 't_hs_item'
+      AND INDEX_NAME = 'uk_hs_item_code_ts'
+);
+SET @__bom_sql_add_hs_item_uk := IF(@__bom_has_hs_item_uk = 0,
+    'ALTER TABLE t_hs_item ADD UNIQUE KEY uk_hs_item_code_ts (code_ts)',
+    'SELECT ''uk_hs_item_code_ts already exists'' AS bom_migration_msg'
+);
+PREPARE __bom_stmt_add_hs_item_uk FROM @__bom_sql_add_hs_item_uk;
+EXECUTE __bom_stmt_add_hs_item_uk;
+DEALLOCATE PREPARE __bom_stmt_add_hs_item_uk;
+
+-- t_bom_quote_item（无则创建）
+CREATE TABLE IF NOT EXISTS t_bom_quote_item (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '报价明细主键',
+    quote_id        BIGINT UNSIGNED NOT NULL COMMENT '关联 t_bom_quote_cache.id',
+    model           VARCHAR(255) NULL COMMENT '报价型号（平台返回）',
+    manufacturer    VARCHAR(255) NULL COMMENT '厂牌原文',
+    stock           VARCHAR(64)  NULL COMMENT '库存原文，允许 N/A',
+    package         VARCHAR(255) NULL COMMENT '封装原文',
+    `desc`          TEXT NULL COMMENT '描述原文',
+    datasheet_url   TEXT NULL COMMENT '数据手册 URL',
+    moq             VARCHAR(64)  NULL COMMENT '起订量原文，允许 N/A',
+    lead_time       VARCHAR(128) NULL COMMENT '交期原文，如 1工作日',
+    price_tiers     TEXT NULL COMMENT '阶梯价原文',
+    hk_price        TEXT NULL COMMENT '香港价原文',
+    mainland_price  TEXT NULL COMMENT '大陆价原文',
+    query_model     VARCHAR(255) NULL COMMENT '查询型号（用于回溯）',
+    created_at      DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at      DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '最后更新时间',
+    PRIMARY KEY (id),
+    KEY idx_bom_quote_item_quote_id (quote_id),
+    KEY idx_bom_quote_item_query_model (query_model),
+    CONSTRAINT fk_bom_quote_item_cache
+        FOREIGN KEY (quote_id) REFERENCES t_bom_quote_cache (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='BOM 报价明细：t_bom_quote_cache 一对多子表';
+
+CREATE TABLE IF NOT EXISTS t_hs_datasheet_asset (
+    id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+    model           VARCHAR(128) NOT NULL COMMENT '型号',
+    manufacturer    VARCHAR(128) NOT NULL COMMENT '厂牌',
+    datasheet_url   VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '数据手册 URL',
+    local_path      VARCHAR(512) NOT NULL DEFAULT '' COMMENT '本地落盘路径',
+    sha256          CHAR(64) NOT NULL DEFAULT '' COMMENT '文件 SHA256',
+    download_status ENUM('ok','failed') NOT NULL DEFAULT 'failed' COMMENT '下载状态',
+    error_msg       VARCHAR(512) NOT NULL DEFAULT '' COMMENT '失败原因',
+    updated_at      DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_hs_datasheet_asset_model_mfr (model, manufacturer)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='datasheet 资产事实表';
+
+CREATE TABLE IF NOT EXISTS t_hs_model_mapping (
+    id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+    model                   VARCHAR(128) NOT NULL COMMENT '型号',
+    manufacturer            VARCHAR(128) NOT NULL COMMENT '厂牌',
+    code_ts                 CHAR(10) NOT NULL COMMENT '10 位数字编码（保留前导 0）',
+    source                  ENUM('manual','llm_auto') NOT NULL DEFAULT 'llm_auto' COMMENT '映射来源',
+    confidence              DECIMAL(5,4) NULL COMMENT '置信度',
+    status                  ENUM('confirmed','pending_review','rejected') NOT NULL DEFAULT 'pending_review' COMMENT '结果状态',
+    features_version        VARCHAR(64) NOT NULL DEFAULT '' COMMENT '抽取版本',
+    recommendation_version  VARCHAR(64) NOT NULL DEFAULT '' COMMENT '推荐版本',
+    created_at              DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    updated_at              DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_hs_model_mapping_model_mfr (model, manufacturer),
+    KEY idx_hs_model_mapping_code_ts (code_ts),
+    KEY idx_hs_model_mapping_status (status),
+    CONSTRAINT chk_hs_model_mapping_code_ts CHECK (code_ts REGEXP '^[0-9]{10}$')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='型号 + 厂牌 到 HS 编码最终映射';
+
+CREATE TABLE IF NOT EXISTS t_hs_model_features (
+    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+    model            VARCHAR(128) NOT NULL COMMENT '型号',
+    manufacturer     VARCHAR(128) NOT NULL COMMENT '厂牌',
+    asset_id         BIGINT UNSIGNED NOT NULL COMMENT '关联 datasheet 资产',
+    tech_category    VARCHAR(64) NOT NULL DEFAULT '' COMMENT '技术类别',
+    component_name   VARCHAR(128) NOT NULL DEFAULT '' COMMENT '元器件名称',
+    package_form     VARCHAR(64) NOT NULL DEFAULT '' COMMENT '封装形式',
+    key_specs_json   JSON NULL COMMENT '关键参数 JSON',
+    raw_extract_json JSON NULL COMMENT '原始抽取 JSON',
+    extract_model    VARCHAR(64) NOT NULL DEFAULT '' COMMENT '抽取模型名',
+    extract_version  VARCHAR(64) NOT NULL DEFAULT '' COMMENT '抽取版本',
+    created_at       DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_hs_model_features_model_mfr (model, manufacturer),
+    KEY idx_hs_model_features_asset_id (asset_id),
+    CONSTRAINT fk_hs_model_features_asset_id FOREIGN KEY (asset_id) REFERENCES t_hs_datasheet_asset(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='datasheet 结构化特征';
+
+CREATE TABLE IF NOT EXISTS t_hs_model_recommendation (
+    id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+    model               VARCHAR(128) NOT NULL COMMENT '型号',
+    manufacturer        VARCHAR(128) NOT NULL COMMENT '厂牌',
+    run_id              CHAR(36) NOT NULL COMMENT '推荐批次 ID',
+    candidate_rank      TINYINT UNSIGNED NOT NULL COMMENT '候选排序位次',
+    code_ts             CHAR(10) NOT NULL COMMENT '候选 10 位 code_ts',
+    g_name              VARCHAR(512) NOT NULL DEFAULT '' COMMENT '候选商品名称',
+    score               DECIMAL(5,4) NULL COMMENT '分值',
+    reason              VARCHAR(1024) NOT NULL DEFAULT '' COMMENT '推荐理由',
+    input_snapshot_json JSON NULL COMMENT '输入快照',
+    recommend_model     VARCHAR(64) NOT NULL DEFAULT '' COMMENT '推荐模型名',
+    recommend_version   VARCHAR(64) NOT NULL DEFAULT '' COMMENT '推荐版本',
+    created_at          DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_hs_model_reco_run_rank (run_id, candidate_rank),
+    KEY idx_hs_model_reco_model_mfr_created (model, manufacturer, created_at),
+    KEY idx_hs_model_reco_run_id (run_id),
+    CONSTRAINT chk_hs_model_reco_code_ts CHECK (code_ts REGEXP '^[0-9]{10}$')
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='候选推荐审计轨迹';

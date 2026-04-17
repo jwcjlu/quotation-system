@@ -18,7 +18,6 @@ import (
 
 	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
-	mysqlerr "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
@@ -29,7 +28,6 @@ type BomService struct {
 	session  biz.BOMSessionRepo
 	search   biz.BOMSearchTaskRepo
 	merge    biz.MergeDispatchExecutor
-	hsUC     *biz.HSClassifyUsecase
 	openai   *data.OpenAIChat
 	fx       *data.BomFxRateRepo
 	alias    biz.BomManufacturerAliasRepo
@@ -38,7 +36,7 @@ type BomService struct {
 }
 
 // NewBomService ...
-func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, hsUC *biz.HSClassifyUsecase, openai *data.OpenAIChat, fx *data.BomFxRateRepo, alias biz.BomManufacturerAliasRepo, bc *conf.Bootstrap, logger log.Logger) *BomService {
+func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, openai *data.OpenAIChat, fx *data.BomFxRateRepo, alias biz.BomManufacturerAliasRepo, bc *conf.Bootstrap, logger log.Logger) *BomService {
 	var bm *conf.BomMatch
 	if bc != nil {
 		bm = bc.BomMatch
@@ -47,62 +45,12 @@ func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, mer
 		session:  session,
 		search:   search,
 		merge:    merge,
-		hsUC:     hsUC,
 		openai:   openai,
 		fx:       fx,
 		alias:    alias,
 		bomMatch: bm,
 		log:      log.NewHelper(logger),
 	}
-}
-
-func (s *BomService) ClassifyByModel(ctx context.Context, req *v1.ClassifyByModelRequest) (*v1.ClassifyByModelReply, error) {
-	if s.hsUC == nil {
-		return nil, kerrors.ServiceUnavailable("HS_CLASSIFY_DISABLED", "hs classify usecase not configured")
-	}
-	if strings.TrimSpace(req.GetDeclarationDate()) == "" || strings.TrimSpace(req.GetModel()) == "" || strings.TrimSpace(req.GetProductNameCn()) == "" {
-		return nil, kerrors.BadRequest("INVALID_ARGUMENT", "declaration_date, model, product_name_cn are required")
-	}
-	res, err := s.hsUC.ClassifyByModel(ctx, &biz.HSClassifyRequest{
-		TradeDirection:  req.GetTradeDirection(),
-		DeclarationDate: req.GetDeclarationDate(),
-		Model:           req.GetModel(),
-		ProductNameCN:   req.GetProductNameCn(),
-		ProductNameEN:   req.GetProductNameEn(),
-		Manufacturer:    req.GetManufacturer(),
-		Brand:           req.GetBrand(),
-		Package:         req.GetPackage(),
-		Description:     req.GetDescription(),
-		CategoryHint:    req.GetCategoryHint(),
-	})
-	if err != nil {
-		return nil, kerrors.BadRequest("INVALID_ARGUMENT", err.Error())
-	}
-	reply := &v1.ClassifyByModelReply{
-		FinalSuggestion: &v1.HSFinalSuggestion{
-			HsCode:            res.FinalSuggestion.HSCode,
-			Confidence:        res.FinalSuggestion.Confidence,
-			ReviewRequired:    res.FinalSuggestion.ReviewRequired,
-			ReviewReasonCodes: append([]string(nil), res.FinalSuggestion.ReviewReasonCodes...),
-		},
-		Trace: &v1.HSClassifyTrace{
-			RuleHits:           append([]string(nil), res.Trace.RuleHits...),
-			RetrievalRefs:      append([]string(nil), res.Trace.RetrievalRefs...),
-			SourceSnapshotTime: res.Trace.SourceSnapshotTime,
-			LlmVersion:         res.Trace.LLMVersion,
-			PolicyVersionId:    res.Trace.PolicyVersionID,
-		},
-	}
-	for _, c := range res.Candidates {
-		reply.Candidates = append(reply.Candidates, &v1.HSClassifyCandidate{
-			HsCode:                  c.HSCode,
-			Score:                   c.Score,
-			Reason:                  c.Reason,
-			Evidence:                append([]string(nil), c.Evidence...),
-			RequiredElementsMissing: append([]string(nil), c.RequiredElementsMissing...),
-		})
-	}
-	return reply, nil
 }
 
 func (s *BomService) tryMergeDispatchSession(ctx context.Context, sessionID string) {
@@ -431,38 +379,38 @@ func agentRowToPlatformQuote(platformID string, row biz.AgentQuoteRow, _ int) *v
 }
 
 func noMatchItem(line data.BomSessionLine, qtyI int, mfrMismatch []string) *v1.MatchItem {
+	_ = mfrMismatch
 	return &v1.MatchItem{
-		Index:                         int32(line.LineNo),
-		Model:                         line.Mpn,
-		Quantity:                      int32(qtyI),
-		MatchStatus:                   "no_match",
-		DemandManufacturer:            derefStrPtr(line.Mfr),
-		DemandPackage:                 derefStrPtr(line.Package),
-		MfrMismatchQuoteManufacturers: append([]string(nil), mfrMismatch...),
+		Index:              int32(line.LineNo),
+		Model:              line.Mpn,
+		Quantity:           int32(qtyI),
+		MatchStatus:        "no_match",
+		DemandManufacturer: derefStrPtr(line.Mfr),
+		DemandPackage:      derefStrPtr(line.Package),
 	}
 }
 
 func matchItemFromPick(line data.BomSessionLine, qtyI int, pick biz.LineMatchPick, platformID string, mfrMismatch []string) *v1.MatchItem {
+	_ = mfrMismatch
 	subtotal := pick.UnitPriceBase * float64(qtyI)
 	var stock int64
 	if sq, ok := biz.ParseCompareStock(pick.Row.Stock); ok {
 		stock = sq
 	}
 	return &v1.MatchItem{
-		Index:                         int32(line.LineNo),
-		Model:                         line.Mpn,
-		Quantity:                      int32(qtyI),
-		MatchedModel:                  pick.Row.Model,
-		Manufacturer:                  pick.Row.Manufacturer,
-		Platform:                      biz.NormalizePlatformID(platformID),
-		LeadTime:                      pick.Row.LeadTime,
-		Stock:                         stock,
-		UnitPrice:                     pick.UnitPriceBase,
-		Subtotal:                      subtotal,
-		MatchStatus:                   "exact",
-		DemandManufacturer:            derefStrPtr(line.Mfr),
-		DemandPackage:                 derefStrPtr(line.Package),
-		MfrMismatchQuoteManufacturers: append([]string(nil), mfrMismatch...),
+		Index:              int32(line.LineNo),
+		Model:              line.Mpn,
+		Quantity:           int32(qtyI),
+		MatchedModel:       pick.Row.Model,
+		Manufacturer:       pick.Row.Manufacturer,
+		Platform:           biz.NormalizePlatformID(platformID),
+		LeadTime:           pick.Row.LeadTime,
+		Stock:              stock,
+		UnitPrice:          pick.UnitPriceBase,
+		Subtotal:           subtotal,
+		MatchStatus:        "exact",
+		DemandManufacturer: derefStrPtr(line.Mfr),
+		DemandPackage:      derefStrPtr(line.Package),
 	}
 }
 
@@ -487,14 +435,7 @@ func (s *BomService) CreateSession(ctx context.Context, req *v1.CreateSessionReq
 		x := req.GetContactExtra()
 		extra = &x
 	}
-	var readiness *string
-	if req.ReadinessMode != nil {
-		v := strings.TrimSpace(*req.ReadinessMode)
-		if v != "" {
-			readiness = &v
-		}
-	}
-	id, bd, rev, err := s.session.CreateSession(ctx, req.GetTitle(), req.GetPlatformIds(), cust, phone, email, extra, readiness)
+	id, bd, rev, err := s.session.CreateSession(ctx, req.GetTitle(), req.GetPlatformIds(), cust, phone, email, extra, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +468,6 @@ func (s *BomService) GetSession(ctx context.Context, req *v1.GetSessionRequest) 
 		ContactPhone:      v.ContactPhone,
 		ContactEmail:      v.ContactEmail,
 		ContactExtra:      v.ContactExtra,
-		ReadinessMode:     v.ReadinessMode,
 	}, nil
 }
 
@@ -574,11 +514,7 @@ func (s *BomService) PatchSession(ctx context.Context, req *v1.PatchSessionReque
 	if req.ContactExtra != nil {
 		extra = req.ContactExtra
 	}
-	var readiness *string
-	if req.ReadinessMode != nil {
-		readiness = req.ReadinessMode
-	}
-	if err := s.session.PatchSession(ctx, req.GetSessionId(), title, cust, phone, email, extra, readiness); err != nil {
+	if err := s.session.PatchSession(ctx, req.GetSessionId(), title, cust, phone, email, extra, nil); err != nil {
 		return nil, err
 	}
 	return s.GetSession(ctx, &v1.GetSessionRequest{SessionId: req.GetSessionId()})
@@ -1155,161 +1091,6 @@ func normalizeSessionPlatforms(ids []string) []string {
 	return out
 }
 
-// ListMatchSourceRecords 配单会读取的 bom_quote_cache 摘要（不含 quotes_json 正文）。
-func (s *BomService) ListMatchSourceRecords(ctx context.Context, req *v1.ListMatchSourceRecordsRequest) (*v1.ListMatchSourceRecordsReply, error) {
-	if !s.dbOK() {
-		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
-	}
-	sid, err := parseBomSessionID(req.GetBomId())
-	if err != nil {
-		return nil, err
-	}
-	view, err := s.session.GetSession(ctx, sid)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, kerrors.NotFound("SESSION_NOT_FOUND", "session not found")
-		}
-		return nil, err
-	}
-	lines, err := s.dataListLines(ctx, sid)
-	if err != nil {
-		return nil, err
-	}
-	plats := normalizeSessionPlatforms(view.PlatformIDs)
-	pairList := dedupeQuoteCachePairs(lines, plats)
-	cacheMap, err := s.search.LoadQuoteCachesForKeys(ctx, view.BizDate, pairList)
-	if err != nil {
-		return nil, err
-	}
-	out := &v1.ListMatchSourceRecordsReply{
-		BizDate:          view.BizDate.Format("2006-01-02"),
-		SessionPlatforms: append([]string(nil), plats...),
-	}
-	for _, line := range lines {
-		qtyI := bomLineQtyInt(line.Qty)
-		mergeKey := biz.NormalizeMPNForBOMSearch(line.Mpn)
-		rec := &v1.MatchSourceLineRecord{
-			LineNo:             int32(line.LineNo),
-			Mpn:                line.Mpn,
-			MergeMpn:           mergeKey,
-			Quantity:           int32(qtyI),
-			DemandManufacturer: derefStrPtr(line.Mfr),
-			DemandPackage:      derefStrPtr(line.Package),
-		}
-		for _, pid := range plats {
-			snap := cacheMap[quoteCachePairKey(mergeKey, pid)]
-			hit := snap != nil
-			skip := ""
-			if !hit || !quoteCacheUsable(snap) {
-				skip = quoteCacheUnusableReason(hit, snap)
-			}
-			oc := ""
-			var sz int64
-			if snap != nil {
-				oc = strings.TrimSpace(snap.Outcome)
-				sz = int64(len(snap.QuotesJSON))
-			}
-			rec.Platforms = append(rec.Platforms, &v1.MatchSourcePlatformEntry{
-				Platform:       pid,
-				CacheHit:       hit,
-				SkipReason:     skip,
-				Outcome:        oc,
-				QuotesJsonSize: sz,
-			})
-		}
-		out.Lines = append(out.Lines, rec)
-	}
-	return out, nil
-}
-
-// GetMatchSourceDetail 返回单行×单平台在缓存中的完整 quotes_json 等。
-func (s *BomService) GetMatchSourceDetail(ctx context.Context, req *v1.GetMatchSourceDetailRequest) (*v1.GetMatchSourceDetailReply, error) {
-	if !s.dbOK() {
-		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
-	}
-	sid, err := parseBomSessionID(req.GetBomId())
-	if err != nil {
-		return nil, err
-	}
-	view, err := s.session.GetSession(ctx, sid)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, kerrors.NotFound("SESSION_NOT_FOUND", "session not found")
-		}
-		return nil, err
-	}
-	lines, err := s.dataListLines(ctx, sid)
-	if err != nil {
-		return nil, err
-	}
-	var line *data.BomSessionLine
-	wantLine := int(req.GetLineNo())
-	for i := range lines {
-		if lines[i].LineNo == wantLine {
-			line = &lines[i]
-			break
-		}
-	}
-	if line == nil {
-		return nil, kerrors.NotFound("LINE_NOT_FOUND", "bom line not found for line_no")
-	}
-	pid := biz.NormalizePlatformID(req.GetPlatform())
-	if pid == "" {
-		return nil, kerrors.BadRequest("BAD_PLATFORM", "platform is required")
-	}
-	mergeKey := biz.NormalizeMPNForBOMSearch(line.Mpn)
-	snap, hit, err := s.search.LoadQuoteCacheByMergeKey(ctx, mergeKey, pid, view.BizDate)
-	if err != nil {
-		return nil, err
-	}
-	skip := ""
-	if !hit || !quoteCacheUsable(snap) {
-		skip = quoteCacheUnusableReason(hit, snap)
-	}
-	reply := &v1.GetMatchSourceDetailReply{
-		MergeMpn:              mergeKey,
-		Platform:              pid,
-		CacheHit:              hit,
-		SkipReason:            skip,
-		BomDemandMpn:          line.Mpn,
-		BomDemandPackage:      derefStrPtr(line.Package),
-		BomDemandManufacturer: derefStrPtr(line.Mfr),
-	}
-	if snap != nil {
-		reply.Outcome = strings.TrimSpace(snap.Outcome)
-		reply.QuotesJson = string(snap.QuotesJSON)
-		if len(snap.NoMpnDetail) > 0 {
-			reply.NoMpnDetail = string(snap.NoMpnDetail)
-		}
-		var rows []biz.AgentQuoteRow
-		if len(snap.QuotesJSON) > 0 && json.Unmarshal(snap.QuotesJSON, &rows) == nil && len(rows) > 0 {
-			var alias biz.AliasLookup
-			if s.alias != nil && s.alias.DBOk() {
-				alias = s.alias
-			}
-			expl, err := biz.ExplainQuoteRowsForBOMLine(ctx, line.Mpn, derefStrPtr(line.Package), derefStrPtr(line.Mfr), rows, alias)
-			if err != nil {
-				s.log.Warnf("GetMatchSourceDetail: explain rows session=%s line=%d platform=%s: %v", sid, wantLine, pid, err)
-			} else {
-				for _, e := range expl {
-					reply.QuoteRowEvals = append(reply.QuoteRowEvals, &v1.QuoteRowMatchEval{
-						RowIndex:           int32(e.RowIndex),
-						ModelOk:            e.ModelOK,
-						ModelReason:        e.ModelReason,
-						PackageOk:          e.PackageOK,
-						PackageReason:      e.PackageReason,
-						ManufacturerOk:     e.ManufacturerOK,
-						ManufacturerReason: e.ManufacturerReason,
-						PassesBomFilters:   e.PassesBomFilters,
-						Summary:            e.Summary,
-					})
-				}
-			}
-		}
-	}
-	return reply, nil
-}
-
 func (s *BomService) DownloadTemplate(ctx context.Context, req *v1.DownloadTemplateRequest) (*v1.DownloadTemplateReply, error) {
 	f := excelize.NewFile()
 	sheet := f.GetSheetName(0)
@@ -1357,65 +1138,4 @@ func (s *BomService) ExportSession(ctx context.Context, req *v1.ExportSessionReq
 		fn = "bom_export.csv"
 	}
 	return &v1.ExportSessionReply{File: buf.Bytes(), Filename: fn}, nil
-}
-
-func (s *BomService) aliasWriteOK() bool {
-	return s.alias != nil && s.alias.DBOk()
-}
-
-func isMySQLDuplicateKey(err error) bool {
-	var me *mysqlerr.MySQLError
-	return errors.As(err, &me) && me.Number == 1062
-}
-
-// CreateManufacturerAlias 审核入库：写入 t_bom_manufacturer_alias。
-func (s *BomService) CreateManufacturerAlias(ctx context.Context, req *v1.CreateManufacturerAliasRequest) (*v1.CreateManufacturerAliasReply, error) {
-	if !s.aliasWriteOK() {
-		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured for manufacturer alias")
-	}
-	alias := strings.TrimSpace(req.GetAlias())
-	canon := strings.TrimSpace(req.GetCanonicalId())
-	disp := strings.TrimSpace(req.GetDisplayName())
-	if alias == "" || canon == "" || disp == "" {
-		return nil, kerrors.BadRequest("BAD_ALIAS_BODY", "alias, canonical_id and display_name are required")
-	}
-	if alias == biz.MfrMismatchEmptyPlaceholder {
-		return nil, kerrors.BadRequest("BAD_ALIAS", "cannot register placeholder manufacturer; fix quote data instead")
-	}
-	norm := biz.NormalizeMfrString(alias)
-	if norm == "" {
-		return nil, kerrors.BadRequest("BAD_ALIAS", "alias normalizes to empty")
-	}
-	if len(canon) > 128 || len(disp) > 512 || len(alias) > 512 {
-		return nil, kerrors.BadRequest("BAD_ALIAS_FIELD_LEN", "field too long")
-	}
-	err := s.alias.CreateRow(ctx, canon, disp, alias, norm)
-	if err != nil {
-		if isMySQLDuplicateKey(err) {
-			return nil, kerrors.Conflict("ALIAS_NORM_EXISTS", "alias_norm already exists: "+norm)
-		}
-		return nil, err
-	}
-	s.log.Infof("CreateManufacturerAlias: canonical_id=%s alias_norm=%s alias=%q", canon, norm, alias)
-	return &v1.CreateManufacturerAliasReply{AliasNorm: norm}, nil
-}
-
-// ListManufacturerCanonicals 返回 distinct canonical_id 列表（供审核 UI）。
-func (s *BomService) ListManufacturerCanonicals(ctx context.Context, req *v1.ListManufacturerCanonicalsRequest) (*v1.ListManufacturerCanonicalsReply, error) {
-	if !s.aliasWriteOK() {
-		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured for manufacturer alias")
-	}
-	limit := int(req.GetLimit())
-	rows, err := s.alias.ListDistinctCanonicals(ctx, limit)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]*v1.ManufacturerCanonicalRow, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, &v1.ManufacturerCanonicalRow{
-			CanonicalId: r.CanonicalID,
-			DisplayName: r.DisplayName,
-		})
-	}
-	return &v1.ListManufacturerCanonicalsReply{Rows: out}, nil
 }

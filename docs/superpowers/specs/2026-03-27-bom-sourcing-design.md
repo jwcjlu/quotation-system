@@ -112,7 +112,7 @@ stateDiagram-v2
 
 ### 3.5 调度合并：多行共用 `caichip_task_id`（同键单次真实抓取）
 
-**目标：** 同一业务日内、多个 `bom_session` 存在 **相同 `(mpn_norm, platform_id, biz_date)`** 的搜索需求时，**至多触发一次** 真实的 Agent 抓取（**一条** `caichip_dispatch_task`，一个 `task_id`）；与 `bom_quote_cache` 主键 `(mpn_norm, platform_id, biz_date)` **全局一份缓存** 的设计一致。
+**目标：** 同一业务日内、多个 `bom_session` 存在 **相同 `(mpn_norm, platform_id, biz_date)`** 的搜索需求时，**至多触发一次** 真实的 Agent 抓取（**一条** `caichip_dispatch_task`，一个 `task_id`）；与缓存模型 **`t_bom_quote_cache`（主键 `id`，合并键唯一索引 `(mpn_norm, platform_id, biz_date)`）+ `t_bom_quote_item`（报价明细）** 的设计一致。
 
 **合并键（调度去重维度）：** `(mpn_norm, platform_id, biz_date)`。  
 （`biz_date` 取自各会话的 `bom_session.biz_date`；若两单 `biz_date` 不同，则 **不合并**。）
@@ -128,7 +128,7 @@ stateDiagram-v2
 
 | 步骤 | 行为 |
 |------|------|
-| **A. 已有可用缓存** | 若 `bom_quote_cache` 在策略上仍有效（命中键 `(mpn_norm, platform_id, biz_date)`），**不入队** `caichip_dispatch_task`；将所有待完成的、同合并键且未 `cancelled` 的 `bom_search_task` **直接** 按缓存结果更新为 `succeeded` / `no_result`（或等价终态）。 |
+| **A. 已有可用缓存** | 若 `t_bom_quote_cache` 在策略上仍有效（命中唯一键 `(mpn_norm, platform_id, biz_date)`，并可关联 `t_bom_quote_item` 明细），**不入队** `caichip_dispatch_task`；将所有待完成的、同合并键且未 `cancelled` 的 `bom_search_task` **直接** 按缓存结果更新为 `succeeded` / `no_result`（或等价终态）。 |
 | **B. 需真实抓取且尚无在途调度** | **插入一条** `caichip_dispatch_task`，生成唯一 `task_id`；凡本次应参与合并的 `bom_search_task`（同合并键、`pending`、未取消）**均写入相同** `caichip_task_id`，并进入 `running`（或与 §3.1 一致的执行中语义）。 |
 | **C. 需真实抓取但已存在在途调度** | **禁止** 为同合并键再插第二条 `pending/leased` 调度行；新产生的 `bom_search_task` **只复用** 已存在行的 `task_id`，写入自身 `caichip_task_id`。 |
 
@@ -138,7 +138,7 @@ stateDiagram-v2
 
 - `SubmitTaskResult`（或等价接口）以 **`task_id`** 定位 **一次** 执行结果。
 - 处理逻辑：
-  1. **写/更新** `bom_quote_cache` **至多一次**（该合并键）。
+  1. **写/更新** `t_bom_quote_cache`（按唯一键）与对应 `t_bom_quote_item` 明细 **至多一次**（该合并键）。
   2. 查询 **所有** `caichip_task_id = task_id` 且 `state` 仍为执行中/等待结果、且 **未** `cancelled` / `skipped` 的 `bom_search_task`，**批量** 更新为同一业务终态（`succeeded` / `no_result` / `failed_*` 等，与结果一致）。
 - **已作废**（`cancelled`）的业务行 **不参与** 回填，避免 BOM 变更后误更新。
 
@@ -168,7 +168,7 @@ stateDiagram-v2
 |------|------------|
 | 新增行 | 为 `(新行 MPN_norm × platform_ids)` 批量插入 `pending` 任务。 |
 | 删除行 | 该行关联任务 **作废**（`cancelled`，软标记；**不**为清缓存而物理删任务）。**报价缓存与历史报价保留**（见需求 §4）。 |
-| 改行（影响搜索的字段） | 旧任务 **作废**（`cancelled`），按新 MPN/平台集合新建 `pending`；**缓存与历史报价保留**，新抓取自然形成新键或新版本；不强制物理删 `bom_quote_cache`。 |
+| 改行（影响搜索的字段） | 旧任务 **作废**（`cancelled`），按新 MPN/平台集合新建 `pending`；**缓存与历史报价保留**，新抓取自然形成新键或新版本；不强制物理删 `t_bom_quote_cache` / `t_bom_quote_item`。 |
 | `platform_ids` 增加 | 为所有现行补新平台任务 `pending`。 |
 | `platform_ids` 减少 | 去掉的平台：相关未完成任务 **作废**（`cancelled`）；**已写入的缓存可保留** 供审计；配单只读当前 `platform_ids`。 |
 
@@ -242,3 +242,4 @@ stateDiagram-v2
 | 2026-03-27 | 与需求 §4/§5/§6 对齐：任务作废+缓存保留、定时为主、部分行配单+完全匹配 |
 | 2026-03-27 | §3.5：多 `bom_search_task` 共用同一 `caichip_task_id`，同 `(mpn_norm, platform_id, biz_date)` 单次真实抓取与 Fan-out |
 | 2026-03-27 | 实现落地：按计划 [2026-03-27-bom-sourcing-implementation.md](../plans/2026-03-27-bom-sourcing-implementation.md) 完成 FSM、就绪判定、Excel 导入、data/service 与 HTTP 注册（`readiness_mode` 迁移见 `docs/schema/migrations/20260327_bom_readiness.sql`） |
+| 2026-04-15 | §3.5/§4 缓存口径更新：`t_bom_quote_cache` 使用 `id` 主键 + `(mpn_norm, platform_id, biz_date)` 唯一键；`quotes_json` 拆至 `t_bom_quote_item` |

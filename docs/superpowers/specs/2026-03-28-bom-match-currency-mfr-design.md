@@ -1,7 +1,7 @@
 # 自动配单 — 币种归一与厂牌别名（设计决策）
 
 > **定位：** 对 [2026-03-27-bom-sourcing-requirements.md](./2026-03-27-bom-sourcing-requirements.md) §6「配单」中 **价格口径** 与 **厂牌匹配** 的细化约定。  
-> **输入数据：** 仍以 `t_bom_quote_cache`（`quotes_json` 等）与各平台回传结构为准。
+> **输入数据：** 以 `t_bom_quote_cache`（主键 `id`）及其明细表 `t_bom_quote_item` 为准（原 `quotes_json` 已拆表），并结合各平台回传结构进行字段映射。
 
 ---
 
@@ -46,7 +46,7 @@
 
 ### 1.7 多价格字段优先级
 
-从单条报价结构（如 `PlatformQuote` / `quotes_json` 元素）得到 **`compare_unit_price` 与原币 `quote_ccy`** 时，按 **自上而下首次成功** 为准：
+从单条报价结构（如 `PlatformQuote` / `t_bom_quote_item` 行）得到 **`compare_unit_price` 与原币 `quote_ccy`** 时，按 **自上而下首次成功** 为准：
 
 1. **`unit_price` > 0** 且 **`quote_ccy` 可确定**（字段自带或映射表按 `platform_id` 默认）：采用之。  
 2. 否则尝试 **`mainland_price`**：按 §1.9 在 **BOM 数量** 下解析出 **一档单价 + 币种**。  
@@ -164,8 +164,33 @@
 
 ## 3. 横切约定（缓存、审计）
 
-- **`outcome` 无成功报价、`quotes_json` 空或不可解析**：该平台 **不产生候选**，不参与比价。  
+- **`outcome` 无成功报价、`t_bom_quote_item` 无明细或明细不可解析**：该平台 **不产生候选**，不参与比价。  
 - **历史配单与重放**：建议在持久化结果中保留 **`unit_price_base`、`original_amount`、`original_ccy`、`fx_date`、`fx_date_source`、`compare_price_field`**（取自 §1.7 哪一步；若来自 §1.11 可记 `price_tiers_parsed`）等最小集，便于审计与复现当日排序。
+
+### 3.1 `t_bom_quote_item` 建议字段（V1）
+
+- 与缓存主表关系：`t_bom_quote_item.quote_id` → `t_bom_quote_cache.id`（一对多）。
+- 建议保留平台原始字符串字段，解析在读取路径完成（与 §1.2 一致）。
+
+| 字段 | 类型（建议） | 说明 |
+|------|--------------|------|
+| `id` | BIGINT UNSIGNED | 主键，自增 |
+| `quote_id` | BIGINT UNSIGNED | 外键，关联 `t_bom_quote_cache.id` |
+| `model` | VARCHAR(255) | 报价型号（平台返回） |
+| `manufacturer` | VARCHAR(255) | 厂牌原文 |
+| `stock` | VARCHAR(64) | 库存原文（允许 `N/A`） |
+| `package` | VARCHAR(255) | 封装原文 |
+| `desc` | TEXT | 描述原文 |
+| `datasheet_url` | TEXT | 数据手册 URL |
+| `moq` | VARCHAR(64) | 起订量原文（允许 `N/A`） |
+| `lead_time` | VARCHAR(128) | 交期原文（如 `1工作日`） |
+| `price_tiers` | TEXT | 阶梯价原文（如 `5+ ￥1.3624 | ...`） |
+| `hk_price` | TEXT | 香港价原文 |
+| `mainland_price` | TEXT | 大陆价原文 |
+| `query_model` | VARCHAR(255) | 查询型号（用于回溯） |
+
+> 示例（规范 JSON）：
+> `{"id":1,"quote_id":111,"model":"TS5A3159DCKR","manufacturer":"Texas Instruments","stock":"43787","package":"SC-70-6","desc":"Analog Switch Single SPDT 6-Pin SC-70 Tape/Reel","datasheet_url":"https://pf01.ickimg.com/datasheet/23/93/b242/23/960b8eab58f119ac5f30d3a0a28c754f.pdf","moq":"N/A","lead_time":"1工作日","price_tiers":"5+ ￥1.3624 | 50+ ￥1.0786 | 150+ ￥0.9302 | 500+ ￥0.7597 | 3000+ ￥0.7269 | 6000+ ￥0.7074","hk_price":"N/A","mainland_price":"5+ ￥1.3624 | 50+ ￥1.0786 | 150+ ￥0.9302 | 500+ ￥0.7597 | 3000+ ￥0.7269 | 6000+ ￥0.7074","query_model":"TS5A3159DCKR"}`
 
 ---
 
@@ -192,3 +217,5 @@
 | 2026-03-28 | 评审闭合：§1.5 V1 保守；§1.6–1.10 税口径、字段优先级、`biz_date` 汇率、MOQ/阶梯、舍入与平局；§2.5–2.7 空厂牌、无厂牌报价、别名唯一与精确匹配；§3–§4 横切与运维 |
 | 2026-03-28 | §1.5 默认开启 `price_tiers` 字符串解析；新增 §1.11（语法、选档、find_chips/hqchip/ickey 样例）；§1.7–§1.9 与解析及选档语义对齐 |
 | 2026-03-28 | §1.10 平局：在价格相同后优先 **交期更短**（`lead_days`），再库存、`platform_id` |
+| 2026-04-15 | 输入模型调整：`t_bom_quote_cache` 增加 `id` 主键，`quotes_json` 拆分为 `t_bom_quote_item`，文内读取口径同步更新 |
+| 2026-04-15 | 新增 §3.1：`t_bom_quote_item` 字段建议与示例 JSON（`quote_id` 关联 `t_bom_quote_cache.id`） |

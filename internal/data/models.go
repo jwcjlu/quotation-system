@@ -266,3 +266,73 @@ type HsReviewDecision struct {
 }
 
 func (HsReviewDecision) TableName() string { return TableHsReviewDecision }
+
+// HsModelMapping 保存型号+厂牌到 HS code_ts 的最终映射。
+type HsModelMapping struct {
+	ID                    uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	Model                 string    `gorm:"column:model;size:128;not null;uniqueIndex:uk_hs_model_mapping_model_mfr,priority:1"`
+	Manufacturer          string    `gorm:"column:manufacturer;size:128;not null;uniqueIndex:uk_hs_model_mapping_model_mfr,priority:2"`
+	CodeTS                string    `gorm:"column:code_ts;type:char(10);not null;check:chk_hs_model_mapping_code_ts,code_ts REGEXP '^[0-9]{10}$';index:idx_hs_model_mapping_code_ts"`
+	Source                string    `gorm:"column:source;type:enum('manual','llm_auto');not null;default:llm_auto"`
+	Confidence            float64   `gorm:"column:confidence;type:decimal(5,4)"`
+	Status                string    `gorm:"column:status;type:enum('confirmed','pending_review','rejected');not null;default:pending_review;index:idx_hs_model_mapping_status"`
+	FeaturesVersion       string    `gorm:"column:features_version;size:64;not null;default:''"`
+	RecommendationVersion string    `gorm:"column:recommendation_version;size:64;not null;default:''"`
+	CreatedAt             time.Time `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt             time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (HsModelMapping) TableName() string { return TableHsModelMapping }
+
+// HsDatasheetAsset 记录 datasheet 下载与落地资产。
+type HsDatasheetAsset struct {
+	ID             uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	Model          string    `gorm:"column:model;size:128;not null;index:idx_hs_datasheet_asset_model_mfr,priority:1"`
+	Manufacturer   string    `gorm:"column:manufacturer;size:128;not null;index:idx_hs_datasheet_asset_model_mfr,priority:2"`
+	DatasheetURL   string    `gorm:"column:datasheet_url;size:1024;not null;default:''"`
+	LocalPath      string    `gorm:"column:local_path;size:512;not null;default:''"`
+	SHA256         string    `gorm:"column:sha256;type:char(64);not null;default:''"`
+	DownloadStatus string    `gorm:"column:download_status;type:enum('ok','failed');not null;default:failed"`
+	ErrorMsg       string    `gorm:"column:error_msg;size:512;not null;default:''"`
+	UpdatedAt      time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (HsDatasheetAsset) TableName() string { return TableHsDatasheetAsset }
+
+// HsModelFeatures 保存 datasheet 抽取后的结构化特征。
+type HsModelFeatures struct {
+	ID             uint64           `gorm:"column:id;primaryKey;autoIncrement"`
+	Model          string           `gorm:"column:model;size:128;not null;index:idx_hs_model_features_model_mfr,priority:1"`
+	Manufacturer   string           `gorm:"column:manufacturer;size:128;not null;index:idx_hs_model_features_model_mfr,priority:2"`
+	AssetID        uint64           `gorm:"column:asset_id;not null;index:idx_hs_model_features_asset_id"`
+	Asset          HsDatasheetAsset `gorm:"foreignKey:AssetID;references:ID;constraint:OnDelete:RESTRICT"`
+	TechCategory   string           `gorm:"column:tech_category;size:64;not null;default:''"`
+	ComponentName  string           `gorm:"column:component_name;size:128;not null;default:''"`
+	PackageForm    string           `gorm:"column:package_form;size:64;not null;default:''"`
+	KeySpecsJSON   []byte           `gorm:"column:key_specs_json;type:json"`
+	RawExtractJSON []byte           `gorm:"column:raw_extract_json;type:json"`
+	ExtractModel   string           `gorm:"column:extract_model;size:64;not null;default:''"`
+	ExtractVersion string           `gorm:"column:extract_version;size:64;not null;default:''"`
+	CreatedAt      time.Time        `gorm:"column:created_at;precision:3;autoCreateTime"`
+}
+
+func (HsModelFeatures) TableName() string { return TableHsModelFeatures }
+
+// HsModelRecommendation 保存每次推荐的 TopN 审计轨迹。
+type HsModelRecommendation struct {
+	ID                uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	Model             string    `gorm:"column:model;size:128;not null;index:idx_hs_model_reco_model_mfr_created,priority:1"`
+	Manufacturer      string    `gorm:"column:manufacturer;size:128;not null;index:idx_hs_model_reco_model_mfr_created,priority:2"`
+	RunID             string    `gorm:"column:run_id;type:char(36);not null;index:idx_hs_model_reco_run_id;uniqueIndex:uk_hs_model_reco_run_rank,priority:1"`
+	CandidateRank     uint8     `gorm:"column:candidate_rank;type:tinyint unsigned;not null;uniqueIndex:uk_hs_model_reco_run_rank,priority:2"`
+	CodeTS            string    `gorm:"column:code_ts;type:char(10);not null;check:chk_hs_model_reco_code_ts,code_ts REGEXP '^[0-9]{10}$'"`
+	GName             string    `gorm:"column:g_name;size:512;not null;default:''"`
+	Score             float64   `gorm:"column:score;type:decimal(5,4)"`
+	Reason            string    `gorm:"column:reason;size:1024;not null;default:''"`
+	InputSnapshotJSON []byte    `gorm:"column:input_snapshot_json;type:json"`
+	RecommendModel    string    `gorm:"column:recommend_model;size:64;not null;default:''"`
+	RecommendVersion  string    `gorm:"column:recommend_version;size:64;not null;default:''"`
+	CreatedAt         time.Time `gorm:"column:created_at;precision:3;autoCreateTime;index:idx_hs_model_reco_model_mfr_created,priority:3,sort:desc"`
+}
+
+func (HsModelRecommendation) TableName() string { return TableHsModelRecommendation }

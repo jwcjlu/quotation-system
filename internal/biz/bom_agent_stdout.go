@@ -2,6 +2,7 @@ package biz
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 )
@@ -33,8 +34,12 @@ func ApplyBOMQuotesFromAgentStdout(ctx context.Context, repo BOMSearchTaskRepo, 
 	if len(rows) == 0 {
 		return false, nil
 	}
-	quotes, ok := ParseTaskStdoutQuotes(stdout)
+	quoteRows, ok := ParseTaskStdoutQuoteRows(stdout)
 	if !ok {
+		return false, ErrBOMQuotesStdoutParseRejected
+	}
+	quotes, err := json.Marshal(quoteRows)
+	if err != nil {
 		return false, ErrBOMQuotesStdoutParseRejected
 	}
 	sessions := make(map[string]struct{})

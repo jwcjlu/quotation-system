@@ -24,6 +24,16 @@ message Bootstrap {
   BomMatch bom_match = 11;
   // 四表进程内缓存：定时全量预热 + 读穿 + 写后失效（单实例，无 Redis）；见 docs/superpowers/specs/2026-03-30-four-tables-inproc-cache-design.md
   TableCache table_cache = 12;
+  // HS 解析同步等待超时（毫秒）；<=0 时使用默认值。
+  int32 hs_resolve_sync_timeout_ms = 13;
+  // HS 自动确认阈值；范围 [0,1]，越界将被钳制。未显式配置时由业务默认值兜底。
+  optional double hs_auto_accept_threshold = 14;
+  // HS 候选返回上限；<=0 时使用默认值。
+  int32 hs_resolve_max_candidates = 15;
+  // HS 每阶段最大重试次数；<0 时使用默认值。
+  int32 hs_resolve_retry_max = 16;
+  // HS 查询第三方接口地址（为空时由环境变量/默认值兜底）。
+  string hs_query_api_url = 17;
 }
 
 // TableCache 热表缓存；enabled=false 时不启定时刷新，读路径仍可走读穿（若已接装饰器）。

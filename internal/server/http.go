@@ -14,7 +14,7 @@ import (
 )
 
 // NewHTTPServer 创建 HTTP 服务（Agent、脚本包、BOM 会话、Agent 运维 API）。
-func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.AgentService, scriptAdmin *service.ScriptPackageAdmin, bomSvc *service.BomService, agentAdmin *service.AgentAdminService) *http.Server {
+func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.AgentService, scriptAdmin *service.ScriptPackageAdmin, bomSvc *service.BomService, agentAdmin *service.AgentAdminService, hsResolve *service.HsResolveService, hsMeta *service.HsMetaService, hsSync *service.HsSyncService) *http.Server {
 	addr := ":8000"
 	timeout := 30 * time.Second
 	if c != nil && c.Server != nil && c.Server.Http != nil {
@@ -46,6 +46,13 @@ func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.Agent
 	if agentAdmin != nil && agentAdmin.Enabled() {
 		v1admin.RegisterAgentAdminServiceHTTPServer(srv, agentAdmin)
 	}
+	if hsResolve != nil {
+		v1bom.RegisterHsResolveServiceHTTPServer(srv, hsResolve)
+	}
+	if hsMeta != nil {
+		v1bom.RegisterHsMetaServiceHTTPServer(srv, hsMeta)
+	}
+	RegisterHsSyncRoutes(srv, hsSync)
 
 	if c != nil && c.ScriptStore != nil && c.ScriptStore.Enabled && strings.TrimSpace(c.ScriptStore.Root) != "" {
 		pref := strings.TrimSpace(c.ScriptStore.UrlPrefix)

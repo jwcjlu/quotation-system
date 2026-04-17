@@ -1,11 +1,14 @@
 package parser
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"caichip/pkg/xlsread"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -35,20 +38,30 @@ type ExcelParser struct{}
 
 // Parse 解析 Excel 文件
 func (p *ExcelParser) Parse(ctx context.Context, data []byte, mode ParseMode, mapping ColumnMapping) ([]*ParsedItem, error) {
-	f, err := excelize.OpenReader(strings.NewReader(string(data)))
-	if err != nil {
-		return nil, fmt.Errorf("open excel: %w", err)
-	}
-	defer f.Close()
+	var rows [][]string
+	var err error
+	if xlsread.IsOLECompound(data) {
+		rows, err = xlsread.FirstSheetRows(data)
+		if err != nil {
+			return nil, fmt.Errorf("open xls: %w", err)
+		}
+	} else {
+		var f *excelize.File
+		f, err = excelize.OpenReader(bytes.NewReader(data))
+		if err != nil {
+			return nil, fmt.Errorf("open excel: %w", err)
+		}
+		defer f.Close()
 
-	sheets := f.GetSheetList()
-	if len(sheets) == 0 {
-		return nil, fmt.Errorf("no sheets found")
-	}
+		sheets := f.GetSheetList()
+		if len(sheets) == 0 {
+			return nil, fmt.Errorf("no sheets found")
+		}
 
-	rows, err := f.GetRows(sheets[0])
-	if err != nil {
-		return nil, fmt.Errorf("read rows: %w", err)
+		rows, err = f.GetRows(sheets[0])
+		if err != nil {
+			return nil, fmt.Errorf("read rows: %w", err)
+		}
 	}
 	if len(rows) < 2 {
 		return nil, fmt.Errorf("insufficient rows (need at least header + 1 data row)")

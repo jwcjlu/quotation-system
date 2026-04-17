@@ -8,14 +8,6 @@ option go_package = "caichip/api/bom/v1;v1";
 
 // BOM 配单服务
 service BomService {
-  // 按型号进行 HS 归类与税检建议
-  rpc ClassifyByModel(ClassifyByModelRequest) returns (ClassifyByModelReply) {
-    option (google.api.http) = {
-      post: "/api/v1/classify/by-model"
-      body: "*"
-    };
-  }
-
   // 上传并解析 BOM
   rpc UploadBOM(UploadBOMRequest) returns (UploadBOMReply) {
     option (google.api.http) = {
@@ -61,21 +53,7 @@ service BomService {
     };
   }
 
-  // 配单用到的报价缓存摘要（按行×平台；不含 quotes_json 大字段，详情另拉）
-  rpc ListMatchSourceRecords(ListMatchSourceRecordsRequest) returns (ListMatchSourceRecordsReply) {
-    option (google.api.http) = {
-      get: "/api/v1/bom/{bom_id}/match-sources"
-    };
-  }
-
-  // 单行×单平台的报价缓存明细（quotes_json / outcome 等）
-  rpc GetMatchSourceDetail(GetMatchSourceDetailRequest) returns (GetMatchSourceDetailReply) {
-    option (google.api.http) = {
-      get: "/api/v1/bom/{bom_id}/match-sources/detail"
-    };
-  }
-
-  // ---------- BOM 会话（货源搜索 / 轮询就绪）----------
+  // ---------- BOM 会话（货源搜索 / 轮询就绪，见 docs/BOM货源搜索-接口清单.md）----------
 
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply) {
     option (google.api.http) = {
@@ -169,25 +147,43 @@ service BomService {
     };
   }
 
-  // 导出会话 BOM 行（Excel/CSV）
+  // 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
   rpc ExportSession(ExportSessionRequest) returns (ExportSessionReply) {
     option (google.api.http) = {
       get: "/api/v1/bom-sessions/{session_id}/export"
     };
   }
+}
 
-  // 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
-  rpc CreateManufacturerAlias(CreateManufacturerAliasRequest) returns (CreateManufacturerAliasReply) {
+// HS 型号解析服务
+service HsResolveService {
+  // 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
+  rpc ResolveByModel(HsResolveByModelRequest) returns (HsResolveByModelReply) {
     option (google.api.http) = {
-      post: "/api/v1/bom/manufacturer-alias"
+      post: "/api/hs/resolve/by-model"
       body: "*"
     };
   }
 
-  // 列举已有规范厂牌（distinct canonical_id），供审核时对照/选择
-  rpc ListManufacturerCanonicals(ListManufacturerCanonicalsRequest) returns (ListManufacturerCanonicalsReply) {
+  // 查询单个任务状态与结果
+  rpc GetResolveTask(HsResolveTaskRequest) returns (HsResolveTaskReply) {
     option (google.api.http) = {
-      get: "/api/v1/bom/manufacturer-alias/canonicals"
+      get: "/api/hs/resolve/task"
+    };
+  }
+
+  // 人工确认候选
+  rpc ConfirmResolve(HsResolveConfirmRequest) returns (HsResolveConfirmReply) {
+    option (google.api.http) = {
+      post: "/api/hs/resolve/confirm"
+      body: "*"
+    };
+  }
+
+  // 查询历史结果与候选
+  rpc GetResolveHistory(HsResolveHistoryRequest) returns (HsResolveHistoryReply) {
+    option (google.api.http) = {
+      get: "/api/hs/resolve/history"
     };
   }
 }
@@ -196,7 +192,7 @@ service BomService {
 message UploadBOMRequest {
   bytes file = 1;           // Excel 文件内容
   string filename = 2;      // 文件名
-  string parse_mode = 3;   // 解析模式：szlcsc | ickey | auto | custom | llm（需配置 openai.api_key）
+  string parse_mode = 3;   // 解析模式：szlcsc | ickey | auto | custom
   map<string, string> column_mapping = 4;  // 自定义模式：{"model":"A","manufacturer":"B",...}
   // 若填写，则解析结果写入 bom_session_line，且返回的 bom_id 等于该 session_id（与 CreateSession 一致）
   string session_id = 5;
@@ -206,66 +202,6 @@ message UploadBOMReply {
   string bom_id = 1;
   repeated ParsedItem items = 2;
   int32 total = 3;
-}
-
-// ========== HS Classify ==========
-message ClassifyByModelRequest {
-  string trade_direction = 1;     // import | export
-  string declaration_date = 2;    // YYYY-MM-DD
-  string model = 3;
-  string product_name_cn = 4;
-  string product_name_en = 5;
-  string manufacturer = 6;
-  string brand = 7;
-  string package = 8;
-  string description = 9;
-  string category_hint = 10;
-}
-
-message HSClassifyCandidate {
-  string hs_code = 1;
-  double score = 2;
-  string reason = 3;
-  repeated string evidence = 4;
-  repeated string required_elements_missing = 5;
-}
-
-message HSFinalSuggestion {
-  string hs_code = 1;
-  double confidence = 2;
-  bool review_required = 3;
-  repeated string review_reason_codes = 4;
-}
-
-message HSInspectionCompliance {
-  bool needs_ci = 1;
-  repeated string regulatory_conditions = 2;
-  repeated string license_requirements = 3;
-}
-
-message HSTaxInfo {
-  string mfn_rate = 1;
-  string provisional_rate = 2;
-  string vat_rate = 3;
-  string consumption_tax_rate = 4;
-  string export_tariff_rate = 5;
-  string rebate_hint = 6;
-}
-
-message HSClassifyTrace {
-  repeated string rule_hits = 1;
-  repeated string retrieval_refs = 2;
-  string source_snapshot_time = 3;
-  string llm_version = 4;
-  string policy_version_id = 5;
-}
-
-message ClassifyByModelReply {
-  repeated HSClassifyCandidate candidates = 1;
-  HSFinalSuggestion final_suggestion = 2;
-  HSInspectionCompliance inspection_and_compliance = 3;
-  HSTaxInfo tax = 4;
-  HSClassifyTrace trace = 5;
 }
 
 message ParsedItem {
@@ -306,7 +242,6 @@ message PlatformQuote {
   string price_tiers = 9;
   string hk_price = 10;
   string mainland_price = 11;
-  // SearchQuotes 等列表里常为 0；原价见 price_tiers / mainland_price / hk_price。AutoMatch/GetMatchResult 中若已换算则为基准币单价。
   double unit_price = 12;
   double subtotal = 13;
   string package = 14;      // 封装，用于型号/封装/厂牌匹配筛选
@@ -320,7 +255,6 @@ message AutoMatchRequest {
 
 message AutoMatchReply {
   repeated MatchItem items = 1;
-  // 与 items 中 unit_price/subtotal 同币种：配置项 bom_match.base_ccy（默认 CNY）。
   double total_amount = 2;
 }
 
@@ -333,16 +267,12 @@ message MatchItem {
   string platform = 6;
   string lead_time = 7;
   int64 stock = 8;
-  // 已按汇率换算后的**基准币种**单价（非报价原币）；基准币见 bom_match.base_ccy。
   double unit_price = 9;
-  // unit_price * quantity，同为基准币。
   double subtotal = 10;
   string match_status = 11;  // exact | pending | no_match
   repeated PlatformQuote all_quotes = 12;  // 该物料在各平台的全部报价，供「显示更多」展开展示
   string demand_manufacturer = 13;  // 需求厂牌（解析自 BOM）
   string demand_package = 14;       // 需求封装（解析自 BOM）
-  // BOM 有厂牌要求时：型号+封装已对齐但厂牌未与需求对齐的报价原始 manufacturer（去重；空厂牌记为占位符便于列表展示）
-  repeated string mfr_mismatch_quote_manufacturers = 15;
 }
 
 // ========== GetBOM ==========
@@ -366,94 +296,6 @@ message GetMatchResultReply {
   double total_amount = 2;
 }
 
-// ========== 配单数据源（报价缓存）==========
-message ListMatchSourceRecordsRequest {
-  string bom_id = 1;
-}
-
-message MatchSourcePlatformEntry {
-  string platform = 1;
-  bool cache_hit = 2;
-  // 未参与 usable 报价时的原因：quote_cache_miss / outcome_* / quotes_json_empty 等；可参与则为空
-  string skip_reason = 3;
-  string outcome = 4;
-  int64 quotes_json_size = 5;
-}
-
-message MatchSourceLineRecord {
-  int32 line_no = 1;
-  string mpn = 2;
-  string merge_mpn = 3;
-  int32 quantity = 4;
-  string demand_manufacturer = 5;
-  string demand_package = 6;
-  repeated MatchSourcePlatformEntry platforms = 7;
-}
-
-message ListMatchSourceRecordsReply {
-  string biz_date = 1;
-  repeated string session_platforms = 2;
-  repeated MatchSourceLineRecord lines = 3;
-}
-
-message GetMatchSourceDetailRequest {
-  string bom_id = 1;
-  int32 line_no = 2;
-  string platform = 3;
-}
-
-// 与 biz.ExplainQuoteRowsForBOMLine 一致：每条报价相对当前 BOM 行的型号/封装/厂牌说明（不含出价）。
-message QuoteRowMatchEval {
-  int32 row_index = 1;
-  bool model_ok = 2;
-  string model_reason = 3;
-  bool package_ok = 4;
-  string package_reason = 5;
-  bool manufacturer_ok = 6;
-  string manufacturer_reason = 7;
-  bool passes_bom_filters = 8;
-  string summary = 9;
-}
-
-message GetMatchSourceDetailReply {
-  string merge_mpn = 1;
-  string platform = 2;
-  bool cache_hit = 3;
-  string skip_reason = 4;
-  string outcome = 5;
-  string quotes_json = 6;
-  string no_mpn_detail = 7;
-  repeated QuoteRowMatchEval quote_row_evals = 8;
-  // 当前 BOM 行需求（用于与表格对照；匹配判定与 quote_row_evals 一致）
-  string bom_demand_mpn = 9;
-  string bom_demand_package = 10;
-  string bom_demand_manufacturer = 11;
-}
-
-// ========== Manufacturer alias（审核入库）==========
-message CreateManufacturerAliasRequest {
-  string alias = 1;           // 报价中出现的厂牌原文
-  string canonical_id = 2;    // 目标规范 ID，如 MFR_TEXAS_INSTRUMENTS
-  string display_name = 3;    // 规范展示名（与 canonical 主档一致即可）
-}
-
-message CreateManufacturerAliasReply {
-  string alias_norm = 1;      // 实际写入的规范化键
-}
-
-message ListManufacturerCanonicalsRequest {
-  int32 limit = 1; // 默认 300，最大 1000
-}
-
-message ManufacturerCanonicalRow {
-  string canonical_id = 1;
-  string display_name = 2;
-}
-
-message ListManufacturerCanonicalsReply {
-  repeated ManufacturerCanonicalRow rows = 1;
-}
-
 // ========== DownloadTemplate ==========
 message DownloadTemplateRequest {}
 
@@ -470,8 +312,6 @@ message CreateSessionRequest {
   string contact_phone = 4;
   string contact_email = 5;
   string contact_extra = 6;
-  // 数据就绪判定：lenient=各平台终态即可；strict=每行至少一平台 succeeded（见设计 §2.3）
-  optional string readiness_mode = 7;
 }
 
 message CreateSessionReply {
@@ -495,7 +335,6 @@ message GetSessionReply {
   string contact_phone = 8;
   string contact_email = 9;
   string contact_extra = 10;
-  string readiness_mode = 11;
 }
 
 message ListSessionsRequest {
@@ -528,7 +367,6 @@ message PatchSessionRequest {
   optional string contact_phone = 4;
   optional string contact_email = 5;
   optional string contact_extra = 6;
-  optional string readiness_mode = 7;
 }
 
 message PutPlatformsRequest {
@@ -673,7 +511,7 @@ message SubmitBomSearchResultReply {
   string server_time = 2;
 }
 
-// ---------- Export ----------
+// ---------- Export（接口清单 §7）----------
 message ExportSessionRequest {
   string session_id = 1;
   // xlsx | csv，缺省 xlsx
@@ -683,4 +521,169 @@ message ExportSessionRequest {
 message ExportSessionReply {
   bytes file = 1;
   string filename = 2;
+}
+
+message HsResolveByModelRequest {
+  string model = 1;
+  string manufacturer = 2;
+  string request_trace_id = 3;
+  bool force_refresh = 4;
+}
+
+message HsResolveCandidate {
+  uint32 candidate_rank = 1;
+  string code_ts = 2;
+  double score = 3;
+  string reason = 4;
+}
+
+message HsResolveByModelReply {
+  bool accepted = 1; // true 表示超时转异步
+  string task_id = 2;
+  string run_id = 3;
+  string decision_mode = 4;
+  string task_status = 5;
+  string result_status = 6;
+  string best_code_ts = 7;
+  double best_score = 8;
+  repeated HsResolveCandidate candidates = 9;
+  string error_code = 10;
+  string error_message = 11;
+}
+
+message HsResolveTaskRequest {
+  string task_id = 1;
+}
+
+message HsResolveTaskReply {
+  string task_id = 1;
+  string run_id = 2;
+  string decision_mode = 3;
+  string task_status = 4;
+  string result_status = 5;
+  string best_code_ts = 6;
+  double best_score = 7;
+  repeated HsResolveCandidate candidates = 8;
+  string error_code = 9;
+  string error_message = 10;
+}
+
+message HsResolveConfirmRequest {
+  string model = 1;
+  string manufacturer = 2;
+  string run_id = 3;
+  uint32 candidate_rank = 4;
+  string expected_code_ts = 5;
+  string confirm_request_id = 6;
+}
+
+message HsResolveConfirmReply {
+  string run_id = 1;
+  uint32 candidate_rank = 2;
+  string code_ts = 3;
+  string confirm_request_id = 4;
+  string task_status = 5;
+  string result_status = 6;
+  string decision_mode = 7;
+}
+
+message HsResolveHistoryRequest {
+  string model = 1;
+  string manufacturer = 2;
+  string run_id = 3;
+}
+
+message HsResolveHistoryItem {
+  string run_id = 1;
+  string decision_mode = 2;
+  string task_status = 3;
+  string result_status = 4;
+  string best_code_ts = 5;
+  double best_score = 6;
+  repeated HsResolveCandidate candidates = 7;
+}
+
+message HsResolveHistoryReply {
+  repeated HsResolveHistoryItem items = 1;
+}
+
+// ---------- HS 元数据（管理页 /api/hs/meta/*）----------
+
+service HsMetaService {
+  rpc ListHsMeta(HsMetaListRequest) returns (HsMetaListReply) {
+    option (google.api.http) = {
+      get: "/api/hs/meta/list"
+    };
+  }
+  rpc CreateHsMeta(HsMetaCreateRequest) returns (HsMetaMutationReply) {
+    option (google.api.http) = {
+      post: "/api/hs/meta/create"
+      body: "*"
+    };
+  }
+  rpc UpdateHsMeta(HsMetaUpdateRequest) returns (HsMetaMutationReply) {
+    option (google.api.http) = {
+      post: "/api/hs/meta/update"
+      body: "*"
+    };
+  }
+  rpc DeleteHsMeta(HsMetaDeleteRequest) returns (HsMetaMutationReply) {
+    option (google.api.http) = {
+      post: "/api/hs/meta/delete"
+      body: "*"
+    };
+  }
+}
+
+message HsMetaListRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string category = 3;
+  string component_name = 4;
+  string core_hs6 = 5;
+  // 空=不过滤；"1"/"true"=仅启用；"0"/"false"=仅停用
+  string enabled = 6;
+}
+
+message HsMetaListRow {
+  int64 id = 1;
+  string category = 2;
+  string component_name = 3;
+  string core_hs6 = 4;
+  string description = 5;
+  bool enabled = 6;
+  int32 sort_order = 7;
+  string updated_at = 8;
+}
+
+message HsMetaListReply {
+  repeated HsMetaListRow items = 1;
+  int64 total = 2;
+}
+
+message HsMetaCreateRequest {
+  string category = 1;
+  string component_name = 2;
+  string core_hs6 = 3;
+  string description = 4;
+  bool enabled = 5;
+  int32 sort_order = 6;
+}
+
+message HsMetaUpdateRequest {
+  int64 id = 1;
+  string category = 2;
+  string component_name = 3;
+  string core_hs6 = 4;
+  string description = 5;
+  bool enabled = 6;
+  int32 sort_order = 7;
+}
+
+message HsMetaDeleteRequest {
+  int64 id = 1;
+}
+
+message HsMetaMutationReply {
+  string ok = 1;
 }

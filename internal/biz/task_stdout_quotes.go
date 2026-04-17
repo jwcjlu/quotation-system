@@ -19,6 +19,7 @@ type AgentQuoteRow struct {
 	MainlandPrice string `json:"mainland_price"`
 	LeadTime      string `json:"lead_time"`
 	QueryModel    string `json:"query_model,omitempty"`
+	DatasheetURL  string `json:"datasheet_url"`
 }
 
 type taskStdoutEnvelope struct {
@@ -26,9 +27,9 @@ type taskStdoutEnvelope struct {
 	Results []AgentQuoteRow `json:"results"`
 }
 
-// ParseTaskStdoutQuotes 将 Agent 任务 stdout 中的 JSON 解析为报价 JSON 字节（写入 bom_quote_cache.quotes_json）。
+// ParseTaskStdoutQuoteRows 将 Agent 任务 stdout 解析为结构化报价行。
 // 顶层支持：① JSON 数组；② {"error":"","results":[...]}（error 非空则拒绝）。
-func ParseTaskStdoutQuotes(stdout string) (quotesJSON []byte, ok bool) {
+func ParseTaskStdoutQuoteRows(stdout string) (rows []AgentQuoteRow, ok bool) {
 	s := strings.TrimSpace(stdout)
 	if s == "" {
 		return nil, false
@@ -37,7 +38,6 @@ func ParseTaskStdoutQuotes(stdout string) (quotesJSON []byte, ok bool) {
 		return nil, false
 	}
 
-	var rows []AgentQuoteRow
 	switch s[0] {
 	case '[':
 		if err := json.Unmarshal([]byte(s), &rows); err != nil {
@@ -60,6 +60,15 @@ func ParseTaskStdoutQuotes(stdout string) (quotesJSON []byte, ok bool) {
 	}
 
 	if !agentQuoteRowsValid(rows) {
+		return nil, false
+	}
+	return rows, true
+}
+
+// ParseTaskStdoutQuotes 保留旧签名：将 stdout 解析并编码回 JSON 数组字节。
+func ParseTaskStdoutQuotes(stdout string) (quotesJSON []byte, ok bool) {
+	rows, ok := ParseTaskStdoutQuoteRows(stdout)
+	if !ok {
 		return nil, false
 	}
 	out, err := json.Marshal(rows)

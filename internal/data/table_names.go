@@ -20,4 +20,10 @@ const (
 	TableHsPolicyVersion             = "t_hs_policy_version"
 	TableHsCase                      = "t_hs_case"
 	TableHsReviewDecision            = "t_hs_review_decision"
+	TableHsModelMapping              = "t_hs_model_mapping"
+	TableHsModelFeatures             = "t_hs_model_features"
+	TableHsModelRecommendation       = "t_hs_model_recommendation"
+	TableHsDatasheetAsset            = "t_hs_datasheet_asset"
+	TableHsMeta                      = "t_hs_meta"
+	TableHsItem                      = "t_hs_item"
 )

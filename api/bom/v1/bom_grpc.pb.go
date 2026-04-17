@@ -19,15 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BomService_ClassifyByModel_FullMethodName              = "/api.bom.v1.BomService/ClassifyByModel"
 	BomService_UploadBOM_FullMethodName                    = "/api.bom.v1.BomService/UploadBOM"
 	BomService_SearchQuotes_FullMethodName                 = "/api.bom.v1.BomService/SearchQuotes"
 	BomService_AutoMatch_FullMethodName                    = "/api.bom.v1.BomService/AutoMatch"
 	BomService_DownloadTemplate_FullMethodName             = "/api.bom.v1.BomService/DownloadTemplate"
 	BomService_GetBOM_FullMethodName                       = "/api.bom.v1.BomService/GetBOM"
 	BomService_GetMatchResult_FullMethodName               = "/api.bom.v1.BomService/GetMatchResult"
-	BomService_ListMatchSourceRecords_FullMethodName       = "/api.bom.v1.BomService/ListMatchSourceRecords"
-	BomService_GetMatchSourceDetail_FullMethodName         = "/api.bom.v1.BomService/GetMatchSourceDetail"
 	BomService_CreateSession_FullMethodName                = "/api.bom.v1.BomService/CreateSession"
 	BomService_GetSession_FullMethodName                   = "/api.bom.v1.BomService/GetSession"
 	BomService_ListSessions_FullMethodName                 = "/api.bom.v1.BomService/ListSessions"
@@ -42,8 +39,6 @@ const (
 	BomService_RetrySearchTasks_FullMethodName             = "/api.bom.v1.BomService/RetrySearchTasks"
 	BomService_SubmitBomSearchResult_FullMethodName        = "/api.bom.v1.BomService/SubmitBomSearchResult"
 	BomService_ExportSession_FullMethodName                = "/api.bom.v1.BomService/ExportSession"
-	BomService_CreateManufacturerAlias_FullMethodName      = "/api.bom.v1.BomService/CreateManufacturerAlias"
-	BomService_ListManufacturerCanonicals_FullMethodName   = "/api.bom.v1.BomService/ListManufacturerCanonicals"
 )
 
 // BomServiceClient is the client API for BomService service.
@@ -52,8 +47,6 @@ const (
 //
 // BOM 配单服务
 type BomServiceClient interface {
-	// 按型号进行 HS 归类与税检建议
-	ClassifyByModel(ctx context.Context, in *ClassifyByModelRequest, opts ...grpc.CallOption) (*ClassifyByModelReply, error)
 	// 上传并解析 BOM
 	UploadBOM(ctx context.Context, in *UploadBOMRequest, opts ...grpc.CallOption) (*UploadBOMReply, error)
 	// 多平台搜索报价
@@ -66,10 +59,6 @@ type BomServiceClient interface {
 	GetBOM(ctx context.Context, in *GetBOMRequest, opts ...grpc.CallOption) (*GetBOMReply, error)
 	// 获取配单结果
 	GetMatchResult(ctx context.Context, in *GetMatchResultRequest, opts ...grpc.CallOption) (*GetMatchResultReply, error)
-	// 配单用到的报价缓存摘要（按行×平台；不含 quotes_json 大字段，详情另拉）
-	ListMatchSourceRecords(ctx context.Context, in *ListMatchSourceRecordsRequest, opts ...grpc.CallOption) (*ListMatchSourceRecordsReply, error)
-	// 单行×单平台的报价缓存明细（quotes_json / outcome 等）
-	GetMatchSourceDetail(ctx context.Context, in *GetMatchSourceDetailRequest, opts ...grpc.CallOption) (*GetMatchSourceDetailReply, error)
 	CreateSession(ctx context.Context, in *CreateSessionRequest, opts ...grpc.CallOption) (*CreateSessionReply, error)
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionReply, error)
 	// 会话列表（分页、筛选）
@@ -90,12 +79,8 @@ type BomServiceClient interface {
 	RetrySearchTasks(ctx context.Context, in *RetrySearchTasksRequest, opts ...grpc.CallOption) (*RetrySearchTasksReply, error)
 	// Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
 	SubmitBomSearchResult(ctx context.Context, in *SubmitBomSearchResultRequest, opts ...grpc.CallOption) (*SubmitBomSearchResultReply, error)
-	// 导出会话 BOM 行（Excel/CSV）
+	// 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
 	ExportSession(ctx context.Context, in *ExportSessionRequest, opts ...grpc.CallOption) (*ExportSessionReply, error)
-	// 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
-	CreateManufacturerAlias(ctx context.Context, in *CreateManufacturerAliasRequest, opts ...grpc.CallOption) (*CreateManufacturerAliasReply, error)
-	// 列举已有规范厂牌（distinct canonical_id），供审核时对照/选择
-	ListManufacturerCanonicals(ctx context.Context, in *ListManufacturerCanonicalsRequest, opts ...grpc.CallOption) (*ListManufacturerCanonicalsReply, error)
 }
 
 type bomServiceClient struct {
@@ -104,16 +89,6 @@ type bomServiceClient struct {
 
 func NewBomServiceClient(cc grpc.ClientConnInterface) BomServiceClient {
 	return &bomServiceClient{cc}
-}
-
-func (c *bomServiceClient) ClassifyByModel(ctx context.Context, in *ClassifyByModelRequest, opts ...grpc.CallOption) (*ClassifyByModelReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ClassifyByModelReply)
-	err := c.cc.Invoke(ctx, BomService_ClassifyByModel_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *bomServiceClient) UploadBOM(ctx context.Context, in *UploadBOMRequest, opts ...grpc.CallOption) (*UploadBOMReply, error) {
@@ -170,26 +145,6 @@ func (c *bomServiceClient) GetMatchResult(ctx context.Context, in *GetMatchResul
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetMatchResultReply)
 	err := c.cc.Invoke(ctx, BomService_GetMatchResult_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *bomServiceClient) ListMatchSourceRecords(ctx context.Context, in *ListMatchSourceRecordsRequest, opts ...grpc.CallOption) (*ListMatchSourceRecordsReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListMatchSourceRecordsReply)
-	err := c.cc.Invoke(ctx, BomService_ListMatchSourceRecords_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *bomServiceClient) GetMatchSourceDetail(ctx context.Context, in *GetMatchSourceDetailRequest, opts ...grpc.CallOption) (*GetMatchSourceDetailReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetMatchSourceDetailReply)
-	err := c.cc.Invoke(ctx, BomService_GetMatchSourceDetail_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -336,34 +291,12 @@ func (c *bomServiceClient) ExportSession(ctx context.Context, in *ExportSessionR
 	return out, nil
 }
 
-func (c *bomServiceClient) CreateManufacturerAlias(ctx context.Context, in *CreateManufacturerAliasRequest, opts ...grpc.CallOption) (*CreateManufacturerAliasReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateManufacturerAliasReply)
-	err := c.cc.Invoke(ctx, BomService_CreateManufacturerAlias_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *bomServiceClient) ListManufacturerCanonicals(ctx context.Context, in *ListManufacturerCanonicalsRequest, opts ...grpc.CallOption) (*ListManufacturerCanonicalsReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListManufacturerCanonicalsReply)
-	err := c.cc.Invoke(ctx, BomService_ListManufacturerCanonicals_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // BomServiceServer is the server API for BomService service.
 // All implementations must embed UnimplementedBomServiceServer
 // for forward compatibility.
 //
 // BOM 配单服务
 type BomServiceServer interface {
-	// 按型号进行 HS 归类与税检建议
-	ClassifyByModel(context.Context, *ClassifyByModelRequest) (*ClassifyByModelReply, error)
 	// 上传并解析 BOM
 	UploadBOM(context.Context, *UploadBOMRequest) (*UploadBOMReply, error)
 	// 多平台搜索报价
@@ -376,10 +309,6 @@ type BomServiceServer interface {
 	GetBOM(context.Context, *GetBOMRequest) (*GetBOMReply, error)
 	// 获取配单结果
 	GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error)
-	// 配单用到的报价缓存摘要（按行×平台；不含 quotes_json 大字段，详情另拉）
-	ListMatchSourceRecords(context.Context, *ListMatchSourceRecordsRequest) (*ListMatchSourceRecordsReply, error)
-	// 单行×单平台的报价缓存明细（quotes_json / outcome 等）
-	GetMatchSourceDetail(context.Context, *GetMatchSourceDetailRequest) (*GetMatchSourceDetailReply, error)
 	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionReply, error)
 	// 会话列表（分页、筛选）
@@ -400,12 +329,8 @@ type BomServiceServer interface {
 	RetrySearchTasks(context.Context, *RetrySearchTasksRequest) (*RetrySearchTasksReply, error)
 	// Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
 	SubmitBomSearchResult(context.Context, *SubmitBomSearchResultRequest) (*SubmitBomSearchResultReply, error)
-	// 导出会话 BOM 行（Excel/CSV）
+	// 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
 	ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error)
-	// 审核通过：将报价侧厂牌别名写入 t_bom_manufacturer_alias（alias_norm 由服务端按配单规则规范化）
-	CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error)
-	// 列举已有规范厂牌（distinct canonical_id），供审核时对照/选择
-	ListManufacturerCanonicals(context.Context, *ListManufacturerCanonicalsRequest) (*ListManufacturerCanonicalsReply, error)
 	mustEmbedUnimplementedBomServiceServer()
 }
 
@@ -416,9 +341,6 @@ type BomServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedBomServiceServer struct{}
 
-func (UnimplementedBomServiceServer) ClassifyByModel(context.Context, *ClassifyByModelRequest) (*ClassifyByModelReply, error) {
-	return nil, status.Error(codes.Unimplemented, "method ClassifyByModel not implemented")
-}
 func (UnimplementedBomServiceServer) UploadBOM(context.Context, *UploadBOMRequest) (*UploadBOMReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method UploadBOM not implemented")
 }
@@ -436,12 +358,6 @@ func (UnimplementedBomServiceServer) GetBOM(context.Context, *GetBOMRequest) (*G
 }
 func (UnimplementedBomServiceServer) GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMatchResult not implemented")
-}
-func (UnimplementedBomServiceServer) ListMatchSourceRecords(context.Context, *ListMatchSourceRecordsRequest) (*ListMatchSourceRecordsReply, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListMatchSourceRecords not implemented")
-}
-func (UnimplementedBomServiceServer) GetMatchSourceDetail(context.Context, *GetMatchSourceDetailRequest) (*GetMatchSourceDetailReply, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetMatchSourceDetail not implemented")
 }
 func (UnimplementedBomServiceServer) CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateSession not implemented")
@@ -485,12 +401,6 @@ func (UnimplementedBomServiceServer) SubmitBomSearchResult(context.Context, *Sub
 func (UnimplementedBomServiceServer) ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method ExportSession not implemented")
 }
-func (UnimplementedBomServiceServer) CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateManufacturerAlias not implemented")
-}
-func (UnimplementedBomServiceServer) ListManufacturerCanonicals(context.Context, *ListManufacturerCanonicalsRequest) (*ListManufacturerCanonicalsReply, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListManufacturerCanonicals not implemented")
-}
 func (UnimplementedBomServiceServer) mustEmbedUnimplementedBomServiceServer() {}
 func (UnimplementedBomServiceServer) testEmbeddedByValue()                    {}
 
@@ -510,24 +420,6 @@ func RegisterBomServiceServer(s grpc.ServiceRegistrar, srv BomServiceServer) {
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&BomService_ServiceDesc, srv)
-}
-
-func _BomService_ClassifyByModel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ClassifyByModelRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BomServiceServer).ClassifyByModel(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BomService_ClassifyByModel_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BomServiceServer).ClassifyByModel(ctx, req.(*ClassifyByModelRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _BomService_UploadBOM_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -634,42 +526,6 @@ func _BomService_GetMatchResult_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BomServiceServer).GetMatchResult(ctx, req.(*GetMatchResultRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BomService_ListMatchSourceRecords_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListMatchSourceRecordsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BomServiceServer).ListMatchSourceRecords(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BomService_ListMatchSourceRecords_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BomServiceServer).ListMatchSourceRecords(ctx, req.(*ListMatchSourceRecordsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BomService_GetMatchSourceDetail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetMatchSourceDetailRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BomServiceServer).GetMatchSourceDetail(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BomService_GetMatchSourceDetail_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BomServiceServer).GetMatchSourceDetail(ctx, req.(*GetMatchSourceDetailRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -926,42 +782,6 @@ func _BomService_ExportSession_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BomService_CreateManufacturerAlias_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateManufacturerAliasRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BomServiceServer).CreateManufacturerAlias(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BomService_CreateManufacturerAlias_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BomServiceServer).CreateManufacturerAlias(ctx, req.(*CreateManufacturerAliasRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BomService_ListManufacturerCanonicals_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListManufacturerCanonicalsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BomServiceServer).ListManufacturerCanonicals(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BomService_ListManufacturerCanonicals_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BomServiceServer).ListManufacturerCanonicals(ctx, req.(*ListManufacturerCanonicalsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // BomService_ServiceDesc is the grpc.ServiceDesc for BomService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -969,10 +789,6 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "api.bom.v1.BomService",
 	HandlerType: (*BomServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "ClassifyByModel",
-			Handler:    _BomService_ClassifyByModel_Handler,
-		},
 		{
 			MethodName: "UploadBOM",
 			Handler:    _BomService_UploadBOM_Handler,
@@ -996,14 +812,6 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetMatchResult",
 			Handler:    _BomService_GetMatchResult_Handler,
-		},
-		{
-			MethodName: "ListMatchSourceRecords",
-			Handler:    _BomService_ListMatchSourceRecords_Handler,
-		},
-		{
-			MethodName: "GetMatchSourceDetail",
-			Handler:    _BomService_GetMatchSourceDetail_Handler,
 		},
 		{
 			MethodName: "CreateSession",
@@ -1061,13 +869,449 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ExportSession",
 			Handler:    _BomService_ExportSession_Handler,
 		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "bom/v1/bom.proto",
+}
+
+const (
+	HsResolveService_ResolveByModel_FullMethodName    = "/api.bom.v1.HsResolveService/ResolveByModel"
+	HsResolveService_GetResolveTask_FullMethodName    = "/api.bom.v1.HsResolveService/GetResolveTask"
+	HsResolveService_ConfirmResolve_FullMethodName    = "/api.bom.v1.HsResolveService/ConfirmResolve"
+	HsResolveService_GetResolveHistory_FullMethodName = "/api.bom.v1.HsResolveService/GetResolveHistory"
+)
+
+// HsResolveServiceClient is the client API for HsResolveService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// HS 型号解析服务
+type HsResolveServiceClient interface {
+	// 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
+	ResolveByModel(ctx context.Context, in *HsResolveByModelRequest, opts ...grpc.CallOption) (*HsResolveByModelReply, error)
+	// 查询单个任务状态与结果
+	GetResolveTask(ctx context.Context, in *HsResolveTaskRequest, opts ...grpc.CallOption) (*HsResolveTaskReply, error)
+	// 人工确认候选
+	ConfirmResolve(ctx context.Context, in *HsResolveConfirmRequest, opts ...grpc.CallOption) (*HsResolveConfirmReply, error)
+	// 查询历史结果与候选
+	GetResolveHistory(ctx context.Context, in *HsResolveHistoryRequest, opts ...grpc.CallOption) (*HsResolveHistoryReply, error)
+}
+
+type hsResolveServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewHsResolveServiceClient(cc grpc.ClientConnInterface) HsResolveServiceClient {
+	return &hsResolveServiceClient{cc}
+}
+
+func (c *hsResolveServiceClient) ResolveByModel(ctx context.Context, in *HsResolveByModelRequest, opts ...grpc.CallOption) (*HsResolveByModelReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsResolveByModelReply)
+	err := c.cc.Invoke(ctx, HsResolveService_ResolveByModel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hsResolveServiceClient) GetResolveTask(ctx context.Context, in *HsResolveTaskRequest, opts ...grpc.CallOption) (*HsResolveTaskReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsResolveTaskReply)
+	err := c.cc.Invoke(ctx, HsResolveService_GetResolveTask_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hsResolveServiceClient) ConfirmResolve(ctx context.Context, in *HsResolveConfirmRequest, opts ...grpc.CallOption) (*HsResolveConfirmReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsResolveConfirmReply)
+	err := c.cc.Invoke(ctx, HsResolveService_ConfirmResolve_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hsResolveServiceClient) GetResolveHistory(ctx context.Context, in *HsResolveHistoryRequest, opts ...grpc.CallOption) (*HsResolveHistoryReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsResolveHistoryReply)
+	err := c.cc.Invoke(ctx, HsResolveService_GetResolveHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// HsResolveServiceServer is the server API for HsResolveService service.
+// All implementations must embed UnimplementedHsResolveServiceServer
+// for forward compatibility.
+//
+// HS 型号解析服务
+type HsResolveServiceServer interface {
+	// 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
+	ResolveByModel(context.Context, *HsResolveByModelRequest) (*HsResolveByModelReply, error)
+	// 查询单个任务状态与结果
+	GetResolveTask(context.Context, *HsResolveTaskRequest) (*HsResolveTaskReply, error)
+	// 人工确认候选
+	ConfirmResolve(context.Context, *HsResolveConfirmRequest) (*HsResolveConfirmReply, error)
+	// 查询历史结果与候选
+	GetResolveHistory(context.Context, *HsResolveHistoryRequest) (*HsResolveHistoryReply, error)
+	mustEmbedUnimplementedHsResolveServiceServer()
+}
+
+// UnimplementedHsResolveServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedHsResolveServiceServer struct{}
+
+func (UnimplementedHsResolveServiceServer) ResolveByModel(context.Context, *HsResolveByModelRequest) (*HsResolveByModelReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResolveByModel not implemented")
+}
+func (UnimplementedHsResolveServiceServer) GetResolveTask(context.Context, *HsResolveTaskRequest) (*HsResolveTaskReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetResolveTask not implemented")
+}
+func (UnimplementedHsResolveServiceServer) ConfirmResolve(context.Context, *HsResolveConfirmRequest) (*HsResolveConfirmReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfirmResolve not implemented")
+}
+func (UnimplementedHsResolveServiceServer) GetResolveHistory(context.Context, *HsResolveHistoryRequest) (*HsResolveHistoryReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetResolveHistory not implemented")
+}
+func (UnimplementedHsResolveServiceServer) mustEmbedUnimplementedHsResolveServiceServer() {}
+func (UnimplementedHsResolveServiceServer) testEmbeddedByValue()                          {}
+
+// UnsafeHsResolveServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to HsResolveServiceServer will
+// result in compilation errors.
+type UnsafeHsResolveServiceServer interface {
+	mustEmbedUnimplementedHsResolveServiceServer()
+}
+
+func RegisterHsResolveServiceServer(s grpc.ServiceRegistrar, srv HsResolveServiceServer) {
+	// If the following call panics, it indicates UnimplementedHsResolveServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&HsResolveService_ServiceDesc, srv)
+}
+
+func _HsResolveService_ResolveByModel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsResolveByModelRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsResolveServiceServer).ResolveByModel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsResolveService_ResolveByModel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsResolveServiceServer).ResolveByModel(ctx, req.(*HsResolveByModelRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HsResolveService_GetResolveTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsResolveTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsResolveServiceServer).GetResolveTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsResolveService_GetResolveTask_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsResolveServiceServer).GetResolveTask(ctx, req.(*HsResolveTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HsResolveService_ConfirmResolve_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsResolveConfirmRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsResolveServiceServer).ConfirmResolve(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsResolveService_ConfirmResolve_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsResolveServiceServer).ConfirmResolve(ctx, req.(*HsResolveConfirmRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HsResolveService_GetResolveHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsResolveHistoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsResolveServiceServer).GetResolveHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsResolveService_GetResolveHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsResolveServiceServer).GetResolveHistory(ctx, req.(*HsResolveHistoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// HsResolveService_ServiceDesc is the grpc.ServiceDesc for HsResolveService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var HsResolveService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "api.bom.v1.HsResolveService",
+	HandlerType: (*HsResolveServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateManufacturerAlias",
-			Handler:    _BomService_CreateManufacturerAlias_Handler,
+			MethodName: "ResolveByModel",
+			Handler:    _HsResolveService_ResolveByModel_Handler,
 		},
 		{
-			MethodName: "ListManufacturerCanonicals",
-			Handler:    _BomService_ListManufacturerCanonicals_Handler,
+			MethodName: "GetResolveTask",
+			Handler:    _HsResolveService_GetResolveTask_Handler,
+		},
+		{
+			MethodName: "ConfirmResolve",
+			Handler:    _HsResolveService_ConfirmResolve_Handler,
+		},
+		{
+			MethodName: "GetResolveHistory",
+			Handler:    _HsResolveService_GetResolveHistory_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "bom/v1/bom.proto",
+}
+
+const (
+	HsMetaService_ListHsMeta_FullMethodName   = "/api.bom.v1.HsMetaService/ListHsMeta"
+	HsMetaService_CreateHsMeta_FullMethodName = "/api.bom.v1.HsMetaService/CreateHsMeta"
+	HsMetaService_UpdateHsMeta_FullMethodName = "/api.bom.v1.HsMetaService/UpdateHsMeta"
+	HsMetaService_DeleteHsMeta_FullMethodName = "/api.bom.v1.HsMetaService/DeleteHsMeta"
+)
+
+// HsMetaServiceClient is the client API for HsMetaService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type HsMetaServiceClient interface {
+	ListHsMeta(ctx context.Context, in *HsMetaListRequest, opts ...grpc.CallOption) (*HsMetaListReply, error)
+	CreateHsMeta(ctx context.Context, in *HsMetaCreateRequest, opts ...grpc.CallOption) (*HsMetaMutationReply, error)
+	UpdateHsMeta(ctx context.Context, in *HsMetaUpdateRequest, opts ...grpc.CallOption) (*HsMetaMutationReply, error)
+	DeleteHsMeta(ctx context.Context, in *HsMetaDeleteRequest, opts ...grpc.CallOption) (*HsMetaMutationReply, error)
+}
+
+type hsMetaServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewHsMetaServiceClient(cc grpc.ClientConnInterface) HsMetaServiceClient {
+	return &hsMetaServiceClient{cc}
+}
+
+func (c *hsMetaServiceClient) ListHsMeta(ctx context.Context, in *HsMetaListRequest, opts ...grpc.CallOption) (*HsMetaListReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsMetaListReply)
+	err := c.cc.Invoke(ctx, HsMetaService_ListHsMeta_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hsMetaServiceClient) CreateHsMeta(ctx context.Context, in *HsMetaCreateRequest, opts ...grpc.CallOption) (*HsMetaMutationReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsMetaMutationReply)
+	err := c.cc.Invoke(ctx, HsMetaService_CreateHsMeta_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hsMetaServiceClient) UpdateHsMeta(ctx context.Context, in *HsMetaUpdateRequest, opts ...grpc.CallOption) (*HsMetaMutationReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsMetaMutationReply)
+	err := c.cc.Invoke(ctx, HsMetaService_UpdateHsMeta_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hsMetaServiceClient) DeleteHsMeta(ctx context.Context, in *HsMetaDeleteRequest, opts ...grpc.CallOption) (*HsMetaMutationReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsMetaMutationReply)
+	err := c.cc.Invoke(ctx, HsMetaService_DeleteHsMeta_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// HsMetaServiceServer is the server API for HsMetaService service.
+// All implementations must embed UnimplementedHsMetaServiceServer
+// for forward compatibility.
+type HsMetaServiceServer interface {
+	ListHsMeta(context.Context, *HsMetaListRequest) (*HsMetaListReply, error)
+	CreateHsMeta(context.Context, *HsMetaCreateRequest) (*HsMetaMutationReply, error)
+	UpdateHsMeta(context.Context, *HsMetaUpdateRequest) (*HsMetaMutationReply, error)
+	DeleteHsMeta(context.Context, *HsMetaDeleteRequest) (*HsMetaMutationReply, error)
+	mustEmbedUnimplementedHsMetaServiceServer()
+}
+
+// UnimplementedHsMetaServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedHsMetaServiceServer struct{}
+
+func (UnimplementedHsMetaServiceServer) ListHsMeta(context.Context, *HsMetaListRequest) (*HsMetaListReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListHsMeta not implemented")
+}
+func (UnimplementedHsMetaServiceServer) CreateHsMeta(context.Context, *HsMetaCreateRequest) (*HsMetaMutationReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateHsMeta not implemented")
+}
+func (UnimplementedHsMetaServiceServer) UpdateHsMeta(context.Context, *HsMetaUpdateRequest) (*HsMetaMutationReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateHsMeta not implemented")
+}
+func (UnimplementedHsMetaServiceServer) DeleteHsMeta(context.Context, *HsMetaDeleteRequest) (*HsMetaMutationReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteHsMeta not implemented")
+}
+func (UnimplementedHsMetaServiceServer) mustEmbedUnimplementedHsMetaServiceServer() {}
+func (UnimplementedHsMetaServiceServer) testEmbeddedByValue()                       {}
+
+// UnsafeHsMetaServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to HsMetaServiceServer will
+// result in compilation errors.
+type UnsafeHsMetaServiceServer interface {
+	mustEmbedUnimplementedHsMetaServiceServer()
+}
+
+func RegisterHsMetaServiceServer(s grpc.ServiceRegistrar, srv HsMetaServiceServer) {
+	// If the following call panics, it indicates UnimplementedHsMetaServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&HsMetaService_ServiceDesc, srv)
+}
+
+func _HsMetaService_ListHsMeta_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsMetaListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsMetaServiceServer).ListHsMeta(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsMetaService_ListHsMeta_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsMetaServiceServer).ListHsMeta(ctx, req.(*HsMetaListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HsMetaService_CreateHsMeta_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsMetaCreateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsMetaServiceServer).CreateHsMeta(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsMetaService_CreateHsMeta_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsMetaServiceServer).CreateHsMeta(ctx, req.(*HsMetaCreateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HsMetaService_UpdateHsMeta_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsMetaUpdateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsMetaServiceServer).UpdateHsMeta(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsMetaService_UpdateHsMeta_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsMetaServiceServer).UpdateHsMeta(ctx, req.(*HsMetaUpdateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HsMetaService_DeleteHsMeta_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsMetaDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsMetaServiceServer).DeleteHsMeta(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsMetaService_DeleteHsMeta_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsMetaServiceServer).DeleteHsMeta(ctx, req.(*HsMetaDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// HsMetaService_ServiceDesc is the grpc.ServiceDesc for HsMetaService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var HsMetaService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "api.bom.v1.HsMetaService",
+	HandlerType: (*HsMetaServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListHsMeta",
+			Handler:    _HsMetaService_ListHsMeta_Handler,
+		},
+		{
+			MethodName: "CreateHsMeta",
+			Handler:    _HsMetaService_CreateHsMeta_Handler,
+		},
+		{
+			MethodName: "UpdateHsMeta",
+			Handler:    _HsMetaService_UpdateHsMeta_Handler,
+		},
+		{
+			MethodName: "DeleteHsMeta",
+			Handler:    _HsMetaService_DeleteHsMeta_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

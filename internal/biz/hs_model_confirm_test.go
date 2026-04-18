@@ -81,6 +81,35 @@ func TestHsModelResolverConfirm_IdempotentByConfirmRequestID(t *testing.T) {
 	}
 }
 
+func TestHsModelConfirm_MissAliasLeavesMappingCanonicalNil(t *testing.T) {
+	t.Parallel()
+	taskRepo := newInMemoryHsModelTaskRepo()
+	recoRepo := &spyRecommendationRepo{
+		saved: []HsModelRecommendationRecord{
+			{Model: "M", Manufacturer: "UnknownMfr", RunID: "run-cfm", CandidateRank: 1, CodeTS: "1234567890", Score: 0.88},
+		},
+	}
+	mapRepo := &spyMappingRepo{}
+	confirmRepo := newInMemoryHsModelConfirmRepo()
+	taskRepo.Save(context.Background(), &HsModelTaskRecord{Model: "M", Manufacturer: "UnknownMfr", RunID: "run-cfm", ResultStatus: HsResultStatusPendingReview})
+
+	svc := NewHsModelConfirmService(taskRepo, recoRepo, mapRepo, confirmRepo).
+		WithManufacturerCanonicalizer(canonicalizerAliasLookup{rows: map[string]string{"TI": "mfr-ti"}})
+
+	_, err := svc.Confirm(context.Background(), HsModelConfirmRequest{
+		RunID: "run-cfm", CandidateRank: 1, ExpectedCodeTS: "1234567890", ConfirmRequestID: "confirm-miss",
+	})
+	if err != nil {
+		t.Fatalf("confirm failed: %v", err)
+	}
+	if len(mapRepo.saved) != 1 {
+		t.Fatalf("expected one mapping save, got %d", len(mapRepo.saved))
+	}
+	if mapRepo.saved[0].ManufacturerCanonicalID != nil {
+		t.Fatalf("expected nil canonical on alias miss (strategy D preserve in data), got %v", mapRepo.saved[0].ManufacturerCanonicalID)
+	}
+}
+
 func TestHsModelResolverConfirm_RejectWhenCandidateTupleMismatch(t *testing.T) {
 	t.Parallel()
 	taskRepo := newInMemoryHsModelTaskRepo()

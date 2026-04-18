@@ -41,6 +41,7 @@ type HsModelConfirmService struct {
 	mappingRepo HsModelMappingRepo
 	confirmRepo HsModelConfirmRepo
 	observer    HsResolveObserver
+	mfrCanon    *ManufacturerCanonicalizer
 }
 
 func NewHsModelConfirmService(taskRepo HsModelTaskRepo, recoRepo HsModelRecommendationRepo, mappingRepo HsModelMappingRepo, confirmRepo HsModelConfirmRepo) *HsModelConfirmService {
@@ -62,6 +63,15 @@ func (s *HsModelConfirmService) WithObserver(observer HsResolveObserver) *HsMode
 		return s
 	}
 	s.observer = observer
+	return s
+}
+
+// WithManufacturerCanonicalizer 注入厂牌别名解析；lookup 为 nil 时视为无别名能力（按未命中处理）。
+func (s *HsModelConfirmService) WithManufacturerCanonicalizer(lookup AliasLookup) *HsModelConfirmService {
+	if s == nil {
+		return nil
+	}
+	s.mfrCanon = NewManufacturerCanonicalizer(lookup)
 	return s
 }
 
@@ -113,13 +123,27 @@ func (s *HsModelConfirmService) Confirm(ctx context.Context, req HsModelConfirmR
 		return nil, ErrHsResolverConfirmTupleMismatch
 	}
 
+	var canonPtr *string
+	canon := s.mfrCanon
+	if canon == nil {
+		canon = NewManufacturerCanonicalizer(nil)
+	}
+	id, hit, err := canon.Resolve(ctx, runTask.Manufacturer)
+	if err != nil {
+		return nil, err
+	}
+	if hit {
+		canonPtr = &id
+	}
+
 	if err := s.mappingRepo.Save(ctx, &HsModelMappingRecord{
-		Model:        runTask.Model,
-		Manufacturer: runTask.Manufacturer,
-		CodeTS:       picked.CodeTS,
-		Source:       "manual",
-		Confidence:   picked.Score,
-		Status:       HsResultStatusConfirmed,
+		Model:                   runTask.Model,
+		Manufacturer:            runTask.Manufacturer,
+		ManufacturerCanonicalID: canonPtr,
+		CodeTS:                  picked.CodeTS,
+		Source:                  "manual",
+		Confidence:              picked.Score,
+		Status:                  HsResultStatusConfirmed,
 	}); err != nil {
 		return nil, err
 	}

@@ -80,8 +80,9 @@ func (s stubDatasheetDownloader) Download(ctx context.Context, model, manufactur
 }
 
 type stubDatasheetAssetRepo struct {
-	saved []*HsDatasheetAssetRecord
-	err   error
+	saved  []*HsDatasheetAssetRecord
+	err    error
+	nextID uint64
 }
 
 func (s *stubDatasheetAssetRepo) DBOk() bool { return true }
@@ -91,7 +92,14 @@ func (s *stubDatasheetAssetRepo) GetLatestByModelManufacturer(_ context.Context,
 }
 
 func (s *stubDatasheetAssetRepo) Save(_ context.Context, row *HsDatasheetAssetRecord) error {
+	if s.err != nil {
+		return s.err
+	}
 	if row != nil {
+		if row.ID == 0 {
+			s.nextID++
+			row.ID = s.nextID
+		}
 		copied := *row
 		s.saved = append(s.saved, &copied)
 	}

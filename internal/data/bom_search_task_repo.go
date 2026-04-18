@@ -16,15 +16,16 @@ import (
 
 // BOMSearchTaskRepo 仅保留 Agent 任务回写 bom_search_task / bom_quote_cache(+bom_quote_item) 所需方法（无 DB 时为部分 no-op）。
 type BOMSearchTaskRepo struct {
-	db *gorm.DB
+	db    *gorm.DB
+	alias biz.AliasLookup
 }
 
 // NewBOMSearchTaskRepo ...
-func NewBOMSearchTaskRepo(d *Data) *BOMSearchTaskRepo {
+func NewBOMSearchTaskRepo(d *Data, alias biz.AliasLookup) *BOMSearchTaskRepo {
 	if d == nil || d.DB == nil {
-		return &BOMSearchTaskRepo{}
+		return &BOMSearchTaskRepo{alias: alias}
 	}
-	return &BOMSearchTaskRepo{db: d.DB}
+	return &BOMSearchTaskRepo{db: d.DB, alias: alias}
 }
 
 // DBOk ...
@@ -103,6 +104,22 @@ func sanitizeForLegacyMySQLUTF8(s string) string {
 	return b.String()
 }
 
+func (r *BOMSearchTaskRepo) manufacturerCanonicalPtrForQuote(ctx context.Context, manufacturer string) (*string, error) {
+	if r == nil || r.alias == nil {
+		return nil, nil
+	}
+	id, hit, err := biz.ResolveManufacturerCanonical(ctx, manufacturer, r.alias)
+	if err != nil {
+		// 报价落库不应因别名基础设施抖动而整体失败：降级为未写入 canonical。
+		return nil, nil
+	}
+	if !hit {
+		return nil, nil
+	}
+	cp := id
+	return &cp, nil
+}
+
 func (r *BOMSearchTaskRepo) upsertQuoteCache(ctx context.Context, x *gorm.DB, mpnNorm, platformID, dateStr, outcome string, quotesJSON, noMpnDetail []byte) error {
 	bd, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
@@ -162,10 +179,13 @@ func (r *BOMSearchTaskRepo) upsertQuoteCache(ctx context.Context, x *gorm.DB, mp
 	items := make([]BomQuoteItem, 0, len(rows))
 	for i := range rows {
 		row := rows[i]
+		mfr := sanitizeForLegacyMySQLUTF8(row.Manufacturer)
+		canonPtr, _ := r.manufacturerCanonicalPtrForQuote(ctx, mfr)
 		items = append(items, BomQuoteItem{
-			QuoteID:       cacheID,
-			Model:         sanitizeForLegacyMySQLUTF8(row.Model),
-			Manufacturer:  sanitizeForLegacyMySQLUTF8(row.Manufacturer),
+			QuoteID:                 cacheID,
+			Model:                   sanitizeForLegacyMySQLUTF8(row.Model),
+			Manufacturer:            mfr,
+			ManufacturerCanonicalID: canonPtr,
 			Stock:         sanitizeForLegacyMySQLUTF8(row.Stock),
 			Package:       sanitizeForLegacyMySQLUTF8(row.Package),
 			Desc:          sanitizeForLegacyMySQLUTF8(row.Desc),

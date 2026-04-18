@@ -120,6 +120,7 @@ type BomQuoteItem struct {
 	QuoteID       uint64    `gorm:"column:quote_id;not null;index:idx_bom_quote_item_quote_id"`
 	Model         string    `gorm:"column:model;size:255;not null;default:''"`
 	Manufacturer  string    `gorm:"column:manufacturer;size:255;not null;default:''"`
+	ManufacturerCanonicalID *string   `gorm:"column:manufacturer_canonical_id;size:128"`
 	Stock         string    `gorm:"column:stock;size:64;not null;default:''"`
 	Package       string    `gorm:"column:package;size:128;not null;default:''"`
 	Desc          string    `gorm:"column:desc;size:512;not null;default:''"`
@@ -295,6 +296,7 @@ type HsModelMapping struct {
 	ID                    uint64    `gorm:"column:id;primaryKey;autoIncrement"`
 	Model                 string    `gorm:"column:model;size:128;not null;uniqueIndex:uk_hs_model_mapping_model_mfr,priority:1"`
 	Manufacturer          string    `gorm:"column:manufacturer;size:128;not null;uniqueIndex:uk_hs_model_mapping_model_mfr,priority:2"`
+	ManufacturerCanonicalID *string   `gorm:"column:manufacturer_canonical_id;size:128"`
 	CodeTS                string    `gorm:"column:code_ts;type:char(10);not null;check:chk_hs_model_mapping_code_ts,code_ts REGEXP '^[0-9]{10}$';index:idx_hs_model_mapping_code_ts"`
 	Source                string    `gorm:"column:source;type:enum('manual','llm_auto');not null;default:llm_auto"`
 	Confidence            float64   `gorm:"column:confidence;type:decimal(5,4)"`
@@ -327,6 +329,7 @@ type HsModelFeatures struct {
 	ID                     uint64           `gorm:"column:id;primaryKey;autoIncrement"`
 	Model                  string           `gorm:"column:model;size:128;not null;index:idx_hs_model_features_model_mfr,priority:1"`
 	Manufacturer           string           `gorm:"column:manufacturer;size:128;not null;index:idx_hs_model_features_model_mfr,priority:2"`
+	ManufacturerCanonicalID *string          `gorm:"column:manufacturer_canonical_id;size:128"`
 	AssetID                uint64           `gorm:"column:asset_id;not null;index:idx_hs_model_features_asset_id"`
 	Asset                  HsDatasheetAsset `gorm:"foreignKey:AssetID;references:ID;constraint:OnDelete:RESTRICT"`
 	TechCategory           string           `gorm:"column:tech_category;size:64;not null;default:''"`
@@ -347,6 +350,7 @@ type HsModelRecommendation struct {
 	ID                uint64    `gorm:"column:id;primaryKey;autoIncrement"`
 	Model             string    `gorm:"column:model;size:128;not null;index:idx_hs_model_reco_model_mfr_created,priority:1"`
 	Manufacturer      string    `gorm:"column:manufacturer;size:128;not null;index:idx_hs_model_reco_model_mfr_created,priority:2"`
+	ManufacturerCanonicalID *string   `gorm:"column:manufacturer_canonical_id;size:128"`
 	RunID             string    `gorm:"column:run_id;size:384;not null;index:idx_hs_model_reco_run_id;uniqueIndex:uk_hs_model_reco_run_rank,priority:1"`
 	CandidateRank     uint8     `gorm:"column:candidate_rank;type:tinyint unsigned;not null;uniqueIndex:uk_hs_model_reco_run_rank,priority:2"`
 	CodeTS            string    `gorm:"column:code_ts;type:char(10);not null;check:chk_hs_model_reco_code_ts,code_ts REGEXP '^[0-9]{10}$'"`

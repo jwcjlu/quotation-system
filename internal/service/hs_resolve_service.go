@@ -289,6 +289,8 @@ func NewDefaultHsResolveService(
 	itemQueryRepo *data.HsItemQueryRepo,
 	hsTaskRepo *data.HsModelTaskRepo,
 	openAIChat *data.OpenAIChat,
+	featuresRepo *data.HsModelFeaturesRepo,
+	mfrAliasLookup biz.AliasLookup,
 ) *HsResolveService {
 	hsCfg := biz.NewHsResolveConfig(c)
 	helper := log.NewHelper(logger)
@@ -308,7 +310,7 @@ func NewDefaultHsResolveService(
 		prefilter := biz.NewHsCandidatePrefilter(itemQueryRepo, biz.HsPrefilterUnboundedCap)
 		assetDir := filepath.Join(os.TempDir(), "caichip", "hs_datasheets")
 		downloader := data.NewHsDatasheetDownloader(assetDir, http.DefaultClient)
-		resolver = biz.NewHsModelResolver(hsAlwaysDownloadChecker{}).
+		br := biz.NewHsModelResolver(hsAlwaysDownloadChecker{}).
 			WithAssetPersistence(downloader, assetRepo).
 			WithStateMachine(taskRepo, recoRepo, mappingRepo).
 			WithFeatureExtractor(extractor).
@@ -316,9 +318,16 @@ func NewDefaultHsResolveService(
 			WithCandidateRecommender(recommender).
 			WithAutoConfirmThreshold(hsCfg.AutoAcceptThreshold).
 			WithObserver(observer).
-			WithMaxStageRetries(hsCfg.ResolveRetryMax)
+			WithMaxStageRetries(hsCfg.ResolveRetryMax).
+			WithManufacturerCanonicalizer(mfrAliasLookup)
+		if featuresRepo != nil && featuresRepo.DBOk() {
+			br = br.WithFeaturesRepo(featuresRepo)
+		}
+		resolver = br
 	}
-	confirmer := biz.NewHsModelConfirmService(taskRepo, recoRepo, mappingRepo, confirmRepo).WithObserver(observer)
+	confirmer := biz.NewHsModelConfirmService(taskRepo, recoRepo, mappingRepo, confirmRepo).
+		WithObserver(observer).
+		WithManufacturerCanonicalizer(mfrAliasLookup)
 	svc := NewHsResolveService(
 		resolver,
 		taskRepo,

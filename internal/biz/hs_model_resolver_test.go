@@ -395,3 +395,74 @@ func TestHsModelResolver_ForceRefreshStillUsesMappingFastPath(t *testing.T) {
 		t.Fatalf("expected no recommendation audit on mapping path, got %d", len(recoRepo.saved))
 	}
 }
+
+func TestHsModelResolver_MappingUpdateMissAliasDoesNotOverwriteCanonical(t *testing.T) {
+	t.Parallel()
+	taskRepo := newInMemoryHsModelTaskRepo()
+	recoRepo := &spyRecommendationRepo{}
+	// 无 confirmed 快路径，走完整 resolve；别名未命中时 biz 不传 ManufacturerCanonicalID（策略 D 由 data 层保留旧值）。
+	mapRepo := &spyMappingRepo{confirmed: nil}
+	resolver := NewHsModelResolver(allowAllChecker{}).WithStateMachine(taskRepo, recoRepo, mapRepo).
+		WithManufacturerCanonicalizer(canonicalizerAliasLookup{
+			rows: map[string]string{
+				"OTHER-MFR": "mfr-other",
+			},
+		}).
+		WithFeatureExtractor(stubFeatureExtractor{out: HsPrefilterInput{TechCategory: "ic"}}).
+		WithCandidatePrefilter(stubCandidatePrefilter{out: []HsItemCandidate{{CodeTS: "2222333344", Score: 0.91}}}).
+		WithCandidateRecommender(stubCandidateRecommender{out: []HsItemCandidate{{CodeTS: "2222333344", Score: 0.91}}}).
+		WithRunIDGenerator(func() string { return "run-update-miss" })
+
+	_, err := resolver.ResolveByModel(context.Background(), HsModelResolveRequest{
+		Model:          "M-upd",
+		Manufacturer:   "Legacy Mfr",
+		RequestTraceID: "trace-update-miss",
+		DatasheetCands: []HsDatasheetCandidate{{ID: 1, DatasheetURL: "https://x/u.pdf", UpdatedAt: time.Now()}},
+		ForceRefresh:   true,
+	})
+	if err != nil {
+		t.Fatalf("resolve failed: %v", err)
+	}
+	if len(mapRepo.saved) != 1 {
+		t.Fatalf("expected one mapping write, got %d", len(mapRepo.saved))
+	}
+	if mapRepo.saved[0].ManufacturerCanonicalID != nil {
+		t.Fatalf("expected nil canonical for alias miss(update preserve), got %v", *mapRepo.saved[0].ManufacturerCanonicalID)
+	}
+}
+
+func TestHsModelResolver_PassesCanonicalWhenAliasHit(t *testing.T) {
+	t.Parallel()
+	taskRepo := newInMemoryHsModelTaskRepo()
+	recoRepo := &spyRecommendationRepo{}
+	mapRepo := &spyMappingRepo{}
+	resolver := NewHsModelResolver(allowAllChecker{}).WithStateMachine(taskRepo, recoRepo, mapRepo).
+		WithManufacturerCanonicalizer(canonicalizerAliasLookup{
+			rows: map[string]string{
+				"ST": "mfr-st",
+			},
+		}).
+		WithFeatureExtractor(stubFeatureExtractor{out: HsPrefilterInput{TechCategory: "ic"}}).
+		WithCandidatePrefilter(stubCandidatePrefilter{out: []HsItemCandidate{{CodeTS: "2222333344", Score: 0.91}}}).
+		WithCandidateRecommender(stubCandidateRecommender{out: []HsItemCandidate{{CodeTS: "2222333344", Score: 0.91}}}).
+		WithRunIDGenerator(func() string { return "run-hit" })
+
+	_, err := resolver.ResolveByModel(context.Background(), HsModelResolveRequest{
+		Model:          "M-hit",
+		Manufacturer:   "st",
+		RequestTraceID: "trace-hit",
+		DatasheetCands: []HsDatasheetCandidate{{ID: 1, DatasheetURL: "https://x/h.pdf", UpdatedAt: time.Now()}},
+	})
+	if err != nil {
+		t.Fatalf("resolve failed: %v", err)
+	}
+	if len(mapRepo.saved) != 1 {
+		t.Fatalf("expected one mapping write, got %d", len(mapRepo.saved))
+	}
+	if mapRepo.saved[0].ManufacturerCanonicalID == nil || *mapRepo.saved[0].ManufacturerCanonicalID != "mfr-st" {
+		t.Fatalf("expected canonical mfr-st, got %v", mapRepo.saved[0].ManufacturerCanonicalID)
+	}
+	if len(recoRepo.saved) == 0 || recoRepo.saved[0].ManufacturerCanonicalID == nil || *recoRepo.saved[0].ManufacturerCanonicalID != "mfr-st" {
+		t.Fatalf("expected reco audit with canonical, got %+v", recoRepo.saved)
+	}
+}

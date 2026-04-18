@@ -394,6 +394,8 @@ func TestNewDefaultHsResolveService_DisabledWhenDependencyMissing(t *testing.T) 
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 	if svc == nil {
 		t.Fatal("expected service instance")
@@ -424,6 +426,8 @@ func TestNewDefaultHsResolveService_EnableResolverWhenDependenciesProvided(t *te
 		data.NewHsItemQueryRepo(d),
 		data.NewHsModelTaskRepo(d),
 		openAI,
+		data.NewHsModelFeaturesRepo(d),
+		nil,
 	)
 	if svc == nil {
 		t.Fatal("expected service instance")

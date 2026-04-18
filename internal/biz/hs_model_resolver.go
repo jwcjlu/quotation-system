@@ -36,6 +36,7 @@ type HsModelResolver struct {
 	taskRepo             HsModelTaskRepo
 	recoRepo             HsModelRecommendationRepo
 	mappingRepo          HsModelMappingRepo
+	featuresRepo         HsModelFeaturesRepo
 	extractor            HsModelFeatureExtractor
 	prefilter            HsModelCandidatePrefilter
 	recommender          HsModelCandidateRecommender
@@ -43,6 +44,7 @@ type HsModelResolver struct {
 	runIDGenerator       func() string
 	maxStageRetries      int
 	observer             HsResolveObserver
+	mfrCanon             *ManufacturerCanonicalizer
 }
 
 func NewHsModelResolver(checker HsDatasheetDownloadChecker) *HsModelResolver {
@@ -74,6 +76,15 @@ func (r *HsModelResolver) WithStateMachine(taskRepo HsModelTaskRepo, recoRepo Hs
 	r.taskRepo = taskRepo
 	r.recoRepo = recoRepo
 	r.mappingRepo = mappingRepo
+	return r
+}
+
+// WithFeaturesRepo 注入特征落库；nil 或 DBOk=false 时跳过 t_hs_model_features 写入。
+func (r *HsModelResolver) WithFeaturesRepo(repo HsModelFeaturesRepo) *HsModelResolver {
+	if r == nil {
+		return nil
+	}
+	r.featuresRepo = repo
 	return r
 }
 
@@ -155,6 +166,15 @@ func (r *HsModelResolver) WithObserver(observer HsResolveObserver) *HsModelResol
 		return r
 	}
 	r.observer = observer
+	return r
+}
+
+// WithManufacturerCanonicalizer 注入厂牌别名解析；lookup 为 nil 时视为无别名能力（按未命中处理）。
+func (r *HsModelResolver) WithManufacturerCanonicalizer(lookup AliasLookup) *HsModelResolver {
+	if r == nil {
+		return nil
+	}
+	r.mfrCanon = NewManufacturerCanonicalizer(lookup)
 	return r
 }
 
@@ -415,6 +435,32 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 		return task, ErrHsResolverNoTechCategory
 	}
 
+	if err := r.persistHsModelFeatures(ctx, n, asset, &input); err != nil {
+		task.TaskStatus = HsTaskStatusFailed
+		task.ResultStatus = HsResultStatusRejected
+		task.Stage = HsTaskStageExtractFailed
+		task.LastError = err.Error()
+		_ = r.taskRepo.Save(ctx, task)
+		r.recordMetric("hs_resolve_total", 1)
+		r.recordMetric("hs_resolve_stage_latency_ms", float64(time.Since(startedAt).Milliseconds()), "stage", HsTaskStageExtractFailed)
+		r.emitLog("resolve.failed", map[string]any{
+			"model":           n.Model,
+			"manufacturer":    n.Manufacturer,
+			"task_id":         task.RunID,
+			"run_id":          task.RunID,
+			"stage":           task.Stage,
+			"datasheet_url":   safeAssetURL(asset),
+			"datasheet_path":  safeAssetPath(asset),
+			"extract_model":   n.FeaturesVersion,
+			"recommend_model": n.RecommendModel,
+			"candidate_count": 0,
+			"best_score":      0.0,
+			"final_status":      task.ResultStatus,
+			"error_code":        "FEATURES_SAVE_FAILED",
+		})
+		return task, err
+	}
+
 	recommendTop := n.RecommendationTop
 	if err := r.retryStage(ctx, task, HsTaskStageRecommend, func() error {
 		prefiltered, preErr := r.prefilter.Prefilter(ctx, input)
@@ -452,13 +498,40 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 	}
 	sort.SliceStable(cands, func(i, j int) bool { return cands[i].Score > cands[j].Score })
 	topN := min(len(cands), 3)
+	mCanonPtr, err := r.manufacturerCanonicalPtr(ctx, n.Manufacturer)
+	if err != nil {
+		task.TaskStatus = HsTaskStatusFailed
+		task.ResultStatus = HsResultStatusRejected
+		task.Stage = HsTaskStageRecommendFailed
+		task.LastError = err.Error()
+		_ = r.taskRepo.Save(ctx, task)
+		r.recordMetric("hs_resolve_total", 1)
+		r.recordMetric("hs_resolve_stage_latency_ms", float64(time.Since(startedAt).Milliseconds()), "stage", HsTaskStageRecommendFailed)
+		r.emitLog("resolve.failed", map[string]any{
+			"model":             n.Model,
+			"manufacturer":      n.Manufacturer,
+			"task_id":           task.RunID,
+			"run_id":            task.RunID,
+			"stage":             task.Stage,
+			"datasheet_url":     safeAssetURL(asset),
+			"datasheet_path":    safeAssetPath(asset),
+			"extract_model":     n.FeaturesVersion,
+			"recommend_model":   n.RecommendModel,
+			"candidate_count":   len(cands),
+			"best_score":        0.0,
+			"final_status":      task.ResultStatus,
+			"error_code":        "MFR_CANONICAL_LOOKUP_FAILED",
+		})
+		return task, err
+	}
 	inputSnapshot, _ := json.Marshal(input)
 	audits := make([]HsModelRecommendationRecord, 0, topN)
 	for i := 0; i < topN; i++ {
 		audits = append(audits, HsModelRecommendationRecord{
-			Model:             n.Model,
-			Manufacturer:      n.Manufacturer,
-			RunID:             task.RunID,
+			Model:                   n.Model,
+			Manufacturer:          n.Manufacturer,
+			ManufacturerCanonicalID: mCanonPtr,
+			RunID:                   task.RunID,
 			CandidateRank:     uint8(i + 1),
 			CodeTS:            cands[i].CodeTS,
 			GName:             cands[i].GName,
@@ -508,14 +581,15 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 		mappingStatus = HsResultStatusConfirmed
 	}
 	if err := r.mappingRepo.Save(ctx, &HsModelMappingRecord{
-		Model:                 n.Model,
-		Manufacturer:          n.Manufacturer,
-		CodeTS:                best.CodeTS,
-		Source:                "llm_auto",
-		Confidence:            best.Score,
-		Status:                mappingStatus,
-		FeaturesVersion:       n.FeaturesVersion,
-		RecommendationVersion: n.RecommendVersion,
+		Model:                   n.Model,
+		Manufacturer:            n.Manufacturer,
+		ManufacturerCanonicalID: mCanonPtr,
+		CodeTS:                  best.CodeTS,
+		Source:                  "llm_auto",
+		Confidence:              best.Score,
+		Status:                  mappingStatus,
+		FeaturesVersion:         n.FeaturesVersion,
+		RecommendationVersion:   n.RecommendVersion,
 	}); err != nil {
 		task.TaskStatus = HsTaskStatusFailed
 		task.ResultStatus = HsResultStatusRejected
@@ -567,6 +641,24 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 		"error_code":      "",
 	})
 	return task, nil
+}
+
+func (r *HsModelResolver) manufacturerCanonicalPtr(ctx context.Context, manufacturer string) (*string, error) {
+	if r == nil {
+		return nil, nil
+	}
+	canon := r.mfrCanon
+	if canon == nil {
+		canon = NewManufacturerCanonicalizer(nil)
+	}
+	id, hit, err := canon.Resolve(ctx, manufacturer)
+	if err != nil {
+		return nil, err
+	}
+	if !hit {
+		return nil, nil
+	}
+	return &id, nil
 }
 
 func (r *HsModelResolver) retryStage(ctx context.Context, task *HsModelTaskRecord, stage string, fn func() error, failedStage string) error {

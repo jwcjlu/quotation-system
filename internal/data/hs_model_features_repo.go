@@ -33,10 +33,11 @@ func (r *HsModelFeaturesRepo) Create(ctx context.Context, record *biz.HsModelFea
 		return 0, fmt.Errorf("hs_model_features: model/manufacturer/asset_id required")
 	}
 	row := HsModelFeatures{
-		Model:                  model,
-		Manufacturer:           manufacturer,
-		AssetID:                record.AssetID,
-		TechCategory:           strings.TrimSpace(record.TechCategory),
+		Model:                   model,
+		Manufacturer:            manufacturer,
+		ManufacturerCanonicalID: record.ManufacturerCanonicalID,
+		AssetID:                 record.AssetID,
+		TechCategory:            strings.TrimSpace(record.TechCategory),
 		TechCategoryRankedJSON: append([]byte(nil), record.TechCategoryRankedJSON...),
 		ComponentName:          strings.TrimSpace(record.ComponentName),
 		PackageForm:            strings.TrimSpace(record.PackageForm),

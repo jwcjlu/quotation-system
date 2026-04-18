@@ -46,9 +46,10 @@ func (r *HsModelMappingRepo) GetConfirmedByModelManufacturer(ctx context.Context
 		return nil, err
 	}
 	return &biz.HsModelMappingRecord{
-		Model:                 row.Model,
-		Manufacturer:          row.Manufacturer,
-		CodeTS:                row.CodeTS,
+		Model:                   row.Model,
+		Manufacturer:            row.Manufacturer,
+		ManufacturerCanonicalID: row.ManufacturerCanonicalID,
+		CodeTS:                  row.CodeTS,
 		Source:                row.Source,
 		Confidence:            row.Confidence,
 		Status:                row.Status,
@@ -80,17 +81,24 @@ func (r *HsModelMappingRepo) Save(ctx context.Context, record *biz.HsModelMappin
 		FeaturesVersion:       strings.TrimSpace(record.FeaturesVersion),
 		RecommendationVersion: strings.TrimSpace(record.RecommendationVersion),
 	}
+	if record.ManufacturerCanonicalID != nil {
+		row.ManufacturerCanonicalID = record.ManufacturerCanonicalID
+	}
+	updates := map[string]any{
+		"code_ts":                row.CodeTS,
+		"source":                 row.Source,
+		"confidence":             row.Confidence,
+		"status":                 row.Status,
+		"features_version":       row.FeaturesVersion,
+		"recommendation_version": row.RecommendationVersion,
+		"updated_at":             gorm.Expr("CURRENT_TIMESTAMP(3)"),
+	}
+	if record.ManufacturerCanonicalID != nil {
+		updates["manufacturer_canonical_id"] = record.ManufacturerCanonicalID
+	}
 	return r.d.DB.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "model"}, {Name: "manufacturer"}},
-		DoUpdates: clause.Assignments(map[string]any{
-			"code_ts":                row.CodeTS,
-			"source":                 row.Source,
-			"confidence":             row.Confidence,
-			"status":                 row.Status,
-			"features_version":       row.FeaturesVersion,
-			"recommendation_version": row.RecommendationVersion,
-			"updated_at":             gorm.Expr("CURRENT_TIMESTAMP(3)"),
-		}),
+		Columns:   []clause.Column{{Name: "model"}, {Name: "manufacturer"}},
+		DoUpdates: clause.Assignments(updates),
 	}).Create(&row).Error
 }
 

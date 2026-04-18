@@ -26,6 +26,7 @@ var ProviderSet = wire.NewSet(
 	NewBomManufacturerAliasRepo,
 	NewCachedBomManufacturerAliasRepo,
 	wire.Bind(new(biz.BomManufacturerAliasRepo), new(*CachedBomManufacturerAliasRepo)),
+	wire.Bind(new(biz.AliasLookup), new(*CachedBomManufacturerAliasRepo)),
 	NewAgentScriptPackageRepo,
 	NewDispatchTaskRepo,
 	NewAgentRegistryRepo,

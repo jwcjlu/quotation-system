@@ -183,6 +183,12 @@ type BomPlatformScriptRepo interface {
 	Delete(ctx context.Context, platformID string) error
 }
 
+// AliasLookup 厂牌别名表查询：alias_norm 与 NormalizeMfrString 输出一致时命中。
+// ok=true 且 err=nil 表示命中；ok=false 且 err=nil 表示无行；err!=nil 表示数据库等基础设施错误。
+type AliasLookup interface {
+	CanonicalID(ctx context.Context, aliasNorm string) (canonicalID string, ok bool, err error)
+}
+
 // ManufacturerCanonicalDisplay 厂牌 canonical 下拉一行。
 type ManufacturerCanonicalDisplay struct {
 	CanonicalID string
@@ -201,6 +207,7 @@ type BomManufacturerAliasRepo interface {
 type HsModelMappingRecord struct {
 	Model                 string
 	Manufacturer          string
+	ManufacturerCanonicalID *string
 	CodeTS                string
 	Source                string
 	Confidence            float64
@@ -229,6 +236,7 @@ type HsModelFeaturesRecord struct {
 	ID                     uint64
 	Model                  string
 	Manufacturer           string
+	ManufacturerCanonicalID *string
 	AssetID                uint64
 	TechCategory           string
 	TechCategoryRankedJSON []byte
@@ -321,6 +329,7 @@ type HsMetaRepo interface {
 type HsModelRecommendationRecord struct {
 	Model             string
 	Manufacturer      string
+	ManufacturerCanonicalID *string
 	RunID             string
 	CandidateRank     uint8
 	CodeTS            string

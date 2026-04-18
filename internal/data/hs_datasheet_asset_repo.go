@@ -79,7 +79,11 @@ func (r *HsDatasheetAssetRepo) Save(ctx context.Context, record *biz.HsDatasheet
 	if row.DownloadStatus == "" {
 		row.DownloadStatus = "failed"
 	}
-	return r.d.DB.WithContext(ctx).Create(&row).Error
+	if err := r.d.DB.WithContext(ctx).Create(&row).Error; err != nil {
+		return err
+	}
+	record.ID = row.ID
+	return nil
 }
 
 var _ biz.HsDatasheetAssetRepo = (*HsDatasheetAssetRepo)(nil)

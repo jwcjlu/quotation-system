@@ -54,7 +54,7 @@ func tableCacheConfig(bc *conf.Bootstrap) (enabled bool, intervalSec int32) {
 	return bc.TableCache.Enabled, bc.TableCache.RefreshIntervalSec
 }
 
-// Start 非阻塞；enabled=false 或 interval<=0 时仍执行一次 refresh（若 enabled 且希望仅单次，可后续再调）；当前：enabled 且 interval>0 时循环 ticker，并在启动时先 refresh 一次。
+// Start 非阻塞；enabled=false 时不启动；enabled=true 时先 refresh 一次，若 interval>0 再进入 ticker 循环。
 func (r *TableCacheRefresher) Start() {
 	if r == nil || r.kv == nil {
 		return
@@ -135,7 +135,12 @@ func (r *TableCacheRefresher) refreshOnce(ctx context.Context) {
 					continue
 				}
 				canon := strings.TrimSpace(row.CanonicalID)
-				r.kv.Set(KeyMfrAliasNorm(norm), &mfrCanonCacheEntry{id: canon, hit: canon != ""})
+				hit := canon != ""
+				ttl := mfrAliasCanonNegTTL
+				if hit {
+					ttl = mfrAliasCanonPosTTL
+				}
+				r.kv.Set(KeyMfrAliasNorm(norm), &mfrCanonCacheEntry{id: canon, hit: hit, expiresAt: time.Now().Add(ttl)})
 			}
 		}
 		var installed []CaichipAgentInstalledScript

@@ -43,9 +43,10 @@ func (r *HsModelRecommendationRepo) SaveTopN(ctx context.Context, rows []biz.HsM
 			return fmt.Errorf("hs_model_recommendation: model/manufacturer/run_id/rank/code_ts required")
 		}
 		models = append(models, HsModelRecommendation{
-			Model:             model,
-			Manufacturer:      manufacturer,
-			RunID:             runID,
+			Model:                   model,
+			Manufacturer:            manufacturer,
+			ManufacturerCanonicalID: item.ManufacturerCanonicalID,
+			RunID:                   runID,
 			CandidateRank:     item.CandidateRank,
 			CodeTS:            codeTS,
 			GName:             strings.TrimSpace(item.GName),
@@ -87,6 +88,7 @@ func (r *HsModelRecommendationRepo) SaveTopN(ctx context.Context, rows []biz.HsM
 func hsModelRecommendationEquivalent(a, b HsModelRecommendation) bool {
 	return a.Model == b.Model &&
 		a.Manufacturer == b.Manufacturer &&
+		hsModelRecoCanonPtrEqual(a.ManufacturerCanonicalID, b.ManufacturerCanonicalID) &&
 		a.RunID == b.RunID &&
 		a.CandidateRank == b.CandidateRank &&
 		a.CodeTS == b.CodeTS &&
@@ -96,6 +98,16 @@ func hsModelRecommendationEquivalent(a, b HsModelRecommendation) bool {
 		bytes.Equal(a.InputSnapshotJSON, b.InputSnapshotJSON) &&
 		a.RecommendModel == b.RecommendModel &&
 		a.RecommendVersion == b.RecommendVersion
+}
+
+func hsModelRecoCanonPtrEqual(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
 }
 
 func floatAlmostEqual(a, b, epsilon float64) bool {
@@ -120,9 +132,10 @@ func (r *HsModelRecommendationRepo) ListByRunID(ctx context.Context, runID strin
 	out := make([]biz.HsModelRecommendationRecord, 0, len(rows))
 	for i := range rows {
 		out = append(out, biz.HsModelRecommendationRecord{
-			Model:             rows[i].Model,
-			Manufacturer:      rows[i].Manufacturer,
-			RunID:             rows[i].RunID,
+			Model:                   rows[i].Model,
+			Manufacturer:            rows[i].Manufacturer,
+			ManufacturerCanonicalID: rows[i].ManufacturerCanonicalID,
+			RunID:                   rows[i].RunID,
 			CandidateRank:     rows[i].CandidateRank,
 			CodeTS:            rows[i].CodeTS,
 			GName:             rows[i].GName,

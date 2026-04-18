@@ -270,45 +270,45 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 			})
 			return existing, nil
 		}
-		confirmed, err := r.mappingRepo.GetConfirmedByModelManufacturer(ctx, n.Model, n.Manufacturer)
-		if err != nil {
+	}
+	confirmed, err := r.mappingRepo.GetConfirmedByModelManufacturer(ctx, n.Model, n.Manufacturer)
+	if err != nil {
+		return nil, err
+	}
+	if confirmed != nil && strings.TrimSpace(confirmed.CodeTS) != "" {
+		task := &HsModelTaskRecord{
+			Model:          n.Model,
+			Manufacturer:   n.Manufacturer,
+			RequestTraceID: n.RequestTraceID,
+			RunID:          r.pickRunID(n),
+			TaskStatus:     HsTaskStatusSuccess,
+			ResultStatus:   HsResultStatusConfirmed,
+			Stage:          HsTaskStageCompleted,
+			BestCodeTS:     strings.TrimSpace(confirmed.CodeTS),
+			BestScore:      confirmed.Confidence,
+		}
+		if err := r.taskRepo.Save(ctx, task); err != nil {
 			return nil, err
 		}
-		if confirmed != nil && strings.TrimSpace(confirmed.CodeTS) != "" {
-			task := &HsModelTaskRecord{
-				Model:          n.Model,
-				Manufacturer:   n.Manufacturer,
-				RequestTraceID: n.RequestTraceID,
-				RunID:          r.pickRunID(n),
-				TaskStatus:     HsTaskStatusSuccess,
-				ResultStatus:   HsResultStatusConfirmed,
-				Stage:          HsTaskStageCompleted,
-				BestCodeTS:     strings.TrimSpace(confirmed.CodeTS),
-				BestScore:      confirmed.Confidence,
-			}
-			if err := r.taskRepo.Save(ctx, task); err != nil {
-				return nil, err
-			}
-			r.recordMetric("hs_resolve_total", 1)
-			r.recordMetric("hs_resolve_auto_accept_ratio", 1)
-			r.recordMetric("hs_resolve_stage_latency_ms", float64(time.Since(startedAt).Milliseconds()), "stage", HsTaskStageCompleted)
-			r.emitLog("resolve.mapping_fast_path", map[string]any{
-				"model":           n.Model,
-				"manufacturer":    n.Manufacturer,
-				"task_id":         task.RunID,
-				"run_id":          task.RunID,
-				"stage":           HsTaskStageCompleted,
-				"datasheet_url":   "",
-				"datasheet_path":  "",
-				"extract_model":   n.FeaturesVersion,
-				"recommend_model": n.RecommendModel,
-				"candidate_count": 0,
-				"best_score":      task.BestScore,
-				"final_status":    task.ResultStatus,
-				"error_code":      "",
-			})
-			return task, nil
-		}
+		r.recordMetric("hs_resolve_total", 1)
+		r.recordMetric("hs_resolve_auto_accept_ratio", 1)
+		r.recordMetric("hs_resolve_stage_latency_ms", float64(time.Since(startedAt).Milliseconds()), "stage", HsTaskStageCompleted)
+		r.emitLog("resolve.mapping_fast_path", map[string]any{
+			"model":           n.Model,
+			"manufacturer":    n.Manufacturer,
+			"task_id":         task.RunID,
+			"run_id":          task.RunID,
+			"stage":           HsTaskStageCompleted,
+			"datasheet_url":   "",
+			"datasheet_path":  "",
+			"extract_model":   n.FeaturesVersion,
+			"recommend_model": n.RecommendModel,
+			"candidate_count": 0,
+			"best_score":      task.BestScore,
+			"final_status":    task.ResultStatus,
+			"error_code":      "",
+		})
+		return task, nil
 	}
 
 	task := &HsModelTaskRecord{
@@ -389,6 +389,32 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 		return task, err
 	}
 
+	if strings.TrimSpace(input.TechCategory) == "" && len(input.TechCategoryRanked) == 0 {
+		task.TaskStatus = HsTaskStatusFailed
+		task.ResultStatus = HsResultStatusRejected
+		task.Stage = HsTaskStageExtractFailed
+		task.LastError = ErrHsResolverNoTechCategory.Error()
+		_ = r.taskRepo.Save(ctx, task)
+		r.recordMetric("hs_resolve_total", 1)
+		r.recordMetric("hs_resolve_stage_latency_ms", float64(time.Since(startedAt).Milliseconds()), "stage", HsTaskStageExtractFailed)
+		r.emitLog("resolve.failed", map[string]any{
+			"model":           n.Model,
+			"manufacturer":    n.Manufacturer,
+			"task_id":         task.RunID,
+			"run_id":          task.RunID,
+			"stage":           task.Stage,
+			"datasheet_url":   safeAssetURL(asset),
+			"datasheet_path":  safeAssetPath(asset),
+			"extract_model":   n.FeaturesVersion,
+			"recommend_model": n.RecommendModel,
+			"candidate_count": 0,
+			"best_score":      0.0,
+			"final_status":    task.ResultStatus,
+			"error_code":      "NO_TECH_CATEGORY",
+		})
+		return task, ErrHsResolverNoTechCategory
+	}
+
 	recommendTop := n.RecommendationTop
 	if err := r.retryStage(ctx, task, HsTaskStageRecommend, func() error {
 		prefiltered, preErr := r.prefilter.Prefilter(ctx, input)
@@ -437,7 +463,7 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 			CodeTS:            cands[i].CodeTS,
 			GName:             cands[i].GName,
 			Score:             cands[i].Score,
-			Reason:            "auto recommend",
+			Reason:            hsRecoReasonOrDefault(cands[i].Reason),
 			InputSnapshotJSON: inputSnapshot,
 			RecommendModel:    n.RecommendModel,
 			RecommendVersion:  n.RecommendVersion,
@@ -622,4 +648,12 @@ func safeAssetPath(asset *HsDatasheetAssetRecord) string {
 		return ""
 	}
 	return strings.TrimSpace(asset.LocalPath)
+}
+
+func hsRecoReasonOrDefault(s string) string {
+	s = strings.TrimSpace(s)
+	if s != "" {
+		return s
+	}
+	return "auto recommend"
 }

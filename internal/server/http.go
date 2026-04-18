@@ -47,7 +47,7 @@ func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.Agent
 		v1admin.RegisterAgentAdminServiceHTTPServer(srv, agentAdmin)
 	}
 	if hsResolve != nil {
-		v1bom.RegisterHsResolveServiceHTTPServer(srv, hsResolve)
+		RegisterHsResolveServiceHTTPServer(srv, hsResolve)
 	}
 	if hsMeta != nil {
 		v1bom.RegisterHsMetaServiceHTTPServer(srv, hsMeta)

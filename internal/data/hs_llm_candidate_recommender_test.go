@@ -39,4 +39,7 @@ func TestHsLLMCandidateRecommender_Recommend(t *testing.T) {
 	if got[0].CodeTS != "1111111111" || got[0].Score != 0.9 {
 		t.Fatalf("unexpected top1: %+v", got[0])
 	}
+	if got[0].Reason != "r1" {
+		t.Fatalf("expected LLM reason on candidate, got %q", got[0].Reason)
+	}
 }

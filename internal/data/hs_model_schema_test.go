@@ -22,6 +22,9 @@ func TestHsModelResolveTables(t *testing.T) {
 		if (HsModelRecommendation{}).TableName() != TableHsModelRecommendation {
 			t.Fatalf("HsModelRecommendation table mismatch: got %q", (HsModelRecommendation{}).TableName())
 		}
+		if (HsModelTask{}).TableName() != TableHsModelTask {
+			t.Fatalf("HsModelTask table mismatch: got %q", (HsModelTask{}).TableName())
+		}
 		if (HsDatasheetAsset{}).TableName() != TableHsDatasheetAsset {
 			t.Fatalf("HsDatasheetAsset table mismatch: got %q", (HsDatasheetAsset{}).TableName())
 		}
@@ -40,8 +43,8 @@ func TestHsModelResolveTables(t *testing.T) {
 
 		runIDTag := gormTag(t, HsModelRecommendation{}, "RunID")
 		rankTag := gormTag(t, HsModelRecommendation{}, "CandidateRank")
-		if !strings.Contains(runIDTag, "not null") || !strings.Contains(runIDTag, "uniqueIndex:uk_hs_model_reco_run_rank") {
-			t.Fatalf("HsModelRecommendation.RunID gorm tag missing run_id unique constraint: %q", runIDTag)
+		if !strings.Contains(runIDTag, "size:384") || !strings.Contains(runIDTag, "not null") || !strings.Contains(runIDTag, "uniqueIndex:uk_hs_model_reco_run_rank") {
+			t.Fatalf("HsModelRecommendation.RunID gorm tag missing widened run_id / unique constraint: %q", runIDTag)
 		}
 		if !strings.Contains(rankTag, "uniqueIndex:uk_hs_model_reco_run_rank") {
 			t.Fatalf("HsModelRecommendation.CandidateRank gorm tag missing run_id+rank unique key: %q", rankTag)
@@ -69,6 +72,7 @@ func TestHsModelResolveTables(t *testing.T) {
 			"&HsDatasheetAsset{}",
 			"&HsModelFeatures{}",
 			"&HsModelRecommendation{}",
+			"&HsModelTask{}",
 		}
 		for _, token := range required {
 			if !strings.Contains(content, token) {
@@ -109,6 +113,7 @@ func TestHsModelResolveTables(t *testing.T) {
 			TableHsDatasheetAsset,
 			TableHsModelFeatures,
 			TableHsModelRecommendation,
+			TableHsModelTask,
 		} {
 			if !m.HasTable(table) {
 				t.Fatalf("table not found after AutoMigrateSchema: %s", table)

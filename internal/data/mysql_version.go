@@ -14,11 +14,14 @@ func detectMySQLSkipLocked(db *gorm.DB) bool {
 	if db == nil {
 		return false
 	}
-	var v string
-	if err := db.Raw("SELECT VERSION()").Scan(&v).Error; err != nil {
+	var row struct {
+		Version string `gorm:"column:version"`
+	}
+	// 通过 DUAL + Select 获取版本，避免 Raw SQL。
+	if err := db.Table("DUAL").Select("VERSION() AS version").Take(&row).Error; err != nil {
 		return false
 	}
-	return versionStringSupportsSkipLocked(v)
+	return versionStringSupportsSkipLocked(row.Version)
 }
 
 // versionStringSupportsSkipLocked：MySQL 8.0.1+、MariaDB 10.6+。

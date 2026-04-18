@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 	"strings"
 
 	"caichip/internal/biz"
 )
+
+const hsRecommendChunkSize = 36
 
 type HsLLMCandidateRecommender struct {
 	client *HsLLMRecommendClient
@@ -29,10 +32,59 @@ func (r *HsLLMCandidateRecommender) Recommend(
 	if len(candidates) == 0 {
 		return nil, nil
 	}
-	if limit <= 0 || limit > len(candidates) {
-		limit = len(candidates)
+	if len(candidates) <= hsRecommendChunkSize {
+		return r.recommendOneChunk(ctx, input, candidates, limit)
 	}
-	candidates = candidates[:limit]
+	byCode := make(map[string]biz.HsItemCandidate, len(candidates))
+	for start := 0; start < len(candidates); start += hsRecommendChunkSize {
+		end := start + hsRecommendChunkSize
+		if end > len(candidates) {
+			end = len(candidates)
+		}
+		chunk := candidates[start:end]
+		part, err := r.recommendOneChunk(ctx, input, chunk, len(chunk))
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range part {
+			code := strings.TrimSpace(c.CodeTS)
+			if code == "" {
+				continue
+			}
+			if old, ok := byCode[code]; !ok || c.Score > old.Score {
+				byCode[code] = c
+			}
+		}
+	}
+	merged := make([]biz.HsItemCandidate, 0, len(byCode))
+	for _, c := range byCode {
+		merged = append(merged, c)
+	}
+	sort.SliceStable(merged, func(i, j int) bool {
+		if merged[i].Score == merged[j].Score {
+			return merged[i].CodeTS < merged[j].CodeTS
+		}
+		return merged[i].Score > merged[j].Score
+	})
+	if limit <= 0 || limit > len(merged) {
+		limit = len(merged)
+	}
+	if len(merged) > limit {
+		merged = merged[:limit]
+	}
+	return merged, nil
+}
+
+func (r *HsLLMCandidateRecommender) recommendOneChunk(
+	ctx context.Context,
+	input biz.HsPrefilterInput,
+	candidates []biz.HsItemCandidate,
+	limit int,
+) ([]biz.HsItemCandidate, error) {
+	/*	if limit <= 0 || limit > len(candidates) {
+			limit = len(candidates)
+		}
+		candidates = candidates[:limit]*/
 
 	featureJSON, err := json.Marshal(input)
 	if err != nil {
@@ -56,6 +108,7 @@ func (r *HsLLMCandidateRecommender) Recommend(
 			continue
 		}
 		row.Score = got.Top3[i].Score
+		row.Reason = strings.TrimSpace(got.Top3[i].Reason)
 		out = append(out, row)
 	}
 	return out, nil

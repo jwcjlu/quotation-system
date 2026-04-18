@@ -33,16 +33,17 @@ func (r *HsModelFeaturesRepo) Create(ctx context.Context, record *biz.HsModelFea
 		return 0, fmt.Errorf("hs_model_features: model/manufacturer/asset_id required")
 	}
 	row := HsModelFeatures{
-		Model:          model,
-		Manufacturer:   manufacturer,
-		AssetID:        record.AssetID,
-		TechCategory:   strings.TrimSpace(record.TechCategory),
-		ComponentName:  strings.TrimSpace(record.ComponentName),
-		PackageForm:    strings.TrimSpace(record.PackageForm),
-		KeySpecsJSON:   append([]byte(nil), record.KeySpecsJSON...),
-		RawExtractJSON: append([]byte(nil), record.RawExtractJSON...),
-		ExtractModel:   strings.TrimSpace(record.ExtractModel),
-		ExtractVersion: strings.TrimSpace(record.ExtractVersion),
+		Model:                  model,
+		Manufacturer:           manufacturer,
+		AssetID:                record.AssetID,
+		TechCategory:           strings.TrimSpace(record.TechCategory),
+		TechCategoryRankedJSON: append([]byte(nil), record.TechCategoryRankedJSON...),
+		ComponentName:          strings.TrimSpace(record.ComponentName),
+		PackageForm:            strings.TrimSpace(record.PackageForm),
+		KeySpecsJSON:           append([]byte(nil), record.KeySpecsJSON...),
+		RawExtractJSON:         append([]byte(nil), record.RawExtractJSON...),
+		ExtractModel:           strings.TrimSpace(record.ExtractModel),
+		ExtractVersion:         strings.TrimSpace(record.ExtractVersion),
 	}
 	if err := r.d.DB.WithContext(ctx).Create(&row).Error; err != nil {
 		return 0, err

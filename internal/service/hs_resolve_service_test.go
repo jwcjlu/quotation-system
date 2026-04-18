@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -122,6 +123,16 @@ func (l *captureLogger) findByEvent(event string) map[string]any {
 
 func (s *stubDatasheetSource) GetLatestByModelManufacturer(_ context.Context, _, _ string) (*biz.HsDatasheetAssetRecord, error) {
 	return s.asset, s.err
+}
+
+func (s *stubDatasheetSource) ListQuoteDatasheetCandidates(ctx context.Context, model, manufacturer string) ([]biz.HsDatasheetCandidate, error) {
+	a, err := s.GetLatestByModelManufacturer(ctx, model, manufacturer)
+	if err != nil || a == nil || strings.TrimSpace(a.DatasheetURL) == "" {
+		return nil, err
+	}
+	return []biz.HsDatasheetCandidate{
+		{ID: a.ID, DatasheetURL: strings.TrimSpace(a.DatasheetURL), UpdatedAt: a.UpdatedAt},
+	}, nil
 }
 
 func TestHsResolveService_Return202WhenTimeout(t *testing.T) {
@@ -310,6 +321,13 @@ func TestHsResolveService_ForceRefreshBypassesMappingCache(t *testing.T) {
 	if !runner.lastReq.ForceRefresh {
 		t.Fatal("expected force_refresh to be passed into biz request")
 	}
+	base := svc.makeTaskID("STM32F103", "ST", "trace-force")
+	if runner.lastReq.RunID == base {
+		t.Fatalf("expected force_refresh run_id to differ from base id, got %q", runner.lastReq.RunID)
+	}
+	if !strings.HasPrefix(runner.lastReq.RunID, base+"|refresh-") {
+		t.Fatalf("expected force_refresh run_id with refresh suffix, got %q", runner.lastReq.RunID)
+	}
 }
 
 func TestHsResolveService_TaskIDEqualsRunID(t *testing.T) {
@@ -375,6 +393,7 @@ func TestNewDefaultHsResolveService_DisabledWhenDependencyMissing(t *testing.T) 
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if svc == nil {
 		t.Fatal("expected service instance")
@@ -403,6 +422,7 @@ func TestNewDefaultHsResolveService_EnableResolverWhenDependenciesProvided(t *te
 		data.NewHsDatasheetAssetRepo(d),
 		data.NewHsModelRecommendationRepo(d),
 		data.NewHsItemQueryRepo(d),
+		data.NewHsModelTaskRepo(d),
 		openAI,
 	)
 	if svc == nil {

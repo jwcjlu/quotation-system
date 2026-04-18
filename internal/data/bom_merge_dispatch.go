@@ -388,10 +388,10 @@ func (m *BomMergeDispatch) tryDispatchMergeKeyWithProxy(ctx context.Context, mpn
 
 func (m *BomMergeDispatch) tryDispatchMergeKeyTx(ctx context.Context, mpnNorm, platformID string, bd time.Time, dateStr string, proxyParams map[string]interface{}) error {
 	return m.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(fmt.Sprintf(`
-DELETE mi FROM %s mi
-INNER JOIN %s d ON mi.task_id = d.task_id
-WHERE d.state IN (?, ?)`, TableBomMergeInflight, TableCaichipDispatchTask), dispatchStateFinished, dispatchStateCancelled).Error; err != nil {
+		finishedOrCancelled := tx.Model(&CaichipDispatchTask{}).
+			Select("task_id").
+			Where("state IN ?", []string{dispatchStateFinished, dispatchStateCancelled})
+		if err := tx.Where("task_id IN (?)", finishedOrCancelled).Delete(&BomMergeInflight{}).Error; err != nil {
 			return err
 		}
 

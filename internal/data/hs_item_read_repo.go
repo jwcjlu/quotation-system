@@ -47,7 +47,7 @@ func (r *HsItemReadRepo) List(ctx context.Context, filter biz.HsItemListFilter) 
 	if pageSize > 200 {
 		pageSize = 200
 	}
-	q := r.d.DB.WithContext(ctx).Table(TableHsItem)
+	q := r.d.DB.Debug().WithContext(ctx).Table(TableHsItem)
 	if v := strings.TrimSpace(filter.CodeTS); v != "" {
 		q = q.Where("code_ts = ?", v)
 	}

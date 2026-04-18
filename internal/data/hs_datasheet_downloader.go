@@ -1,6 +1,7 @@
 package data
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -43,6 +44,7 @@ func (d *HsDatasheetDownloader) CanDownload(ctx context.Context, rawURL string) 
 	if err != nil {
 		return false
 	}
+	setDatasheetRequestHeaders(req)
 	resp, err := d.client.Do(req)
 	if err != nil {
 		return false
@@ -76,6 +78,7 @@ func (d *HsDatasheetDownloader) Download(ctx context.Context, model, manufacture
 		record.ErrorMsg = err.Error()
 		return record, err
 	}
+	setDatasheetRequestHeaders(req)
 	resp, err := d.client.Do(req)
 	if err != nil {
 		record.ErrorMsg = err.Error()
@@ -91,6 +94,15 @@ func (d *HsDatasheetDownloader) Download(ctx context.Context, model, manufacture
 	if err != nil {
 		record.ErrorMsg = err.Error()
 		return record, err
+	}
+	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
+	if len(body) < 5 || !bytes.HasPrefix(body, []byte("%PDF-")) {
+		snippet := string(body)
+		if len(snippet) > 200 {
+			snippet = snippet[:200]
+		}
+		record.ErrorMsg = fmt.Sprintf("invalid pdf response: status=%d content-type=%s body_prefix=%q", resp.StatusCode, contentType, snippet)
+		return record, errors.New(record.ErrorMsg)
 	}
 	sum := sha256.Sum256(body)
 	sha := hex.EncodeToString(sum[:])
@@ -125,4 +137,14 @@ func fileExtFromURL(rawURL string) string {
 		return ".bin"
 	}
 	return ext
+}
+
+func setDatasheetRequestHeaders(req *http.Request) {
+	if req == nil {
+		return
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/pdf,application/octet-stream;q=0.9,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	req.Header.Set("Referer", "https://www.ickey.cn/")
 }

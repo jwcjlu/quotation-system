@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -36,6 +37,11 @@ type hsRecommendationLister interface {
 
 type hsDatasheetSource interface {
 	GetLatestByModelManufacturer(ctx context.Context, model, manufacturer string) (*biz.HsDatasheetAssetRecord, error)
+}
+
+// hsBomDatasheetLister 由 BOM 报价明细提供多行 datasheet 候选（设计 §4.2）。
+type hsBomDatasheetLister interface {
+	ListQuoteDatasheetCandidates(ctx context.Context, model, manufacturer string) ([]biz.HsDatasheetCandidate, error)
 }
 
 type hsConfirmer interface {
@@ -281,21 +287,25 @@ func NewDefaultHsResolveService(
 	assetRepo *data.HsDatasheetAssetRepo,
 	recoRepo *data.HsModelRecommendationRepo,
 	itemQueryRepo *data.HsItemQueryRepo,
+	hsTaskRepo *data.HsModelTaskRepo,
 	openAIChat *data.OpenAIChat,
 ) *HsResolveService {
 	hsCfg := biz.NewHsResolveConfig(c)
 	helper := log.NewHelper(logger)
 	observer := hsResolveLogObserver{log: helper}
-	taskRepo := newHsMemoryTaskRepo()
+	taskRepo := biz.HsModelTaskRepo(newHsMemoryTaskRepo())
+	if hsTaskRepo != nil && hsTaskRepo.DBOk() {
+		taskRepo = hsTaskRepo
+	}
 	confirmRepo := newHsMemoryConfirmRepo()
+	bomQuoteItemDatasheetSource := data.NewHsBomQuoteItemDatasheetSourceFromAssetRepo(assetRepo)
 	var resolver hsResolveRunner
 	if mappingRepo != nil && assetRepo != nil && recoRepo != nil && itemQueryRepo != nil && openAIChat != nil {
 		extractClient := data.NewHsLLMExtractClient(openAIChat)
 		recommendClient := data.NewHsLLMRecommendClient(openAIChat)
 		extractor := data.NewHsLLMFeatureExtractor(extractClient)
 		recommender := data.NewHsLLMCandidateRecommender(recommendClient)
-		prefilterTopN := maxInt(hsCfg.MaxCandidates*10, biz.DefaultHsPrefilterTopN)
-		prefilter := biz.NewHsCandidatePrefilter(itemQueryRepo, prefilterTopN)
+		prefilter := biz.NewHsCandidatePrefilter(itemQueryRepo, biz.HsPrefilterUnboundedCap)
 		assetDir := filepath.Join(os.TempDir(), "caichip", "hs_datasheets")
 		downloader := data.NewHsDatasheetDownloader(assetDir, http.DefaultClient)
 		resolver = biz.NewHsModelResolver(hsAlwaysDownloadChecker{}).
@@ -313,20 +323,13 @@ func NewDefaultHsResolveService(
 		resolver,
 		taskRepo,
 		recoRepo,
-		assetRepo,
+		bomQuoteItemDatasheetSource,
 		confirmer,
 		time.Duration(hsCfg.SyncTimeoutMs)*time.Millisecond,
 	)
 	svc.setRecommendTop(hsCfg.MaxCandidates)
 	svc.log = helper
 	return svc
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func (s *HsResolveService) ResolveByModel(ctx context.Context, req *v1.HsResolveByModelRequest) (*v1.HsResolveByModelReply, error) {
@@ -340,16 +343,17 @@ func (s *HsResolveService) ResolveByModel(ctx context.Context, req *v1.HsResolve
 		return nil, kerrors.ServiceUnavailable("HS_RESOLVE_DISABLED", "hs resolve runner is not configured")
 	}
 
+	runID := s.makeRunID(model, manufacturer, traceID, req.GetForceRefresh())
 	resolveReq := biz.HsModelResolveRequest{
 		Model:             model,
 		Manufacturer:      manufacturer,
 		RequestTraceID:    traceID,
-		RunID:             s.makeTaskID(model, manufacturer, traceID),
+		RunID:             runID,
 		ForceRefresh:      req.GetForceRefresh(),
 		RecommendationTop: s.getRecommendTop(),
 		DatasheetCands:    s.buildDatasheetCandidates(ctx, model, manufacturer),
 	}
-	taskID := resolveReq.RunID
+	taskID := runID
 	runCh := make(chan struct {
 		task *biz.HsModelTaskRecord
 		err  error
@@ -685,9 +689,24 @@ func (s *HsResolveService) makeTaskID(model, manufacturer, traceID string) strin
 	return strings.TrimSpace(model) + "|" + strings.TrimSpace(manufacturer) + "|" + strings.TrimSpace(traceID)
 }
 
+func (s *HsResolveService) makeRunID(model, manufacturer, traceID string, forceRefresh bool) string {
+	base := s.makeTaskID(model, manufacturer, traceID)
+	if !forceRefresh {
+		return base
+	}
+	return fmt.Sprintf("%s|refresh-%d", base, time.Now().UnixNano())
+}
+
 func (s *HsResolveService) buildDatasheetCandidates(ctx context.Context, model, manufacturer string) []biz.HsDatasheetCandidate {
 	if s.datasheet == nil {
 		return nil
+	}
+	if lister, ok := s.datasheet.(hsBomDatasheetLister); ok {
+		cands, err := lister.ListQuoteDatasheetCandidates(ctx, model, manufacturer)
+		if err != nil || len(cands) == 0 {
+			return nil
+		}
+		return cands
 	}
 	asset, err := s.datasheet.GetLatestByModelManufacturer(ctx, model, manufacturer)
 	if err != nil || asset == nil || strings.TrimSpace(asset.DatasheetURL) == "" {

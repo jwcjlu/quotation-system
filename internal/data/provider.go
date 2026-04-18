@@ -35,6 +35,7 @@ var ProviderSet = wire.NewSet(
 	NewHsDatasheetAssetRepo,
 	NewHsModelFeaturesRepo,
 	NewHsModelRecommendationRepo,
+	NewHsModelTaskRepo,
 	NewHsMetaRepo,
 	NewHsItemReadRepo,
 	NewHsItemWriteRepo,

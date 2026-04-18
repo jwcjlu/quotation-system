@@ -336,3 +336,62 @@ func TestHsModelResolver_ConfirmedMappingFastPath(t *testing.T) {
 		t.Fatalf("fast path should skip recommend/mapping writes, got reco=%d mapping=%d", len(recoRepo.saved), len(mapRepo.saved))
 	}
 }
+
+func TestHsModelResolver_ExtractEmptyTechCategoryRejected(t *testing.T) {
+	t.Parallel()
+	taskRepo := newInMemoryHsModelTaskRepo()
+	recoRepo := &spyRecommendationRepo{}
+	mapRepo := &spyMappingRepo{}
+	resolver := NewHsModelResolver(allowAllChecker{}).WithStateMachine(taskRepo, recoRepo, mapRepo).
+		WithFeatureExtractor(stubFeatureExtractor{out: HsPrefilterInput{}}).
+		WithCandidatePrefilter(stubCandidatePrefilter{out: []HsItemCandidate{{CodeTS: "1234567890", Score: 0.9}}}).
+		WithCandidateRecommender(stubCandidateRecommender{out: []HsItemCandidate{{CodeTS: "1234567890", Score: 0.9}}}).
+		WithRunIDGenerator(func() string { return "run-empty-tech" })
+
+	_, err := resolver.ResolveByModel(context.Background(), HsModelResolveRequest{
+		Model:          "M-empty",
+		Manufacturer:   "NXP",
+		RequestTraceID: "trace-empty-tech",
+		DatasheetCands: []HsDatasheetCandidate{{ID: 1, DatasheetURL: "https://x/a.pdf", UpdatedAt: time.Now()}},
+	})
+	if !errors.Is(err, ErrHsResolverNoTechCategory) {
+		t.Fatalf("expected ErrHsResolverNoTechCategory, got %v", err)
+	}
+}
+
+func TestHsModelResolver_ForceRefreshStillUsesMappingFastPath(t *testing.T) {
+	t.Parallel()
+	taskRepo := newInMemoryHsModelTaskRepo()
+	recoRepo := &spyRecommendationRepo{}
+	mapRepo := &spyMappingRepo{
+		confirmed: &HsModelMappingRecord{
+			Model:        "M-fr",
+			Manufacturer: "TI",
+			CodeTS:       "1111222233",
+			Confidence:   0.98,
+			Status:       HsResultStatusConfirmed,
+		},
+	}
+	resolver := NewHsModelResolver(allowAllChecker{}).WithStateMachine(taskRepo, recoRepo, mapRepo).
+		WithFeatureExtractor(stubFeatureExtractor{err: errors.New("extract must not run")}).
+		WithCandidatePrefilter(stubCandidatePrefilter{err: errors.New("prefilter must not run")}).
+		WithCandidateRecommender(stubCandidateRecommender{err: errors.New("recommend must not run")}).
+		WithRunIDGenerator(func() string { return "run-fr-map" })
+
+	got, err := resolver.ResolveByModel(context.Background(), HsModelResolveRequest{
+		Model:          "M-fr",
+		Manufacturer:   "TI",
+		RequestTraceID: "trace-fr",
+		RunID:          "run-fr-map",
+		ForceRefresh:   true,
+	})
+	if err != nil {
+		t.Fatalf("resolve failed: %v", err)
+	}
+	if got.ResultStatus != HsResultStatusConfirmed || got.BestCodeTS != "1111222233" {
+		t.Fatalf("expected confirmed mapping under force_refresh, got %+v", got)
+	}
+	if len(recoRepo.saved) != 0 {
+		t.Fatalf("expected no recommendation audit on mapping path, got %d", len(recoRepo.saved))
+	}
+}

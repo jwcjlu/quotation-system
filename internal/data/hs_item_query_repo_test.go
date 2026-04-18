@@ -31,36 +31,23 @@ func TestPrefilter_QueryCandidatesByRulesAndTopN(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	if err := db.WithContext(ctx).Exec(`
-CREATE TABLE IF NOT EXISTS t_hs_item (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    code_ts VARCHAR(16) NOT NULL,
-    g_name VARCHAR(512) NOT NULL,
-    unit_1 VARCHAR(16) NOT NULL DEFAULT '',
-    unit_2 VARCHAR(16) NOT NULL DEFAULT '',
-    control_mark VARCHAR(64) NOT NULL DEFAULT '',
-    source_core_hs6 CHAR(6) NOT NULL DEFAULT '',
-    raw_json JSON NULL,
-    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    UNIQUE KEY uk_hs_item_code_ts (code_ts)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-`).Error; err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(&HsItem{}); err != nil {
 		t.Fatalf("create t_hs_item: %v", err)
 	}
 
 	seedCodes := []string{"8542310001", "8542310002", "8542390001", "8534000000"}
-	if err := db.WithContext(ctx).Exec("DELETE FROM t_hs_item WHERE code_ts IN ?", seedCodes).Error; err != nil {
+	if err := db.WithContext(ctx).Where("code_ts IN ?", seedCodes).Delete(&HsItem{}).Error; err != nil {
 		t.Fatalf("cleanup seed: %v", err)
 	}
-	defer db.WithContext(ctx).Exec("DELETE FROM t_hs_item WHERE code_ts IN ?", seedCodes)
+	defer db.WithContext(ctx).Where("code_ts IN ?", seedCodes).Delete(&HsItem{})
 
-	if err := db.WithContext(ctx).Exec(`
-INSERT INTO t_hs_item (code_ts, g_name, source_core_hs6, raw_json) VALUES
-('8542310001', 'MCU Controller QFN 3.3V', '854231', JSON_OBJECT('voltage','3.3V')),
-('8542310002', 'MCU Controller QFP 5V', '854231', JSON_OBJECT('voltage','5V')),
-('8542390001', 'IC Logic Device BGA', '854239', JSON_OBJECT('voltage','1.8V')),
-('8534000000', 'Printed Circuit Board', '853400', JSON_OBJECT('layers','4'));
-`).Error; err != nil {
+	seedRows := []HsItem{
+		{CodeTS: "8542310001", GName: "MCU Controller QFN 3.3V", SourceCoreHS6: "854231", RawJSON: []byte(`{"voltage":"3.3V"}`)},
+		{CodeTS: "8542310002", GName: "MCU Controller QFP 5V", SourceCoreHS6: "854231", RawJSON: []byte(`{"voltage":"5V"}`)},
+		{CodeTS: "8542390001", GName: "IC Logic Device BGA", SourceCoreHS6: "854239", RawJSON: []byte(`{"voltage":"1.8V"}`)},
+		{CodeTS: "8534000000", GName: "Printed Circuit Board", SourceCoreHS6: "853400", RawJSON: []byte(`{"layers":"4"}`)},
+	}
+	if err := db.WithContext(ctx).Create(&seedRows).Error; err != nil {
 		t.Fatalf("seed t_hs_item: %v", err)
 	}
 
@@ -108,34 +95,21 @@ func TestPrefilter_QueryCandidatesByRules_ComponentSynonymRecall(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	if err := db.WithContext(ctx).Exec(`
-CREATE TABLE IF NOT EXISTS t_hs_item (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    code_ts VARCHAR(16) NOT NULL,
-    g_name VARCHAR(512) NOT NULL,
-    unit_1 VARCHAR(16) NOT NULL DEFAULT '',
-    unit_2 VARCHAR(16) NOT NULL DEFAULT '',
-    control_mark VARCHAR(64) NOT NULL DEFAULT '',
-    source_core_hs6 CHAR(6) NOT NULL DEFAULT '',
-    raw_json JSON NULL,
-    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    UNIQUE KEY uk_hs_item_code_ts (code_ts)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-`).Error; err != nil {
+	if err := db.WithContext(ctx).AutoMigrate(&HsItem{}); err != nil {
 		t.Fatalf("create t_hs_item: %v", err)
 	}
 
 	seedCodes := []string{"8542310010", "8534000001"}
-	if err := db.WithContext(ctx).Exec("DELETE FROM t_hs_item WHERE code_ts IN ?", seedCodes).Error; err != nil {
+	if err := db.WithContext(ctx).Where("code_ts IN ?", seedCodes).Delete(&HsItem{}).Error; err != nil {
 		t.Fatalf("cleanup seed: %v", err)
 	}
-	defer db.WithContext(ctx).Exec("DELETE FROM t_hs_item WHERE code_ts IN ?", seedCodes)
+	defer db.WithContext(ctx).Where("code_ts IN ?", seedCodes).Delete(&HsItem{})
 
-	if err := db.WithContext(ctx).Exec(`
-INSERT INTO t_hs_item (code_ts, g_name, source_core_hs6, raw_json) VALUES
-('8542310010', 'Microcontroller Unit QFN', '854231', JSON_OBJECT('voltage','3.3V')),
-('8534000001', 'Printed Circuit Board', '853400', JSON_OBJECT('layers','4'));
-`).Error; err != nil {
+	seedRows := []HsItem{
+		{CodeTS: "8542310010", GName: "Microcontroller Unit QFN", SourceCoreHS6: "854231", RawJSON: []byte(`{"voltage":"3.3V"}`)},
+		{CodeTS: "8534000001", GName: "Printed Circuit Board", SourceCoreHS6: "853400", RawJSON: []byte(`{"layers":"4"}`)},
+	}
+	if err := db.WithContext(ctx).Create(&seedRows).Error; err != nil {
 		t.Fatalf("seed t_hs_item: %v", err)
 	}
 

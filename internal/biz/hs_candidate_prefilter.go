@@ -10,6 +10,8 @@ import (
 const (
 	// DefaultHsPrefilterTopN 默认预筛 TopN。
 	DefaultHsPrefilterTopN = 30
+	// HsPrefilterUnboundedCap 设计 §7：不在服务端对并集候选做行级 TopN 截断时的上限（防内存失控）。
+	HsPrefilterUnboundedCap = 25000
 )
 
 // ErrHsPrefilterNoCandidates 预筛无候选，可供上层做回退策略。
@@ -46,7 +48,7 @@ func (p *HsCandidatePrefilter) Prefilter(ctx context.Context, input HsPrefilterI
 	}
 	limit := p.topN
 	if limit <= 0 {
-		limit = DefaultHsPrefilterTopN
+		limit = HsPrefilterUnboundedCap
 	}
 	candidates, err := p.repo.QueryCandidatesByRules(ctx, input, limit)
 	if err != nil {

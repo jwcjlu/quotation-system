@@ -226,26 +226,35 @@ type HsDatasheetAssetRecord struct {
 
 // HsModelFeaturesRecord datasheet 抽取结构化特征。
 type HsModelFeaturesRecord struct {
-	ID             uint64
-	Model          string
-	Manufacturer   string
-	AssetID        uint64
-	TechCategory   string
-	ComponentName  string
-	PackageForm    string
-	KeySpecsJSON   []byte
-	RawExtractJSON []byte
-	ExtractModel   string
-	ExtractVersion string
-	CreatedAt      time.Time
+	ID                     uint64
+	Model                  string
+	Manufacturer           string
+	AssetID                uint64
+	TechCategory           string
+	TechCategoryRankedJSON []byte
+	ComponentName          string
+	PackageForm            string
+	KeySpecsJSON           []byte
+	RawExtractJSON         []byte
+	ExtractModel           string
+	ExtractVersion         string
+	CreatedAt              time.Time
+}
+
+// HsTechCategoryRank 有序备选类目（设计 §8.1，至多 3 条）。
+type HsTechCategoryRank struct {
+	Rank         int
+	TechCategory string
+	Confidence   float64
 }
 
 // HsPrefilterInput 候选预筛输入特征。
 type HsPrefilterInput struct {
-	TechCategory  string
-	ComponentName string
-	PackageForm   string
-	KeySpecs      map[string]string
+	TechCategory       string
+	TechCategoryRanked []HsTechCategoryRank
+	ComponentName      string
+	PackageForm        string
+	KeySpecs           map[string]string
 }
 
 // HsPrefilterScoreDetail 预筛评分明细（供审计）。
@@ -267,6 +276,7 @@ type HsItemCandidate struct {
 	SourceCoreHS6 string
 	RawJSON       []byte
 	Score         float64
+	Reason        string
 	ScoreDetail   HsPrefilterScoreDetail
 }
 

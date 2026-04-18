@@ -209,6 +209,10 @@ func (staticDatasheetSource) GetLatestByModelManufacturer(_ context.Context, _, 
 	return &biz.HsDatasheetAssetRecord{ID: 1, DatasheetURL: "https://example.com/ds.pdf", UpdatedAt: time.Now()}, nil
 }
 
+func (staticDatasheetSource) ListQuoteDatasheetCandidates(_ context.Context, _, _ string) ([]biz.HsDatasheetCandidate, error) {
+	return []biz.HsDatasheetCandidate{{ID: 1, DatasheetURL: "https://example.com/ds.pdf", UpdatedAt: time.Now()}}, nil
+}
+
 func newAcceptanceResolver(runID string, taskRepo biz.HsModelTaskRepo, recoRepo biz.HsModelRecommendationRepo, mapRepo biz.HsModelMappingRepo, extractor biz.HsModelFeatureExtractor, prefilter biz.HsModelCandidatePrefilter, recommender biz.HsModelCandidateRecommender) *biz.HsModelResolver {
 	return biz.NewHsModelResolver(acceptanceChecker{}).
 		WithStateMachine(taskRepo, recoRepo, mapRepo).

@@ -1,6 +1,7 @@
 package data
 
 import (
+	"caichip/pkg/pdftext"
 	"context"
 	"fmt"
 	"os"
@@ -42,14 +43,13 @@ func buildExtractPrompt(model, manufacturer string, asset *biz.HsDatasheetAssetR
 		"MANUFACTURER: " + strings.TrimSpace(manufacturer),
 	}
 	if asset != nil {
-		if u := strings.TrimSpace(asset.DatasheetURL); u != "" {
-			parts = append(parts, "DATASHEET_URL: "+u)
-		}
+
 		if p := strings.TrimSpace(asset.LocalPath); p != "" {
-			parts = append(parts, "DATASHEET_LOCAL_PATH: "+p)
-			if text := readLocalDatasheetSnippet(p); text != "" {
-				parts = append(parts, "DATASHEET_SNIPPET:\n"+text)
+			data, err := pdftext.ReadBodyHeadFromFile(p, 10000)
+			if err != nil {
+
 			}
+			parts = append(parts, "DATASHEET_DATA: "+data)
 		}
 	}
 	return strings.Join(parts, "\n")
@@ -87,10 +87,8 @@ func mapExtractResultToPrefilterInput(model string, out *HsLLMExtractResult) biz
 	if out == nil {
 		return biz.HsPrefilterInput{ComponentName: strings.TrimSpace(model)}
 	}
+	// component_name 经抽取端白名单校验；无法归入允许集合时保持空串，不回填 model。
 	component := strings.TrimSpace(out.ComponentName)
-	if component == "" {
-		component = strings.TrimSpace(model)
-	}
 	keySpecs := map[string]string{
 		"voltage":     strings.TrimSpace(out.KeySpecs.Voltage),
 		"current":     strings.TrimSpace(out.KeySpecs.Current),
@@ -105,11 +103,20 @@ func mapExtractResultToPrefilterInput(model string, out *HsLLMExtractResult) biz
 		}
 		keySpecs[fmt.Sprintf("other_%d", i+1)] = v
 	}
+	ranked := make([]biz.HsTechCategoryRank, 0, len(out.TechCategoryRanked))
+	for i := range out.TechCategoryRanked {
+		ranked = append(ranked, biz.HsTechCategoryRank{
+			Rank:         out.TechCategoryRanked[i].Rank,
+			TechCategory: strings.TrimSpace(out.TechCategoryRanked[i].TechCategory),
+			Confidence:   out.TechCategoryRanked[i].Confidence,
+		})
+	}
 	return biz.HsPrefilterInput{
-		TechCategory:  strings.TrimSpace(out.TechCategory),
-		ComponentName: component,
-		PackageForm:   strings.TrimSpace(out.PackageForm),
-		KeySpecs:      keySpecs,
+		TechCategory:       strings.TrimSpace(out.TechCategory),
+		TechCategoryRanked: ranked,
+		ComponentName:      component,
+		PackageForm:        strings.TrimSpace(out.PackageForm),
+		KeySpecs:           keySpecs,
 	}
 }
 

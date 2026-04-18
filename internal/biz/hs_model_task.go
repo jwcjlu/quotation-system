@@ -33,6 +33,8 @@ var (
 	ErrHsResolverInvalidRequest       = errors.New("hs model resolver: invalid request")
 	ErrHsResolverConfirmRunNotLatest  = errors.New("hs model resolver: confirm rejected, run is not latest")
 	ErrHsResolverConfirmTupleMismatch = errors.New("hs model resolver: confirm candidate tuple mismatch")
+	// ErrHsResolverNoTechCategory 抽取后主类目为空且无可用 tech_category_ranked，禁止无类目门控的候选查询（设计 §7.4）。
+	ErrHsResolverNoTechCategory = errors.New("hs model resolver: tech_category empty, candidate query refused")
 )
 
 // HsModelTaskRecord 表示一次按型号解析任务快照。

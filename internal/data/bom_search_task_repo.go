@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"caichip/internal/biz"
 
@@ -77,6 +77,32 @@ func normalizeMPNForSearchTask(mpn string) string {
 	return strings.ToUpper(m)
 }
 
+// sanitizeForLegacyMySQLUTF8 过滤 4-byte rune，兼容 utf8/utf8mb3 列。
+// 说明：若库已是 utf8mb4，此清洗会损失少量字符，但可避免整批写入失败。
+func sanitizeForLegacyMySQLUTF8(s string) string {
+	if s == "" || !utf8.ValidString(s) {
+		return s
+	}
+	need := false
+	for _, r := range s {
+		if r > 0xFFFF {
+			need = true
+			break
+		}
+	}
+	if !need {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r <= 0xFFFF {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func (r *BOMSearchTaskRepo) upsertQuoteCache(ctx context.Context, x *gorm.DB, mpnNorm, platformID, dateStr, outcome string, quotesJSON, noMpnDetail []byte) error {
 	bd, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
@@ -86,29 +112,44 @@ func (r *BOMSearchTaskRepo) upsertQuoteCache(ctx context.Context, x *gorm.DB, mp
 	if len(noMpnDetail) > 0 {
 		nd = noMpnDetail
 	}
-	if err := x.WithContext(ctx).Exec(`
-INSERT INTO t_bom_quote_cache (mpn_norm, platform_id, biz_date, outcome, no_mpn_detail, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
-ON DUPLICATE KEY UPDATE
-  outcome = VALUES(outcome),
-  no_mpn_detail = VALUES(no_mpn_detail),
-  updated_at = CURRENT_TIMESTAMP(3)
-`, mpnNorm, platformID, bd, outcome, nd).Error; err != nil {
+	now := time.Now()
+	cache := &BomQuoteCache{
+		MpnNorm:     mpnNorm,
+		PlatformID:  platformID,
+		BizDate:     bd,
+		Outcome:     outcome,
+		NoMpnDetail: noMpnDetail,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	if err := x.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "mpn_norm"},
+				{Name: "platform_id"},
+				{Name: "biz_date"},
+			},
+			DoUpdates: clause.Assignments(map[string]interface{}{
+				"outcome":       outcome,
+				"no_mpn_detail": nd,
+				"updated_at":    gorm.Expr("CURRENT_TIMESTAMP(3)"),
+			}),
+		}).
+		Create(cache).Error; err != nil {
 		return err
 	}
 	var cacheID uint64
-	if err := x.WithContext(ctx).Raw(`
-SELECT id
-FROM t_bom_quote_cache
-WHERE mpn_norm = ? AND platform_id = ? AND biz_date = ?
-LIMIT 1
-`, mpnNorm, platformID, bd).Scan(&cacheID).Error; err != nil {
+	if err := x.WithContext(ctx).
+		Model(&BomQuoteCache{}).
+		Where("mpn_norm = ? AND platform_id = ? AND biz_date = ?", mpnNorm, platformID, bd).
+		Select("id").
+		Take(&cacheID).Error; err != nil {
 		return err
 	}
 	if cacheID == 0 {
 		return errors.New("upsertQuoteCache: cache id not found after upsert")
 	}
-	if err := x.WithContext(ctx).Exec(`DELETE FROM t_bom_quote_item WHERE quote_id = ?`, cacheID).Error; err != nil {
+	if err := x.WithContext(ctx).Where("quote_id = ?", cacheID).Delete(&BomQuoteItem{}).Error; err != nil {
 		return err
 	}
 	if len(quotesJSON) == 0 {
@@ -118,14 +159,29 @@ LIMIT 1
 	if err := json.Unmarshal(quotesJSON, &rows); err != nil {
 		return err
 	}
+	items := make([]BomQuoteItem, 0, len(rows))
 	for i := range rows {
 		row := rows[i]
-		if err := x.WithContext(ctx).Exec(`
-INSERT INTO t_bom_quote_item (
-  quote_id, model, manufacturer, stock, package, `+"`desc`"+`, moq, lead_time,
-  price_tiers, hk_price, mainland_price, query_model, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
-`, cacheID, row.Model, row.Manufacturer, row.Stock, row.Package, row.Desc, row.MOQ, row.LeadTime, row.PriceTiers, row.HKPrice, row.MainlandPrice, row.QueryModel).Error; err != nil {
+		items = append(items, BomQuoteItem{
+			QuoteID:       cacheID,
+			Model:         sanitizeForLegacyMySQLUTF8(row.Model),
+			Manufacturer:  sanitizeForLegacyMySQLUTF8(row.Manufacturer),
+			Stock:         sanitizeForLegacyMySQLUTF8(row.Stock),
+			Package:       sanitizeForLegacyMySQLUTF8(row.Package),
+			Desc:          sanitizeForLegacyMySQLUTF8(row.Desc),
+			MOQ:           sanitizeForLegacyMySQLUTF8(row.MOQ),
+			LeadTime:      sanitizeForLegacyMySQLUTF8(row.LeadTime),
+			PriceTiers:    sanitizeForLegacyMySQLUTF8(row.PriceTiers),
+			HKPrice:       sanitizeForLegacyMySQLUTF8(row.HKPrice),
+			MainlandPrice: sanitizeForLegacyMySQLUTF8(row.MainlandPrice),
+			QueryModel:    sanitizeForLegacyMySQLUTF8(row.QueryModel),
+			DatasheetURL:  sanitizeForLegacyMySQLUTF8(row.DatasheetURL),
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		})
+	}
+	if len(items) > 0 {
+		if err := x.WithContext(ctx).Create(&items).Error; err != nil {
 			return err
 		}
 	}
@@ -461,12 +517,11 @@ func (r *BOMSearchTaskRepo) LoadQuoteCacheByMergeKey(ctx context.Context, mpnNor
 		NoMpnDetail []byte `gorm:"column:no_mpn_detail"`
 	}
 	var row cacheRow
-	err = r.db.WithContext(ctx).Raw(`
-SELECT id, outcome, no_mpn_detail
-FROM t_bom_quote_cache
-WHERE mpn_norm = ? AND platform_id = ? AND biz_date = ?
-LIMIT 1
-`, mpnNorm, platformID, bd).Scan(&row).Error
+	err = r.db.WithContext(ctx).
+		Model(&BomQuoteCache{}).
+		Select("id, outcome, no_mpn_detail").
+		Where("mpn_norm = ? AND platform_id = ? AND biz_date = ?", mpnNorm, platformID, bd).
+		Take(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, false, nil
 	}
@@ -565,14 +620,15 @@ func (r *BOMSearchTaskRepo) loadQuoteRowsJSONByCacheID(ctx context.Context, quot
 		MainlandPrice string `gorm:"column:mainland_price"`
 		LeadTime      string `gorm:"column:lead_time"`
 		QueryModel    string `gorm:"column:query_model"`
+		DatasheetURL  string `gorm:"column:datasheet_url"`
 	}
 	var items []itemRow
-	if err := r.db.WithContext(ctx).Raw(`
-SELECT model, manufacturer, package, `+"`desc`"+`, stock, moq, price_tiers, hk_price, mainland_price, lead_time, query_model
-FROM t_bom_quote_item
-WHERE quote_id = ?
-ORDER BY id ASC
-`, quoteID).Scan(&items).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Model(&BomQuoteItem{}).
+		Select("model, manufacturer, package, `desc`, stock, moq, price_tiers, hk_price, mainland_price, lead_time, query_model, datasheet_url").
+		Where("quote_id = ?", quoteID).
+		Order("id ASC").
+		Find(&items).Error; err != nil {
 		return nil, err
 	}
 	rows := make([]biz.AgentQuoteRow, 0, len(items))
@@ -591,6 +647,7 @@ ORDER BY id ASC
 			MainlandPrice: it.MainlandPrice,
 			LeadTime:      it.LeadTime,
 			QueryModel:    it.QueryModel,
+			DatasheetURL:  it.DatasheetURL,
 		})
 	}
 	if len(rows) == 0 {
@@ -611,10 +668,12 @@ func (r *BOMSearchTaskRepo) DistinctPendingMergeKeysForSession(ctx context.Conte
 		BizDate    time.Time `gorm:"column:biz_date"`
 	}
 	var rows []keyRow
-	err := r.db.WithContext(ctx).Raw(fmt.Sprintf(`
-SELECT mpn_norm, platform_id, biz_date FROM %s
-WHERE session_id = ? AND state = 'pending'
-GROUP BY mpn_norm, platform_id, biz_date`, TableBomSearchTask), sessionID).Scan(&rows).Error
+	err := r.db.WithContext(ctx).
+		Model(&BomSearchTask{}).
+		Select("mpn_norm, platform_id, biz_date").
+		Where("session_id = ? AND state = ?", sessionID, "pending").
+		Group("mpn_norm, platform_id, biz_date").
+		Find(&rows).Error
 	if err != nil {
 		return nil, err
 	}

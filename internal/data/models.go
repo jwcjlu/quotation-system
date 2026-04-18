@@ -101,9 +101,10 @@ func (BomSearchTask) TableName() string { return TableBomSearchTask }
 
 // BomQuoteCache 对应 t_bom_quote_cache。
 type BomQuoteCache struct {
-	MpnNorm     string    `gorm:"column:mpn_norm;size:256;primaryKey"`
-	PlatformID  string    `gorm:"column:platform_id;size:32;primaryKey"`
-	BizDate     time.Time `gorm:"column:biz_date;type:date;primaryKey"`
+	ID          uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	MpnNorm     string    `gorm:"column:mpn_norm;size:256;not null;uniqueIndex:uk_bom_quote_cache_merge,priority:1"`
+	PlatformID  string    `gorm:"column:platform_id;size:32;not null;uniqueIndex:uk_bom_quote_cache_merge,priority:2"`
+	BizDate     time.Time `gorm:"column:biz_date;type:date;not null;uniqueIndex:uk_bom_quote_cache_merge,priority:3"`
 	Outcome     string    `gorm:"column:outcome;size:32;not null"`
 	QuotesJSON  []byte    `gorm:"column:quotes_json;type:json"`
 	NoMpnDetail []byte    `gorm:"column:no_mpn_detail;type:json"`
@@ -112,6 +113,28 @@ type BomQuoteCache struct {
 }
 
 func (BomQuoteCache) TableName() string { return TableBomQuoteCache }
+
+// BomQuoteItem 对应 t_bom_quote_item（报价明细）。
+type BomQuoteItem struct {
+	ID            uint64    `gorm:"column:id;primaryKey;autoIncrement"`
+	QuoteID       uint64    `gorm:"column:quote_id;not null;index:idx_bom_quote_item_quote_id"`
+	Model         string    `gorm:"column:model;size:255;not null;default:''"`
+	Manufacturer  string    `gorm:"column:manufacturer;size:255;not null;default:''"`
+	Stock         string    `gorm:"column:stock;size:64;not null;default:''"`
+	Package       string    `gorm:"column:package;size:128;not null;default:''"`
+	Desc          string    `gorm:"column:desc;size:512;not null;default:''"`
+	MOQ           string    `gorm:"column:moq;size:64;not null;default:''"`
+	LeadTime      string    `gorm:"column:lead_time;size:128;not null;default:''"`
+	PriceTiers    string    `gorm:"column:price_tiers;type:text"`
+	HKPrice       string    `gorm:"column:hk_price;type:text"`
+	MainlandPrice string    `gorm:"column:mainland_price;type:text"`
+	QueryModel    string    `gorm:"column:query_model;size:255;not null;default:''"`
+	DatasheetURL  string    `gorm:"column:datasheet_url;type:text"`
+	CreatedAt     time.Time `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt     time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime"`
+}
+
+func (BomQuoteItem) TableName() string { return TableBomQuoteItem }
 
 // BomSession 对应 t_bom_session。
 type BomSession struct {
@@ -301,19 +324,20 @@ func (HsDatasheetAsset) TableName() string { return TableHsDatasheetAsset }
 
 // HsModelFeatures 保存 datasheet 抽取后的结构化特征。
 type HsModelFeatures struct {
-	ID             uint64           `gorm:"column:id;primaryKey;autoIncrement"`
-	Model          string           `gorm:"column:model;size:128;not null;index:idx_hs_model_features_model_mfr,priority:1"`
-	Manufacturer   string           `gorm:"column:manufacturer;size:128;not null;index:idx_hs_model_features_model_mfr,priority:2"`
-	AssetID        uint64           `gorm:"column:asset_id;not null;index:idx_hs_model_features_asset_id"`
-	Asset          HsDatasheetAsset `gorm:"foreignKey:AssetID;references:ID;constraint:OnDelete:RESTRICT"`
-	TechCategory   string           `gorm:"column:tech_category;size:64;not null;default:''"`
-	ComponentName  string           `gorm:"column:component_name;size:128;not null;default:''"`
-	PackageForm    string           `gorm:"column:package_form;size:64;not null;default:''"`
-	KeySpecsJSON   []byte           `gorm:"column:key_specs_json;type:json"`
-	RawExtractJSON []byte           `gorm:"column:raw_extract_json;type:json"`
-	ExtractModel   string           `gorm:"column:extract_model;size:64;not null;default:''"`
-	ExtractVersion string           `gorm:"column:extract_version;size:64;not null;default:''"`
-	CreatedAt      time.Time        `gorm:"column:created_at;precision:3;autoCreateTime"`
+	ID                     uint64           `gorm:"column:id;primaryKey;autoIncrement"`
+	Model                  string           `gorm:"column:model;size:128;not null;index:idx_hs_model_features_model_mfr,priority:1"`
+	Manufacturer           string           `gorm:"column:manufacturer;size:128;not null;index:idx_hs_model_features_model_mfr,priority:2"`
+	AssetID                uint64           `gorm:"column:asset_id;not null;index:idx_hs_model_features_asset_id"`
+	Asset                  HsDatasheetAsset `gorm:"foreignKey:AssetID;references:ID;constraint:OnDelete:RESTRICT"`
+	TechCategory           string           `gorm:"column:tech_category;size:64;not null;default:''"`
+	TechCategoryRankedJSON []byte           `gorm:"column:tech_category_ranked_json;type:json"`
+	ComponentName          string           `gorm:"column:component_name;size:128;not null;default:''"`
+	PackageForm            string           `gorm:"column:package_form;size:64;not null;default:''"`
+	KeySpecsJSON           []byte           `gorm:"column:key_specs_json;type:json"`
+	RawExtractJSON         []byte           `gorm:"column:raw_extract_json;type:json"`
+	ExtractModel           string           `gorm:"column:extract_model;size:64;not null;default:''"`
+	ExtractVersion         string           `gorm:"column:extract_version;size:64;not null;default:''"`
+	CreatedAt              time.Time        `gorm:"column:created_at;precision:3;autoCreateTime"`
 }
 
 func (HsModelFeatures) TableName() string { return TableHsModelFeatures }
@@ -323,7 +347,7 @@ type HsModelRecommendation struct {
 	ID                uint64    `gorm:"column:id;primaryKey;autoIncrement"`
 	Model             string    `gorm:"column:model;size:128;not null;index:idx_hs_model_reco_model_mfr_created,priority:1"`
 	Manufacturer      string    `gorm:"column:manufacturer;size:128;not null;index:idx_hs_model_reco_model_mfr_created,priority:2"`
-	RunID             string    `gorm:"column:run_id;type:char(36);not null;index:idx_hs_model_reco_run_id;uniqueIndex:uk_hs_model_reco_run_rank,priority:1"`
+	RunID             string    `gorm:"column:run_id;size:384;not null;index:idx_hs_model_reco_run_id;uniqueIndex:uk_hs_model_reco_run_rank,priority:1"`
 	CandidateRank     uint8     `gorm:"column:candidate_rank;type:tinyint unsigned;not null;uniqueIndex:uk_hs_model_reco_run_rank,priority:2"`
 	CodeTS            string    `gorm:"column:code_ts;type:char(10);not null;check:chk_hs_model_reco_code_ts,code_ts REGEXP '^[0-9]{10}$'"`
 	GName             string    `gorm:"column:g_name;size:512;not null;default:''"`
@@ -336,3 +360,21 @@ type HsModelRecommendation struct {
 }
 
 func (HsModelRecommendation) TableName() string { return TableHsModelRecommendation }
+
+// HsModelTask 保存按型号解析任务状态（设计 §6）。
+type HsModelTask struct {
+	RunID          string    `gorm:"column:run_id;size:512;primaryKey"`
+	Model          string    `gorm:"column:model;size:128;not null;index:idx_hs_model_task_model_mfr_updated,priority:1;index:idx_hs_model_task_req,priority:1"`
+	Manufacturer   string    `gorm:"column:manufacturer;size:128;not null;index:idx_hs_model_task_model_mfr_updated,priority:2;index:idx_hs_model_task_req,priority:2"`
+	RequestTraceID string    `gorm:"column:request_trace_id;size:256;not null;default:'';index:idx_hs_model_task_req,priority:3"`
+	TaskStatus     string    `gorm:"column:task_status;size:32;not null"`
+	ResultStatus   string    `gorm:"column:result_status;size:32;not null"`
+	Stage          string    `gorm:"column:stage;size:64;not null;default:''"`
+	AttemptCount   int       `gorm:"column:attempt_count;not null;default:0"`
+	LastError      string    `gorm:"column:last_error;type:text"`
+	BestScore      float64   `gorm:"column:best_score;type:decimal(8,4);not null;default:0"`
+	BestCodeTS     string    `gorm:"column:best_code_ts;type:char(10);not null;default:''"`
+	UpdatedAt      time.Time `gorm:"column:updated_at;precision:3;autoUpdateTime;index:idx_hs_model_task_model_mfr_updated,priority:3,sort:desc"`
+}
+
+func (HsModelTask) TableName() string { return TableHsModelTask }

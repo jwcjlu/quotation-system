@@ -26,7 +26,6 @@ func AutoMigrateSchema(db *gorm.DB) error {
 	if err := db.AutoMigrate(
 		&BomSession{},
 		&BomSessionLine{},
-		&BomQuoteCache{},
 		&BomSearchTask{},
 		&BomMergeInflight{},
 		&BomMergeProxyWait{},
@@ -40,6 +39,7 @@ func AutoMigrateSchema(db *gorm.DB) error {
 		&HsDatasheetAsset{},
 		&HsModelFeatures{},
 		&HsModelRecommendation{},
+		&HsModelTask{},
 		&HsMeta{},
 		&HsItem{},
 		&CaichipAgent{},
@@ -51,10 +51,37 @@ func AutoMigrateSchema(db *gorm.DB) error {
 	); err != nil {
 		return fmt.Errorf("gorm automigrate: %w", err)
 	}
+	if err := migrateBOMQuoteTables(db); err != nil {
+		return fmt.Errorf("gorm automigrate bom quote tables: %w", err)
+	}
 	if err := backfillBOMPlatformRunParams(db); err != nil {
 		return fmt.Errorf("backfill bom_platform_script.run_params: %w", err)
 	}
 	return seedBOMPlatformScriptsIfEmpty(db)
+}
+
+type bomQuoteCacheLegacyID struct {
+	ID uint64 `gorm:"column:id;type:bigint unsigned"`
+}
+
+func (bomQuoteCacheLegacyID) TableName() string { return TableBomQuoteCache }
+
+func migrateBOMQuoteTables(db *gorm.DB) error {
+	if db == nil {
+		return nil
+	}
+	// 新库：直接按最新模型建表。
+	if !db.Migrator().HasTable(&BomQuoteCache{}) {
+		return db.AutoMigrate(&BomQuoteCache{}, &BomQuoteItem{})
+	}
+	// 旧库兼容：若 cache 表还没有 id，先仅补列，不触碰既有主键，避免 "Multiple primary key defined"。
+	if !db.Migrator().HasColumn(&BomQuoteCache{}, "id") {
+		if err := db.Migrator().AddColumn(&bomQuoteCacheLegacyID{}, "ID"); err != nil {
+			return err
+		}
+	}
+	// 现网可能仍是旧主键形态，避免 AutoMigrate 尝试重建主键；仅确保明细表存在。
+	return db.AutoMigrate(&BomQuoteItem{})
 }
 
 func backfillBOMPlatformRunParams(db *gorm.DB) error {

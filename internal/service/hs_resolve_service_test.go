@@ -12,6 +12,7 @@ import (
 	"caichip/internal/conf"
 	"caichip/internal/data"
 
+	kerrors "github.com/go-kratos/kratos/v2/errors"
 	"github.com/go-kratos/kratos/v2/log"
 )
 
@@ -216,6 +217,29 @@ func TestHsResolveService_RequireRequestTraceID(t *testing.T) {
 	}
 }
 
+func TestHsResolveService_AllowsEmptyManufacturer(t *testing.T) {
+	svc := NewHsResolveService(&stubResolveRunner{
+		task: &biz.HsModelTaskRecord{
+			RunID:        "run-empty-mfr",
+			TaskStatus:   biz.HsTaskStatusSuccess,
+			ResultStatus: biz.HsResultStatusConfirmed,
+			BestCodeTS:   "1234567890",
+			BestScore:    0.9,
+		},
+	}, &stubTaskQuery{}, &stubRecoRepo{}, nil, nil, time.Second)
+	resp, err := svc.ResolveByModel(context.Background(), &v1.HsResolveByModelRequest{
+		Model:          "PART-A",
+		Manufacturer:   "",
+		RequestTraceId: "trace-empty-mfr",
+	})
+	if err != nil {
+		t.Fatalf("ResolveByModel: %v", err)
+	}
+	if resp.GetBestCodeTs() != "1234567890" {
+		t.Fatalf("unexpected reply: %#v", resp)
+	}
+}
+
 func TestHsResolveService_GetResolveTaskFailedPayload(t *testing.T) {
 	svc := NewHsResolveService(
 		&stubResolveRunner{},
@@ -396,6 +420,7 @@ func TestNewDefaultHsResolveService_DisabledWhenDependencyMissing(t *testing.T) 
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if svc == nil {
 		t.Fatal("expected service instance")
@@ -420,13 +445,14 @@ func TestNewDefaultHsResolveService_EnableResolverWhenDependenciesProvided(t *te
 	svc := NewDefaultHsResolveService(
 		cfg,
 		log.NewStdLogger(nil),
-		data.NewHsModelMappingRepo(d),
+		data.NewHsModelMappingRepo(d, nil),
 		data.NewHsDatasheetAssetRepo(d),
 		data.NewHsModelRecommendationRepo(d),
 		data.NewHsItemQueryRepo(d),
 		data.NewHsModelTaskRepo(d),
 		openAI,
 		data.NewHsModelFeaturesRepo(d),
+		nil,
 		nil,
 	)
 	if svc == nil {
@@ -494,5 +520,36 @@ func TestHsResolveService_LogFieldsForResolveAcceptedAsync(t *testing.T) {
 		if _, ok := got[key]; !ok {
 			t.Fatalf("resolve.accepted_async missing key %q, got=%+v", key, got)
 		}
+	}
+}
+
+func TestManualRunFingerprintChangesWithInputs(t *testing.T) {
+	a := manualRunFingerprint("x", "")
+	b := manualRunFingerprint("y", "")
+	if a == b {
+		t.Fatalf("expected different fingerprints, got %q", a)
+	}
+	if manualRunFingerprint("", "") != "" {
+		t.Fatal("expected empty fingerprint when both empty")
+	}
+}
+
+func TestHsResolveService_EarlyRejectNoDatasheetNoManual(t *testing.T) {
+	svc := NewHsResolveService(&stubResolveRunner{
+		task: &biz.HsModelTaskRecord{RunID: "run-x", TaskStatus: biz.HsTaskStatusSuccess},
+	}, &stubTaskQuery{}, &stubRecoRepo{}, &stubDatasheetSource{asset: nil}, nil, time.Second)
+	svc.attachManualUpload(nil, biz.NewHsResolveConfig(nil), "")
+	_, err := svc.ResolveByModel(context.Background(), &v1.HsResolveByModelRequest{
+		Model:          "STM32",
+		RequestTraceId: "trace-no-ds",
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if se := kerrors.FromError(err); se == nil || se.Code != 400 {
+		t.Fatalf("expected http 400 style error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "DATASHEET_OR_MANUAL_REQUIRED") {
+		t.Fatalf("expected DATASHEET_OR_MANUAL_REQUIRED in message, got %v", err)
 	}
 }

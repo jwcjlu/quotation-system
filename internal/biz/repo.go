@@ -205,17 +205,17 @@ type BomManufacturerAliasRepo interface {
 
 // HsModelMappingRecord 型号到 code_ts 的映射记录。
 type HsModelMappingRecord struct {
-	Model                 string
-	Manufacturer          string
+	Model                   string
+	Manufacturer            string
 	ManufacturerCanonicalID *string
-	CodeTS                string
-	Source                string
-	Confidence            float64
-	Status                string
-	FeaturesVersion       string
-	RecommendationVersion string
-	CreatedAt             time.Time
-	UpdatedAt             time.Time
+	CodeTS                  string
+	Source                  string
+	Confidence              float64
+	Status                  string
+	FeaturesVersion         string
+	RecommendationVersion   string
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
 }
 
 // HsDatasheetAssetRecord datasheet 资产记录。
@@ -233,20 +233,20 @@ type HsDatasheetAssetRecord struct {
 
 // HsModelFeaturesRecord datasheet 抽取结构化特征。
 type HsModelFeaturesRecord struct {
-	ID                     uint64
-	Model                  string
-	Manufacturer           string
+	ID                      uint64
+	Model                   string
+	Manufacturer            string
 	ManufacturerCanonicalID *string
-	AssetID                uint64
-	TechCategory           string
-	TechCategoryRankedJSON []byte
-	ComponentName          string
-	PackageForm            string
-	KeySpecsJSON           []byte
-	RawExtractJSON         []byte
-	ExtractModel           string
-	ExtractVersion         string
-	CreatedAt              time.Time
+	AssetID                 uint64
+	TechCategory            string
+	TechCategoryRankedJSON  []byte
+	ComponentName           string
+	PackageForm             string
+	KeySpecsJSON            []byte
+	RawExtractJSON          []byte
+	ExtractModel            string
+	ExtractVersion          string
+	CreatedAt               time.Time
 }
 
 // HsTechCategoryRank 有序备选类目（设计 §8.1，至多 3 条）。
@@ -327,19 +327,19 @@ type HsMetaRepo interface {
 
 // HsModelRecommendationRecord 单轮推荐候选审计记录。
 type HsModelRecommendationRecord struct {
-	Model             string
-	Manufacturer      string
+	Model                   string
+	Manufacturer            string
 	ManufacturerCanonicalID *string
-	RunID             string
-	CandidateRank     uint8
-	CodeTS            string
-	GName             string
-	Score             float64
-	Reason            string
-	InputSnapshotJSON []byte
-	RecommendModel    string
-	RecommendVersion  string
-	CreatedAt         time.Time
+	RunID                   string
+	CandidateRank           uint8
+	CodeTS                  string
+	GName                   string
+	Score                   float64
+	Reason                  string
+	InputSnapshotJSON       []byte
+	RecommendModel          string
+	RecommendVersion        string
+	CreatedAt               time.Time
 }
 
 // HsModelMappingRepo 持久化最终映射（仅仓储职责，不承载业务判定）。
@@ -347,6 +347,37 @@ type HsModelMappingRepo interface {
 	DBOk() bool
 	GetConfirmedByModelManufacturer(ctx context.Context, model, manufacturer string) (*HsModelMappingRecord, error)
 	Save(ctx context.Context, row *HsModelMappingRecord) error
+}
+
+// HsTaxRateDailyRepo t_hs_tax_rate_daily 读写（按自然日缓存）。
+type HsTaxRateDailyRepo interface {
+	DBOk() bool
+	GetManyByBizDate(ctx context.Context, bizDate time.Time, codeTSList []string) (map[string]*HsTaxRateDailyRecord, error)
+	Upsert(ctx context.Context, row *HsTaxRateDailyRecord) error
+}
+
+// TaxRateAPIFetcher 进口税率外呼（由 data 适配 HsTaxRateAPIRepo）。
+type TaxRateAPIFetcher interface {
+	FetchByCodeTS(ctx context.Context, codeTS string, pageSize int) (*TaxRateFetchResult, error)
+}
+
+// HsManualDatasheetUploadRecord 暂存上传元数据（不含二进制）。
+type HsManualDatasheetUploadRecord struct {
+	UploadID     string
+	LocalPath    string
+	SHA256       string
+	ExpiresAt    time.Time
+	OwnerSubject string
+	ConsumedAt   *time.Time
+}
+
+// HsManualDatasheetUploadRepo 用户上传 PDF staging 表。
+type HsManualDatasheetUploadRepo interface {
+	DBOk() bool
+	Create(ctx context.Context, row *HsManualDatasheetUploadRecord) error
+	GetByUploadID(ctx context.Context, uploadID string) (*HsManualDatasheetUploadRecord, error)
+	MarkConsumed(ctx context.Context, uploadID string) error
+	DeleteExpiredBefore(ctx context.Context, t time.Time) (int64, error)
 }
 
 // HsDatasheetAssetRepo 持久化 datasheet 资产。

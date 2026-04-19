@@ -33,6 +33,8 @@ type HsModelResolver struct {
 	checker              HsDatasheetDownloadChecker
 	downloader           HsDatasheetAssetDownloader
 	assetRepo            HsDatasheetAssetRepo
+	manualUploadRepo     HsManualDatasheetUploadRepo
+	hsAssetDir           string
 	taskRepo             HsModelTaskRepo
 	recoRepo             HsModelRecommendationRepo
 	mappingRepo          HsModelMappingRepo
@@ -89,7 +91,7 @@ func (r *HsModelResolver) WithFeaturesRepo(repo HsModelFeaturesRepo) *HsModelRes
 }
 
 type HsModelFeatureExtractor interface {
-	Extract(ctx context.Context, model, manufacturer string, asset *HsDatasheetAssetRecord) (HsPrefilterInput, error)
+	Extract(ctx context.Context, model, manufacturer string, asset *HsDatasheetAssetRecord, manualUserDescription string) (HsPrefilterInput, error)
 }
 
 type HsModelCandidatePrefilter interface {
@@ -260,9 +262,10 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 		return nil, errors.New("hs model resolver: state machine dependencies not configured (extractor/prefilter/recommender)")
 	}
 	n := req.normalized()
-	if n.Model == "" || n.Manufacturer == "" || n.RequestTraceID == "" {
+	if n.Model == "" || n.RequestTraceID == "" {
 		return nil, ErrHsResolverInvalidRequest
 	}
+	// manufacturer 允许空串，与 t_hs_model_mapping (model,'') 及配单海关扩展对齐。
 
 	if !n.ForceRefresh {
 		existing, err := r.taskRepo.GetByRequestTraceID(ctx, n.Model, n.Manufacturer, n.RequestTraceID)
@@ -346,19 +349,39 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 	}
 
 	var (
-		asset *HsDatasheetAssetRecord
-		input HsPrefilterInput
-		cands []HsItemCandidate
+		asset                   *HsDatasheetAssetRecord
+		input                   HsPrefilterInput
+		cands                   []HsItemCandidate
+		datasheetPrimaryAssetOK bool
 	)
 	if err := r.retryStage(ctx, task, HsTaskStageDatasheet, func() error {
 		got, dsErr := r.resolveDatasheetAsset(ctx, n)
-		if dsErr != nil || got == nil || strings.TrimSpace(got.DownloadStatus) != "ok" {
+		if dsErr == nil && got != nil && strings.TrimSpace(got.DownloadStatus) == "ok" {
+			asset = got
+			datasheetPrimaryAssetOK = true
+			return nil
+		}
+		datasheetPrimaryAssetOK = false
+		if !r.hasManualDatasheetInput(n) {
 			if dsErr != nil {
 				return dsErr
 			}
 			return errors.New("datasheet not available")
 		}
-		asset = got
+		bypass, bErr := r.tryManualDatasheetBypass(ctx, n)
+		if bErr != nil {
+			if dsErr != nil {
+				return dsErr
+			}
+			return bErr
+		}
+		if bypass == nil {
+			if dsErr != nil {
+				return dsErr
+			}
+			return errors.New("datasheet not available")
+		}
+		asset = bypass
 		return nil
 	}, HsTaskStageDatasheetFailed); err != nil {
 		r.recordMetric("hs_resolve_total", 1)
@@ -381,8 +404,12 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 		return task, err
 	}
 
+	manualExtract := ""
+	if !datasheetPrimaryAssetOK {
+		manualExtract = SanitizeManualComponentDescription(n.ManualComponentDescription)
+	}
 	if err := r.retryStage(ctx, task, HsTaskStageExtract, func() error {
-		got, extractErr := r.extractor.Extract(ctx, n.Model, n.Manufacturer, asset)
+		got, extractErr := r.extractor.Extract(ctx, n.Model, n.Manufacturer, asset, manualExtract)
 		if extractErr != nil {
 			return extractErr
 		}
@@ -455,8 +482,8 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 			"recommend_model": n.RecommendModel,
 			"candidate_count": 0,
 			"best_score":      0.0,
-			"final_status":      task.ResultStatus,
-			"error_code":        "FEATURES_SAVE_FAILED",
+			"final_status":    task.ResultStatus,
+			"error_code":      "FEATURES_SAVE_FAILED",
 		})
 		return task, err
 	}
@@ -508,19 +535,19 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 		r.recordMetric("hs_resolve_total", 1)
 		r.recordMetric("hs_resolve_stage_latency_ms", float64(time.Since(startedAt).Milliseconds()), "stage", HsTaskStageRecommendFailed)
 		r.emitLog("resolve.failed", map[string]any{
-			"model":             n.Model,
-			"manufacturer":      n.Manufacturer,
-			"task_id":           task.RunID,
-			"run_id":            task.RunID,
-			"stage":             task.Stage,
-			"datasheet_url":     safeAssetURL(asset),
-			"datasheet_path":    safeAssetPath(asset),
-			"extract_model":     n.FeaturesVersion,
-			"recommend_model":   n.RecommendModel,
-			"candidate_count":   len(cands),
-			"best_score":        0.0,
-			"final_status":      task.ResultStatus,
-			"error_code":        "MFR_CANONICAL_LOOKUP_FAILED",
+			"model":           n.Model,
+			"manufacturer":    n.Manufacturer,
+			"task_id":         task.RunID,
+			"run_id":          task.RunID,
+			"stage":           task.Stage,
+			"datasheet_url":   safeAssetURL(asset),
+			"datasheet_path":  safeAssetPath(asset),
+			"extract_model":   n.FeaturesVersion,
+			"recommend_model": n.RecommendModel,
+			"candidate_count": len(cands),
+			"best_score":      0.0,
+			"final_status":    task.ResultStatus,
+			"error_code":      "MFR_CANONICAL_LOOKUP_FAILED",
 		})
 		return task, err
 	}
@@ -529,17 +556,17 @@ func (r *HsModelResolver) ResolveByModel(ctx context.Context, req HsModelResolve
 	for i := 0; i < topN; i++ {
 		audits = append(audits, HsModelRecommendationRecord{
 			Model:                   n.Model,
-			Manufacturer:          n.Manufacturer,
+			Manufacturer:            n.Manufacturer,
 			ManufacturerCanonicalID: mCanonPtr,
 			RunID:                   task.RunID,
-			CandidateRank:     uint8(i + 1),
-			CodeTS:            cands[i].CodeTS,
-			GName:             cands[i].GName,
-			Score:             cands[i].Score,
-			Reason:            hsRecoReasonOrDefault(cands[i].Reason),
-			InputSnapshotJSON: inputSnapshot,
-			RecommendModel:    n.RecommendModel,
-			RecommendVersion:  n.RecommendVersion,
+			CandidateRank:           uint8(i + 1),
+			CodeTS:                  cands[i].CodeTS,
+			GName:                   cands[i].GName,
+			Score:                   cands[i].Score,
+			Reason:                  hsRecoReasonOrDefault(cands[i].Reason),
+			InputSnapshotJSON:       inputSnapshot,
+			RecommendModel:          n.RecommendModel,
+			RecommendVersion:        n.RecommendVersion,
 		})
 	}
 	if err := r.recoRepo.SaveTopN(ctx, audits); err != nil {

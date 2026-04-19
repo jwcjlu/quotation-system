@@ -37,7 +37,7 @@ func NewHsDatasheetDownloader(assetDir string, client *http.Client) *HsDatasheet
 
 func (d *HsDatasheetDownloader) CanDownload(ctx context.Context, rawURL string) bool {
 	rawURL = strings.TrimSpace(rawURL)
-	if rawURL == "" {
+	if rawURL == "" || biz.IsBlockedHTTPCDatasheetURL(rawURL) {
 		return false
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
@@ -62,6 +62,10 @@ func (d *HsDatasheetDownloader) Download(ctx context.Context, model, manufacture
 	}
 	if record.DatasheetURL == "" {
 		record.ErrorMsg = "datasheet_url is empty"
+		return record, errors.New(record.ErrorMsg)
+	}
+	if biz.IsBlockedHTTPCDatasheetURL(record.DatasheetURL) {
+		record.ErrorMsg = "datasheet url is not http-fetchable"
 		return record, errors.New(record.ErrorMsg)
 	}
 	if strings.TrimSpace(d.assetDir) == "" {

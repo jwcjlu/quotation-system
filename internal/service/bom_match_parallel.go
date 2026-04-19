@@ -164,7 +164,9 @@ func (s *BomService) computeMatchItems(ctx context.Context, view *biz.BOMSession
 		if err != nil {
 			return nil, 0, err
 		}
-		return []*v1.MatchItem{item}, st, nil
+		out := []*v1.MatchItem{item}
+		s.attachCustomsToMatchItems(ctx, lines, out)
+		return out, st, nil
 	}
 
 	workers := n
@@ -232,6 +234,7 @@ func (s *BomService) computeMatchItems(ctx context.Context, view *biz.BOMSession
 		out = append(out, items[i])
 		total += items[i].GetSubtotal()
 	}
+	s.attachCustomsToMatchItems(ctx, lines, out)
 	return out, total, nil
 }
 

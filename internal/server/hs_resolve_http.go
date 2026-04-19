@@ -2,10 +2,14 @@ package server
 
 import (
 	"context"
+	"io"
 	stdhttp "net/http"
+	"path/filepath"
+	"strings"
 
 	v1 "caichip/api/bom/v1"
 
+	kerrors "github.com/go-kratos/kratos/v2/errors"
 	khttp "github.com/go-kratos/kratos/v2/transport/http"
 )
 
@@ -17,6 +21,11 @@ func HsResolveByModelHTTPStatus(reply *v1.HsResolveByModelReply) int {
 	return stdhttp.StatusOK
 }
 
+// hsManualDatasheetUploader 可选：由 *service.HsResolveService 实现。
+type hsManualDatasheetUploader interface {
+	UploadHsManualDatasheet(context.Context, *v1.UploadHsManualDatasheetRequest) (*v1.UploadHsManualDatasheetReply, error)
+}
+
 // RegisterHsResolveServiceHTTPServer 覆盖生成代码中固定 200 的行为，使 ResolveByModel 符合 §10 状态码语义。
 func RegisterHsResolveServiceHTTPServer(s *khttp.Server, srv v1.HsResolveServiceHTTPServer) {
 	r := s.Route("/")
@@ -24,6 +33,45 @@ func RegisterHsResolveServiceHTTPServer(s *khttp.Server, srv v1.HsResolveService
 	r.GET("/api/hs/resolve/task", hsResolveGetTaskHTTPHandler(srv))
 	r.POST("/api/hs/resolve/confirm", hsResolveConfirmHTTPHandler(srv))
 	r.GET("/api/hs/resolve/history", hsResolveHistoryHTTPHandler(srv))
+	if u, ok := srv.(hsManualDatasheetUploader); ok {
+		r.POST("/api/hs/resolve/manual-datasheet/upload", hsManualUploadHTTPHandler(u))
+	}
+}
+
+func hsManualUploadHTTPHandler(u hsManualDatasheetUploader) func(ctx khttp.Context) error {
+	const maxMultipart = 32 << 20
+	return func(ctx khttp.Context) error {
+		req := ctx.Request()
+		if err := req.ParseMultipartForm(maxMultipart); err != nil {
+			return err
+		}
+		f, hdr, err := req.FormFile("file")
+		if err != nil {
+			return err
+		}
+		defer func() { _ = f.Close() }()
+		filename := strings.TrimSpace(hdr.Filename)
+		if filename == "" {
+			filename = "upload.pdf"
+		}
+		filename = filepath.Base(filename)
+		body, err := io.ReadAll(io.LimitReader(f, maxMultipart+1))
+		if err != nil {
+			return err
+		}
+		if len(body) > maxMultipart {
+			return kerrors.BadRequest("HS_RESOLVE_BAD_REQUEST", "file too large")
+		}
+		khttp.SetOperation(ctx, v1.HsResolveService_UploadHsManualDatasheet_FullMethodName)
+		out, err := u.UploadHsManualDatasheet(req.Context(), &v1.UploadHsManualDatasheetRequest{
+			File:     body,
+			Filename: filename,
+		})
+		if err != nil {
+			return err
+		}
+		return ctx.Result(stdhttp.StatusOK, out)
+	}
 }
 
 func hsResolveByModelHTTPHandler(srv v1.HsResolveServiceHTTPServer) func(ctx khttp.Context) error {

@@ -28,4 +28,6 @@ const (
 	TableHsDatasheetAsset            = "t_hs_datasheet_asset"
 	TableHsMeta                      = "t_hs_meta"
 	TableHsItem                      = "t_hs_item"
+	TableHsTaxRateDaily              = "t_hs_tax_rate_daily"
+	TableHsManualDatasheetUpload     = "t_hs_manual_datasheet_upload"
 )

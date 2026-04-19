@@ -88,4 +88,19 @@ func TestHsDatasheetDownloader_CanDownload(t *testing.T) {
 	if downloader.CanDownload(ctx, srv.URL+"/404.pdf") {
 		t.Fatal("expected /404.pdf non-downloadable")
 	}
+	if downloader.CanDownload(ctx, "user-upload://abc") {
+		t.Fatal("expected user-upload scheme blocked")
+	}
+	if downloader.CanDownload(ctx, "manual-description-only://") {
+		t.Fatal("expected manual-description-only scheme blocked")
+	}
+}
+
+func TestHsDatasheetDownloader_Download_BlocksUserUploadURL(t *testing.T) {
+	t.Parallel()
+	d := NewHsDatasheetDownloader(t.TempDir(), http.DefaultClient)
+	_, err := d.Download(context.Background(), "M", "ST", "user-upload://x")
+	if err == nil {
+		t.Fatal("expected error")
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"caichip/internal/biz"
+
 	"gorm.io/gorm"
 )
 
@@ -114,6 +115,52 @@ func (r *HsItemReadRepo) GetByCodeTS(ctx context.Context, codeTS string) (*biz.H
 		SourceCoreHS6: row.SourceCoreHS6,
 		RawJSON:       append([]byte(nil), row.RawJSON...),
 	}, nil
+}
+
+func (r *HsItemReadRepo) MapByCodeTS(ctx context.Context, codeTSList []string) (map[string]*biz.HsItemRecord, error) {
+	if !r.DBOk() {
+		return nil, errors.New("hs_item: database not configured")
+	}
+	seen := make(map[string]struct{})
+	var codes []string
+	for _, c := range codeTSList {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+		if _, ok := seen[c]; ok {
+			continue
+		}
+		seen[c] = struct{}{}
+		codes = append(codes, c)
+	}
+	if len(codes) == 0 {
+		return map[string]*biz.HsItemRecord{}, nil
+	}
+	var rows []hsItemReadRow
+	err := r.d.DB.WithContext(ctx).
+		Table(TableHsItem).
+		Select("code_ts, g_name, unit_1, unit_2, control_mark, source_core_hs6, raw_json").
+		Where("code_ts IN ?", codes).
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]*biz.HsItemRecord, len(rows))
+	for i := range rows {
+		c := strings.TrimSpace(rows[i].CodeTS)
+		cp := biz.HsItemRecord{
+			CodeTS:        rows[i].CodeTS,
+			GName:         rows[i].GName,
+			Unit1:         rows[i].Unit1,
+			Unit2:         rows[i].Unit2,
+			ControlMark:   rows[i].ControlMark,
+			SourceCoreHS6: rows[i].SourceCoreHS6,
+			RawJSON:       append([]byte(nil), rows[i].RawJSON...),
+		}
+		out[c] = &cp
+	}
+	return out, nil
 }
 
 var _ biz.HsItemReadRepo = (*HsItemReadRepo)(nil)

@@ -27,6 +27,8 @@ type HsItemReadRepo interface {
 	DBOk() bool
 	List(ctx context.Context, filter HsItemListFilter) ([]HsItemRecord, int64, error)
 	GetByCodeTS(ctx context.Context, codeTS string) (*HsItemRecord, error)
+	// MapByCodeTS 按 code_ts 批量加载，key 为 trim 后的 code_ts。
+	MapByCodeTS(ctx context.Context, codeTSList []string) (map[string]*HsItemRecord, error)
 }
 
 // HsItemWriteRepo HS 条目写入仓储接口（按 code_ts upsert）。

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	v1 "caichip/api/bom/v1"
 	"caichip/internal/biz"
@@ -56,6 +58,10 @@ type HsResolveService struct {
 	confirmer   hsConfirmer
 	syncTimeout time.Duration
 	log         *log.Helper
+
+	manualUpload     biz.HsManualDatasheetUploadRepo
+	hsResolveCfg     biz.HsResolveConfig
+	manualStagingDir string
 
 	mu           sync.RWMutex
 	taskMap      map[string]*biz.HsModelTaskRecord
@@ -192,7 +198,7 @@ func (hsPassthroughDownloader) Download(_ context.Context, model, manufacturer, 
 
 type hsSimpleFeatureExtractor struct{}
 
-func (hsSimpleFeatureExtractor) Extract(_ context.Context, model, _ string, _ *biz.HsDatasheetAssetRecord) (biz.HsPrefilterInput, error) {
+func (hsSimpleFeatureExtractor) Extract(_ context.Context, model, _ string, _ *biz.HsDatasheetAssetRecord, _ string) (biz.HsPrefilterInput, error) {
 	return biz.HsPrefilterInput{
 		ComponentName: strings.TrimSpace(model),
 		TechCategory:  "其他",
@@ -291,6 +297,7 @@ func NewDefaultHsResolveService(
 	openAIChat *data.OpenAIChat,
 	featuresRepo *data.HsModelFeaturesRepo,
 	mfrAliasLookup biz.AliasLookup,
+	manualUploadRepo *data.HsManualDatasheetUploadRepo,
 ) *HsResolveService {
 	hsCfg := biz.NewHsResolveConfig(c)
 	helper := log.NewHelper(logger)
@@ -300,7 +307,10 @@ func NewDefaultHsResolveService(
 		taskRepo = hsTaskRepo
 	}
 	confirmRepo := newHsMemoryConfirmRepo()
-	bomQuoteItemDatasheetSource := data.NewHsBomQuoteItemDatasheetSourceFromAssetRepo(assetRepo)
+	bomQuoteItemDatasheetSource := data.NewHsBomQuoteItemDatasheetSourceFromAssetRepo(assetRepo, mfrAliasLookup)
+	assetDir := filepath.Join(os.TempDir(), "caichip", "hs_datasheets")
+	stagingDir := filepath.Join(assetDir, "manual_staging")
+	_ = os.MkdirAll(stagingDir, 0o755)
 	var resolver hsResolveRunner
 	if mappingRepo != nil && assetRepo != nil && recoRepo != nil && itemQueryRepo != nil && openAIChat != nil {
 		extractClient := data.NewHsLLMExtractClient(openAIChat)
@@ -308,7 +318,6 @@ func NewDefaultHsResolveService(
 		extractor := data.NewHsLLMFeatureExtractor(extractClient)
 		recommender := data.NewHsLLMCandidateRecommender(recommendClient)
 		prefilter := biz.NewHsCandidatePrefilter(itemQueryRepo, biz.HsPrefilterUnboundedCap)
-		assetDir := filepath.Join(os.TempDir(), "caichip", "hs_datasheets")
 		downloader := data.NewHsDatasheetDownloader(assetDir, http.DefaultClient)
 		br := biz.NewHsModelResolver(hsAlwaysDownloadChecker{}).
 			WithAssetPersistence(downloader, assetRepo).
@@ -322,6 +331,9 @@ func NewDefaultHsResolveService(
 			WithManufacturerCanonicalizer(mfrAliasLookup)
 		if featuresRepo != nil && featuresRepo.DBOk() {
 			br = br.WithFeaturesRepo(featuresRepo)
+		}
+		if manualUploadRepo != nil && manualUploadRepo.DBOk() {
+			br = br.WithManualDatasheet(manualUploadRepo, assetDir)
 		}
 		resolver = br
 	}
@@ -338,29 +350,59 @@ func NewDefaultHsResolveService(
 	)
 	svc.setRecommendTop(hsCfg.MaxCandidates)
 	svc.log = helper
+	var manualIface biz.HsManualDatasheetUploadRepo
+	if manualUploadRepo != nil {
+		manualIface = manualUploadRepo
+	}
+	svc.attachManualUpload(manualIface, hsCfg, stagingDir)
 	return svc
+}
+
+func (s *HsResolveService) attachManualUpload(repo biz.HsManualDatasheetUploadRepo, cfg biz.HsResolveConfig, stagingDir string) {
+	if s == nil {
+		return
+	}
+	s.manualUpload = repo
+	s.hsResolveCfg = cfg
+	s.manualStagingDir = strings.TrimSpace(stagingDir)
 }
 
 func (s *HsResolveService) ResolveByModel(ctx context.Context, req *v1.HsResolveByModelRequest) (*v1.HsResolveByModelReply, error) {
 	model := strings.TrimSpace(req.GetModel())
 	manufacturer := strings.TrimSpace(req.GetManufacturer())
 	traceID := strings.TrimSpace(req.GetRequestTraceId())
-	if model == "" || manufacturer == "" || traceID == "" {
-		return nil, kerrors.BadRequest("HS_RESOLVE_BAD_REQUEST", "model, manufacturer, request_trace_id are required")
+	if model == "" || traceID == "" {
+		return nil, kerrors.BadRequest("HS_RESOLVE_BAD_REQUEST", "model and request_trace_id are required")
 	}
+	// manufacturer 允许空字符串（与 confirmed 映射空厂牌行一致）。
 	if s.resolver == nil {
 		return nil, kerrors.ServiceUnavailable("HS_RESOLVE_DISABLED", "hs resolve runner is not configured")
 	}
 
-	runID := s.makeRunID(model, manufacturer, traceID, req.GetForceRefresh())
+	manualDesc := biz.SanitizeManualComponentDescription(strings.TrimSpace(req.GetManualComponentDescription()))
+	manualUp := strings.TrimSpace(req.GetManualUploadId())
+	maxRunes := s.hsResolveCfg.ManualDescriptionMaxRunesOrDefault()
+	if manualDesc != "" && utf8.RuneCountInString(manualDesc) > maxRunes {
+		return nil, kerrors.BadRequest("HS_RESOLVE_BAD_REQUEST", fmt.Sprintf("manual_component_description too long (max %d runes)", maxRunes))
+	}
+
+	cands := s.buildDatasheetCandidates(ctx, model, manufacturer)
+	if len(cands) == 0 && manualDesc == "" && manualUp == "" {
+		return nil, kerrors.BadRequest("HS_RESOLVE_BAD_REQUEST", "DATASHEET_OR_MANUAL_REQUIRED: no datasheet candidates and no manual description or manual_upload_id")
+	}
+
+	runID := s.makeRunID(model, manufacturer, traceID, req.GetForceRefresh(), manualDesc, manualUp)
 	resolveReq := biz.HsModelResolveRequest{
-		Model:             model,
-		Manufacturer:      manufacturer,
-		RequestTraceID:    traceID,
-		RunID:             runID,
-		ForceRefresh:      req.GetForceRefresh(),
-		RecommendationTop: s.getRecommendTop(),
-		DatasheetCands:    s.buildDatasheetCandidates(ctx, model, manufacturer),
+		Model:                      model,
+		Manufacturer:               manufacturer,
+		RequestTraceID:             traceID,
+		RunID:                      runID,
+		ForceRefresh:               req.GetForceRefresh(),
+		RecommendationTop:          s.getRecommendTop(),
+		DatasheetCands:             cands,
+		ManualComponentDescription: manualDesc,
+		ManualUploadID:             manualUp,
+		ManualUploadOwnerSubject:   ownerSubjectFromContext(ctx),
 	}
 	taskID := runID
 	runCh := make(chan struct {
@@ -698,8 +740,18 @@ func (s *HsResolveService) makeTaskID(model, manufacturer, traceID string) strin
 	return strings.TrimSpace(model) + "|" + strings.TrimSpace(manufacturer) + "|" + strings.TrimSpace(traceID)
 }
 
-func (s *HsResolveService) makeRunID(model, manufacturer, traceID string, forceRefresh bool) string {
-	base := s.makeTaskID(model, manufacturer, traceID)
+func manualRunFingerprint(manualDesc, manualUploadID string) string {
+	d := strings.TrimSpace(manualDesc)
+	u := strings.TrimSpace(manualUploadID)
+	if d == "" && u == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(d + "\x00" + u))
+	return fmt.Sprintf("|manual-%x", sum[:6])
+}
+
+func (s *HsResolveService) makeRunID(model, manufacturer, traceID string, forceRefresh bool, manualDesc, manualUploadID string) string {
+	base := s.makeTaskID(model, manufacturer, traceID) + manualRunFingerprint(manualDesc, manualUploadID)
 	if !forceRefresh {
 		return base
 	}

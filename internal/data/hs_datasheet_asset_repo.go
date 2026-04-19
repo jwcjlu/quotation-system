@@ -64,8 +64,8 @@ func (r *HsDatasheetAssetRepo) Save(ctx context.Context, record *biz.HsDatasheet
 	}
 	model := strings.TrimSpace(record.Model)
 	manufacturer := strings.TrimSpace(record.Manufacturer)
-	if model == "" || manufacturer == "" {
-		return fmt.Errorf("hs_datasheet_asset: model/manufacturer required")
+	if model == "" {
+		return fmt.Errorf("hs_datasheet_asset: model required")
 	}
 	row := HsDatasheetAsset{
 		Model:          model,

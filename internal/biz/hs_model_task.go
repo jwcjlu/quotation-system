@@ -63,16 +63,19 @@ type HsModelTaskRepo interface {
 
 // HsModelResolveRequest 解析请求输入。
 type HsModelResolveRequest struct {
-	Model             string
-	Manufacturer      string
-	RequestTraceID    string
-	RunID             string
-	ForceRefresh      bool
-	DatasheetCands    []HsDatasheetCandidate
-	RecommendModel    string
-	RecommendVersion  string
-	FeaturesVersion   string
-	RecommendationTop int
+	Model                      string
+	Manufacturer               string
+	RequestTraceID             string
+	RunID                      string
+	ForceRefresh               bool
+	DatasheetCands             []HsDatasheetCandidate
+	RecommendModel             string
+	RecommendVersion           string
+	FeaturesVersion            string
+	RecommendationTop          int
+	ManualComponentDescription string
+	ManualUploadID             string
+	ManualUploadOwnerSubject   string
 }
 
 func (r HsModelResolveRequest) normalized() HsModelResolveRequest {
@@ -80,6 +83,9 @@ func (r HsModelResolveRequest) normalized() HsModelResolveRequest {
 	r.Manufacturer = strings.TrimSpace(r.Manufacturer)
 	r.RequestTraceID = strings.TrimSpace(r.RequestTraceID)
 	r.RunID = strings.TrimSpace(r.RunID)
+	r.ManualComponentDescription = strings.TrimSpace(r.ManualComponentDescription)
+	r.ManualUploadID = strings.TrimSpace(r.ManualUploadID)
+	r.ManualUploadOwnerSubject = strings.TrimSpace(r.ManualUploadOwnerSubject)
 	if r.RecommendationTop <= 0 {
 		r.RecommendationTop = 3
 	}

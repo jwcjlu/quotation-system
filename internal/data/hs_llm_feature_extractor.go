@@ -25,11 +25,12 @@ func (e *HsLLMFeatureExtractor) Extract(
 	ctx context.Context,
 	model, manufacturer string,
 	asset *biz.HsDatasheetAssetRecord,
+	manualUserDescription string,
 ) (biz.HsPrefilterInput, error) {
 	if e == nil || e.client == nil {
 		return biz.HsPrefilterInput{}, fmt.Errorf("hs llm feature extractor not configured")
 	}
-	prompt := buildExtractPrompt(model, manufacturer, asset)
+	prompt := buildExtractPrompt(model, manufacturer, asset, manualUserDescription)
 	out, err := e.client.Extract(ctx, prompt)
 	if err != nil {
 		return biz.HsPrefilterInput{}, err
@@ -37,21 +38,27 @@ func (e *HsLLMFeatureExtractor) Extract(
 	return mapExtractResultToPrefilterInput(model, out), nil
 }
 
-func buildExtractPrompt(model, manufacturer string, asset *biz.HsDatasheetAssetRecord) string {
+func buildExtractPrompt(model, manufacturer string, asset *biz.HsDatasheetAssetRecord, manualUserDescription string) string {
 	parts := []string{
 		"MODEL: " + strings.TrimSpace(model),
 		"MANUFACTURER: " + strings.TrimSpace(manufacturer),
 	}
+	var dsData string
 	if asset != nil {
-
 		if p := strings.TrimSpace(asset.LocalPath); p != "" {
 			data, err := pdftext.ReadBodyHeadFromFile(p, 10000)
 			if err != nil {
-
+				data = ""
 			}
-			parts = append(parts, "DATASHEET_DATA: "+data)
+			dsData = strings.TrimSpace(data)
 		}
 	}
+	parts = append(parts, "DATASHEET_DATA: "+dsData)
+	ud := strings.TrimSpace(manualUserDescription)
+	if ud != "" {
+		ud = sanitizeTextBlock(ud)
+	}
+	parts = append(parts, "USER_DESCRIPTION: "+ud)
 	return strings.Join(parts, "\n")
 }
 

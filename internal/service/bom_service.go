@@ -25,31 +25,52 @@ import (
 
 // BomService 实现 BOM HTTP API（api/bom/v1.BomServiceHTTPServer）。
 type BomService struct {
-	session  biz.BOMSessionRepo
-	search   biz.BOMSearchTaskRepo
-	merge    biz.MergeDispatchExecutor
-	openai   *data.OpenAIChat
-	fx       *data.BomFxRateRepo
-	alias    biz.BomManufacturerAliasRepo
-	bomMatch *conf.BomMatch
-	log      *log.Helper
+	session    biz.BOMSessionRepo
+	search     biz.BOMSearchTaskRepo
+	merge      biz.MergeDispatchExecutor
+	openai     *data.OpenAIChat
+	fx         *data.BomFxRateRepo
+	alias      biz.BomManufacturerAliasRepo
+	hsMapping  biz.HsModelMappingRepo
+	hsItem     biz.HsItemReadRepo
+	hsTaxDaily biz.HsTaxRateDailyRepo
+	hsTaxAPI   biz.TaxRateAPIFetcher
+	bomMatch   *conf.BomMatch
+	log        *log.Helper
 }
 
 // NewBomService ...
-func NewBomService(session biz.BOMSessionRepo, search biz.BOMSearchTaskRepo, merge biz.MergeDispatchExecutor, openai *data.OpenAIChat, fx *data.BomFxRateRepo, alias biz.BomManufacturerAliasRepo, bc *conf.Bootstrap, logger log.Logger) *BomService {
+func NewBomService(
+	session biz.BOMSessionRepo,
+	search biz.BOMSearchTaskRepo,
+	merge biz.MergeDispatchExecutor,
+	openai *data.OpenAIChat,
+	fx *data.BomFxRateRepo,
+	alias biz.BomManufacturerAliasRepo,
+	hsMapping biz.HsModelMappingRepo,
+	hsItem biz.HsItemReadRepo,
+	hsTaxDaily biz.HsTaxRateDailyRepo,
+	hsTaxAPI biz.TaxRateAPIFetcher,
+	bc *conf.Bootstrap,
+	logger log.Logger,
+) *BomService {
 	var bm *conf.BomMatch
 	if bc != nil {
 		bm = bc.BomMatch
 	}
 	return &BomService{
-		session:  session,
-		search:   search,
-		merge:    merge,
-		openai:   openai,
-		fx:       fx,
-		alias:    alias,
-		bomMatch: bm,
-		log:      log.NewHelper(logger),
+		session:    session,
+		search:     search,
+		merge:      merge,
+		openai:     openai,
+		fx:         fx,
+		alias:      alias,
+		hsMapping:  hsMapping,
+		hsItem:     hsItem,
+		hsTaxDaily: hsTaxDaily,
+		hsTaxAPI:   hsTaxAPI,
+		bomMatch:   bm,
+		log:        log.NewHelper(logger),
 	}
 }
 

@@ -176,7 +176,7 @@ type delayedExtractor struct {
 	calls int
 }
 
-func (e *delayedExtractor) Extract(_ context.Context, model, _ string, _ *biz.HsDatasheetAssetRecord) (biz.HsPrefilterInput, error) {
+func (e *delayedExtractor) Extract(_ context.Context, model, _ string, _ *biz.HsDatasheetAssetRecord, _ string) (biz.HsPrefilterInput, error) {
 	e.calls++
 	if e.wait > 0 {
 		time.Sleep(e.wait)

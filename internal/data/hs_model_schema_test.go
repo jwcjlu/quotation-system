@@ -28,6 +28,12 @@ func TestHsModelResolveTables(t *testing.T) {
 		if (HsDatasheetAsset{}).TableName() != TableHsDatasheetAsset {
 			t.Fatalf("HsDatasheetAsset table mismatch: got %q", (HsDatasheetAsset{}).TableName())
 		}
+		if (HsManualDatasheetUpload{}).TableName() != TableHsManualDatasheetUpload {
+			t.Fatalf("HsManualDatasheetUpload table mismatch: got %q", (HsManualDatasheetUpload{}).TableName())
+		}
+		if (HsTaxRateDaily{}).TableName() != TableHsTaxRateDaily {
+			t.Fatalf("HsTaxRateDaily table mismatch: got %q", (HsTaxRateDaily{}).TableName())
+		}
 	})
 
 	t.Run("gorm tags", func(t *testing.T) {
@@ -70,6 +76,7 @@ func TestHsModelResolveTables(t *testing.T) {
 		required := []string{
 			"&HsModelMapping{}",
 			"&HsDatasheetAsset{}",
+			"&HsManualDatasheetUpload{}",
 			"&HsModelFeatures{}",
 			"&HsModelRecommendation{}",
 			"&HsModelTask{}",
@@ -111,9 +118,11 @@ func TestHsModelResolveTables(t *testing.T) {
 		for _, table := range []string{
 			TableHsModelMapping,
 			TableHsDatasheetAsset,
+			TableHsManualDatasheetUpload,
 			TableHsModelFeatures,
 			TableHsModelRecommendation,
 			TableHsModelTask,
+			TableHsTaxRateDaily,
 		} {
 			if !m.HasTable(table) {
 				t.Fatalf("table not found after AutoMigrateSchema: %s", table)

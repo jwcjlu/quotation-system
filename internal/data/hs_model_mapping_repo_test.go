@@ -33,7 +33,7 @@ func TestHsModelMappingRepo_GetConfirmedByModelManufacturer(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	repo := NewHsModelMappingRepo(&Data{DB: db})
+	repo := NewHsModelMappingRepo(&Data{DB: db}, nil)
 	model := "TDD-MAP-001"
 	mfr := "TDD-MFR"
 
@@ -91,6 +91,67 @@ func TestHsModelMappingRepo_GetConfirmedByModelManufacturer(t *testing.T) {
 		t.Fatal("expected confirmed mapping, got nil")
 	}
 	if got.CodeTS != "0987654321" || got.Status != "confirmed" {
+		t.Fatalf("unexpected mapping: %+v", got)
+	}
+}
+
+func TestHsModelMappingRepo_GetConfirmedByModelManufacturer_EmptyManufacturer(t *testing.T) {
+	dsn := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL not set")
+	}
+	driver := strings.TrimSpace(os.Getenv("TEST_DATABASE_DRIVER"))
+	if driver == "" {
+		driver = "mysql"
+	}
+	db, cleanup, err := NewDB(&conf.Data{
+		Database: &conf.DataDatabase{
+			Driver: driver,
+			Dsn:    dsn,
+		},
+	})
+	if err != nil {
+		t.Fatalf("open test db: %v", err)
+	}
+	defer cleanup()
+	if err := AutoMigrateSchema(db); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+
+	ctx := context.Background()
+	repo := NewHsModelMappingRepo(&Data{DB: db}, nil)
+	model := "TDD-MAP-EMPTY-MFR"
+	emptyMfr := ""
+
+	if err := db.WithContext(ctx).
+		Where("model = ? AND manufacturer = ?", model, emptyMfr).
+		Delete(&HsModelMapping{}).Error; err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+	defer db.WithContext(ctx).
+		Where("model = ? AND manufacturer = ?", model, emptyMfr).
+		Delete(&HsModelMapping{})
+
+	confirmed := &HsModelMapping{
+		Model:        model,
+		Manufacturer: emptyMfr,
+		CodeTS:       "1122334455",
+		Source:       "manual",
+		Confidence:   1.0000,
+		Status:       "confirmed",
+	}
+	if err := db.WithContext(ctx).Create(confirmed).Error; err != nil {
+		t.Fatalf("seed confirmed empty mfr: %v", err)
+	}
+
+	got, err := repo.GetConfirmedByModelManufacturer(ctx, model, emptyMfr)
+	if err != nil {
+		t.Fatalf("query confirmed empty mfr: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected confirmed mapping for empty manufacturer, got nil")
+	}
+	if got.CodeTS != "1122334455" || got.Manufacturer != "" {
 		t.Fatalf("unexpected mapping: %+v", got)
 	}
 }

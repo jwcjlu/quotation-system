@@ -69,7 +69,7 @@ type allowAllChecker struct{}
 
 func (allowAllChecker) CanDownload(_ context.Context, _ string) bool { return true }
 
-func (s stubFeatureExtractor) Extract(_ context.Context, _, _ string, _ *HsDatasheetAssetRecord) (HsPrefilterInput, error) {
+func (s stubFeatureExtractor) Extract(_ context.Context, _, _ string, _ *HsDatasheetAssetRecord, _ string) (HsPrefilterInput, error) {
 	return s.out, s.err
 }
 

@@ -47,10 +47,34 @@ func TestLLMRecommendClient_ParseStrictJSON(t *testing.T) {
 		}
 	})
 
-	t.Run("top3 length invalid", func(t *testing.T) {
+	t.Run("top3 length exceeds candidate cap", func(t *testing.T) {
+		two := []string{"1111111111", "2222222222"}
+		raw := `{"best_code_ts":"1111111111","best_score":0.9,"top3":[{"rank":1,"code_ts":"1111111111","g_name":"a","score":0.9,"reason":"r1"},{"rank":2,"code_ts":"2222222222","g_name":"b","score":0.8,"reason":"r2"},{"rank":3,"code_ts":"3333333333","g_name":"c","score":0.7,"reason":"r3"}],"decision_note":"ok"}`
+		if _, err := client.ParseStrictJSON(raw, two); err == nil {
+			t.Fatalf("expected top3 longer than candidate count to fail")
+		}
+	})
+
+	t.Run("valid top2 when three candidates", func(t *testing.T) {
 		raw := `{"best_code_ts":"1111111111","best_score":0.9,"top3":[{"rank":1,"code_ts":"1111111111","g_name":"a","score":0.9,"reason":"r1"},{"rank":2,"code_ts":"2222222222","g_name":"b","score":0.8,"reason":"r2"}],"decision_note":"ok"}`
-		if _, err := client.ParseStrictJSON(raw, candidates); err == nil {
-			t.Fatalf("expected top3 length invalid to fail")
+		got, err := client.ParseStrictJSON(raw, candidates)
+		if err != nil {
+			t.Fatalf("expected ok, err=%v", err)
+		}
+		if len(got.Top3) != 2 || got.Top3[0].Rank != 1 || got.Top3[1].Rank != 2 {
+			t.Fatalf("unexpected top3: %+v", got.Top3)
+		}
+	})
+
+	t.Run("valid single top3 when one candidate", func(t *testing.T) {
+		one := []string{"1111111111"}
+		raw := `{"best_code_ts":"1111111111","best_score":0.9,"top3":[{"rank":1,"code_ts":"1111111111","g_name":"a","score":0.9,"reason":"only"}],"decision_note":"ok"}`
+		got, err := client.ParseStrictJSON(raw, one)
+		if err != nil {
+			t.Fatalf("expected ok, err=%v", err)
+		}
+		if len(got.Top3) != 1 || got.BestCodeTS != "1111111111" {
+			t.Fatalf("unexpected: %+v", got)
 		}
 	})
 

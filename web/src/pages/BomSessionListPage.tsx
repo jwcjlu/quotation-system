@@ -7,10 +7,11 @@ const LAST_BOM_KEY = 'bom_last_bom_id'
 const LAST_SESSION_KEY = 'bom_last_session_id'
 
 interface BomSessionListPageProps {
-  onNavigateToMatch: (bomId: string) => void
+  /** 从会话看板进入配单（调用方应已确认或可再次校验 data_ready） */
+  onEnterMatch?: (sessionId: string) => void
 }
 
-export function BomSessionListPage({ onNavigateToMatch }: BomSessionListPageProps) {
+export function BomSessionListPage({ onEnterMatch }: BomSessionListPageProps) {
   const [listPage, setListPage] = useState(1)
   const [pageSize] = useState(20)
   const [status, setStatus] = useState('')
@@ -151,10 +152,14 @@ export function BomSessionListPage({ onNavigateToMatch }: BomSessionListPageProp
             <SourcingSessionPage
               embedded
               sessionId={detailSessionId}
-              onOpenMatch={() => {
-                onNavigateToMatch(detailSessionId)
-                setDetailSessionId(null)
-              }}
+              onEnterMatch={
+                onEnterMatch
+                  ? () => {
+                      onEnterMatch(detailSessionId)
+                      setDetailSessionId(null)
+                    }
+                  : undefined
+              }
             />
           </div>
         </div>

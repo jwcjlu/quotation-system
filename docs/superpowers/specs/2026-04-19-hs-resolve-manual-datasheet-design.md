@@ -25,7 +25,8 @@
 
 - Proto / HTTP：`api/bom/v1/bom.proto` 中 `HsResolveService` 与 `HsResolveByModelRequest`；**新增**上传 RPC（见 §3）。  
 - 领域：`internal/biz`（`HsModelResolveRequest`、resolver 阶段逻辑）、`internal/service`（组装请求、上传处理）、`internal/data`（抽取 prompt、资产落库）。  
-- 与 `t_hs_model_features` 写入条件一致：需 **`HsDatasheetAssetRecord` 已持久化且 `ID != 0`**（见 `internal/biz/hs_model_resolver_features_persist.go`），故 **用户上传的 PDF 必须走与现网一致的资产 `Save` 路径**。
+- 与 `t_hs_model_features` 写入条件一致：需 **`HsDatasheetAssetRecord` 已持久化且 `ID != 0`**（见 `internal/biz/hs_model_resolver_features_persist.go`），故 **用户上传的 PDF 必须走与现网一致的资产 `Save` 路径**。  
+- **仅文本旁路**且无 `ID != 0` 资产时：现网 `persistHsModelFeatures` 会 **跳过** 特征落库（不报错）；首版 **接受** 该行为，与 §8.1 一致。
 
 ---
 
@@ -117,7 +118,8 @@
 
 - **biz**：无候选 + 仅描述、无候选 + 仅上传、无候选 + 两者、有候选成功时 **忽略** 旁路。  
 - **data**：抽取 prompt 组装单测（截断长度、块顺序、中英文与特殊字符清洗）。  
-- **集成**：上传 → `ResolveByModel` 带 `manual_upload_id` → 任务非 `datasheet_failed`（在 LLM stub 或集成环境下）。
+- **集成**：上传 → `ResolveByModel` 带 `manual_upload_id` → 任务非 `datasheet_failed`（在 LLM stub 或集成环境下）。  
+- **§8.2 对应单测**：待 §8.2 拍板后，为每条闭合结论补用例——至少覆盖 **run 键与旁路输入**（换描述/换 `upload_id` 是否新 run 或须换 trace）、**缺输入 400 与对外错误码**、`upload_id` **无效/过期/越权**、**`user-upload://` 不触发 HTTP 拉取**、**datasheet 失败边界与旁路触发**、**同 trace 连续/并发上传** 与解析绑定的竞态。
 
 ---
 
@@ -130,8 +132,36 @@
 
 ---
 
-## 8. 后续工作
+## 8. 已决与待决事项（评审闭合）
 
-1. 用户审阅本文后，按 `writing-plans` 产出 `docs/superpowers/plans/2026-04-19-hs-resolve-manual-datasheet-implementation.md`。  
+### 8.1 已决事项
+
+| 事项 | 结论 |
+|------|------|
+| 旁路启用时机 | 仅当主路径 datasheet 阶段失败时评估手动描述/上传；主路径已成功则默认 **忽略** 旁路（§2.2、§2.4）。 |
+| 大文件进解析请求 | **不** 使用 Base64 塞进 `ResolveByModel`；独立 multipart 上传（§3.3）。 |
+| 用户上传 PDF 落库 | 必须 `Save` 得到 **`HsDatasheetAssetRecord` 且 `DownloadStatus = "ok"`**，以满足抽取与审计；占位 URL `user-upload://{upload_id}` 可用（§1.4、§3.2）。 |
+| 仅文本、无持久化资产 | **`t_hs_model_features` 可不写入**（与现网 `asset.ID == 0` 时跳过 persist 一致）；解析流水线仍以 LLM 抽取结果驱动预筛/推荐（§1.4 补充、`hs_model_resolver_features_persist.go`）。 |
+| Prompt 合并 | 描述 + PDF 时 **同一 prompt、固定块顺序**（§2.3）。 |
+
+### 8.2 待决事项（写入实现计划时必须闭合）
+
+| 事项 | 选项 / 说明 |
+|------|-------------|
+| **Run 键与旁路输入** | **A**：将 `manual_component_description`（规范化哈希）与/或 `manual_upload_id` 纳入 `makeRunID`（或等价 run 键）；**B**：产品约定「变更旁路输入须换 `request_trace_id`」，代码不改 run 公式。二选一写死并补单测（§3.1）。 |
+| **缺输入错误码** | `HS_RESOLVE_BAD_REQUEST` 与细分 `DATASHEET_REQUIRED`（或 reason 字段）**择一**作为对外稳定契约，proto 与客户端文档对齐（§4）。 |
+| **`upload_id` 鉴权** | 明确：仅创建者/同租户可消费，或对齐现网某认证中间件；防 `upload_id` 枚举与跨用户复用（§5 延伸）。 |
+| **占位 URL 全链路** | 任何对 `DatasheetURL` 发起 HTTP 下载或「按 URL 拉取」的逻辑须识别 `user-upload://`，避免误请求（§3.2）。 |
+| **「datasheet 失败」边界** | 无 downloader 时合成仅 URL、无本地路径/无 DB ID 等分支，是否算主路径失败、是否允许进入旁路——在实现计划中列清条件与用例（§2.1–§2.2）。 |
+| **同 trace 多次上传** | 并发或连续两次上传时，`upload_id` 与待解析任务绑定顺序、是否允许多个 pending：实现计划写一条，避免与幂等策略冲突。 |
+| **特征表强约束（可选后续）** | 若产品将来要求「仅描述」也必须落 `t_hs_model_features`：需另 spec（占位资产、`AssetID` 可空等），**非首版**。 |
+
+**已在 plan 闭合：** 上表各项的拍板结论与落地范围以实现计划为对照清单 → [docs/superpowers/plans/2026-04-19-hs-resolve-manual-datasheet-implementation.md](../plans/2026-04-19-hs-resolve-manual-datasheet-implementation.md)（文内「§8.2 在本计划中的闭合结论」及 Task 1–9）。
+
+---
+
+## 9. 后续工作
+
+1. 实现计划已产出：[docs/superpowers/plans/2026-04-19-hs-resolve-manual-datasheet-implementation.md](../plans/2026-04-19-hs-resolve-manual-datasheet-implementation.md)；合并前在本机跑通 `go test` / `go build` / `wire`（见 plan Task 9）。  
 2. 可选：spec 评审子流程（若团队启用 `spec-document-reviewer`）。  
 3. 第二版：`manual_overlay_when_datasheet_ok` 与更多 MIME 类型。

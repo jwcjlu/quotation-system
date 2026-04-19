@@ -44,6 +44,22 @@ export interface MatchItem {
   demand_package: string
   /** 型号/封装已对齐但厂牌与需求不一致的报价原文（去重），与后端 MatchItem 扩展字段对齐 */
   mfr_mismatch_quote_manufacturers?: string[]
+  /** HS：hs_found | hs_not_mapped | hs_code_invalid（与后端一致） */
+  hs_code_status?: string
+  code_ts?: string
+  control_mark?: string
+  import_tax_g_name?: string
+  import_tax_imp_ordinary_rate?: string
+  import_tax_imp_discount_rate?: string
+  import_tax_imp_temp_rate?: string
+  /** 分号拼接分项错误码 */
+  hs_customs_error?: string
+}
+
+/** 是否展示「一键找 HS」（与 design：未映射或编码非法） */
+export function matchItemNeedsHsResolve(item: MatchItem): boolean {
+  const s = (item.hs_code_status || '').trim()
+  return s === 'hs_not_mapped' || s === 'hs_code_invalid'
 }
 
 /** 接口清单 §10 平台枚举 */

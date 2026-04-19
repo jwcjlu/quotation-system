@@ -11,7 +11,7 @@ import (
 	"github.com/go-kratos/kratos/v2/transport/http"
 )
 
-func newApp(bc *conf.Bootstrap, logger log.Logger, hs *http.Server, refresher *data.TableCacheRefresher, mergeRetry *data.MergeProxyRetryWorker) *kratos.App {
+func newApp(bc *conf.Bootstrap, logger log.Logger, hs *http.Server, refresher *data.TableCacheRefresher, mergeRetry *data.MergeProxyRetryWorker, manualJanitor *data.HsManualDatasheetJanitor) *kratos.App {
 	addr := ":8000"
 	if bc != nil && bc.Server != nil && bc.Server.Http != nil {
 		addr = bc.Server.Http.Addr
@@ -44,6 +44,18 @@ func newApp(bc *conf.Bootstrap, logger log.Logger, hs *http.Server, refresher *d
 			}),
 			kratos.BeforeStop(func(context.Context) error {
 				mergeRetry.Stop()
+				return nil
+			}),
+		)
+	}
+	if manualJanitor != nil {
+		opts = append(opts,
+			kratos.BeforeStart(func(context.Context) error {
+				manualJanitor.Start()
+				return nil
+			}),
+			kratos.BeforeStop(func(context.Context) error {
+				manualJanitor.Stop()
 				return nil
 			}),
 		)

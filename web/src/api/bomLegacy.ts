@@ -48,6 +48,16 @@ function normMatchItem(m: Record<string, unknown>): MatchItem {
       if (!Array.isArray(raw)) return undefined
       return raw.map((x) => String(x ?? ''))
     })(),
+    hs_code_status: (m.hs_code_status ?? m.hsCodeStatus) as string | undefined,
+    code_ts: (m.code_ts ?? m.codeTs) as string | undefined,
+    control_mark: (m.control_mark ?? m.controlMark) as string | undefined,
+    import_tax_g_name: (m.import_tax_g_name ?? m.importTaxGName) as string | undefined,
+    import_tax_imp_ordinary_rate: (m.import_tax_imp_ordinary_rate ??
+      m.importTaxImpOrdinaryRate) as string | undefined,
+    import_tax_imp_discount_rate: (m.import_tax_imp_discount_rate ??
+      m.importTaxImpDiscountRate) as string | undefined,
+    import_tax_imp_temp_rate: (m.import_tax_imp_temp_rate ?? m.importTaxImpTempRate) as string | undefined,
+    hs_customs_error: (m.hs_customs_error ?? m.hsCustomsError) as string | undefined,
   }
 }
 

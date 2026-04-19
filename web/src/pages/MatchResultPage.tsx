@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   getMatchResult,
+  getSession,
   autoMatch,
   createManufacturerAlias,
   listManufacturerCanonicals,
@@ -9,6 +10,7 @@ import {
   parseAgentQuoteRowsFromCache,
   normalizeMPNForBomSearchClient,
   normalizeMfrStringClient,
+  matchItemNeedsHsResolve,
   type ManufacturerCanonicalRow,
   type MatchItem,
   type PlatformQuote,
@@ -18,6 +20,8 @@ import {
 
 interface MatchResultPageProps {
   bomId: string
+  /** 配单行「一键找 HS」：跳转 HS 型号解析页并预填 */
+  onNavigateToHsResolve?: (model: string, manufacturer: string) => void
 }
 
 const STATUS_OPTIONS = [
@@ -34,8 +38,21 @@ const STRATEGY_OPTIONS = [
   { value: 'comprehensive', label: '综合排序' },
 ] as const
 
+/** 与货源会话状态一致：仅此时允许调用配单相关接口 */
+const SESSION_MATCH_READY = 'data_ready'
+
 /** 与后端 biz.MfrMismatchEmptyPlaceholder 一致 */
 const MFR_PLACEHOLDER = '(报价厂牌为空)'
+
+const HS_TABLE_COLS = 15
+
+function hsStatusLabel(status: string | undefined): string {
+  const s = (status || '').trim()
+  if (s === 'hs_found') return '已匹配'
+  if (s === 'hs_not_mapped') return '未找到HS'
+  if (s === 'hs_code_invalid') return 'HS编码异常'
+  return s ? s : '—'
+}
 
 type PendingMfrRow = { alias: string; lineIndexes: number[]; demandHint: string }
 
@@ -62,6 +79,85 @@ function collectPendingMfrRows(items: MatchItem[]): PendingMfrRow[] {
     lineIndexes: [...g.lines].sort((a, b) => a - b),
     demandHint: [...g.demand].join('；') || '—',
   }))
+}
+
+function ManualManufacturerAliasForm({
+  canonicalRows,
+  onSuccess,
+}: {
+  canonicalRows: ManufacturerCanonicalRow[]
+  onSuccess: () => void
+}) {
+  const [alias, setAlias] = useState('')
+  const [canonicalId, setCanonicalId] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+
+  return (
+    <div className="space-y-3 text-sm max-w-3xl">
+      <datalist id="bom-mfr-canonical-datalist-manual">
+        {canonicalRows.map((c) => (
+          <option key={c.canonical_id} value={c.canonical_id}>
+            {c.display_name}
+          </option>
+        ))}
+      </datalist>
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="min-w-[160px] flex-1">
+          <label className="block text-xs text-slate-500 mb-0.5">报价厂牌原文（alias）</label>
+          <input
+            value={alias}
+            onChange={(e) => setAlias(e.target.value)}
+            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+            placeholder="如 TI / 德州仪器"
+          />
+        </div>
+        <div className="w-44">
+          <label className="block text-xs text-slate-500 mb-0.5">canonical_id</label>
+          <input
+            list="bom-mfr-canonical-datalist-manual"
+            value={canonicalId}
+            onChange={(e) => setCanonicalId(e.target.value)}
+            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+            placeholder="如 MFR_TI"
+          />
+        </div>
+        <div className="w-48">
+          <label className="block text-xs text-slate-500 mb-0.5">display_name</label>
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+            placeholder="展示名"
+          />
+        </div>
+        <button
+          type="button"
+          disabled={busy || !alias.trim() || !canonicalId.trim() || !displayName.trim()}
+          onClick={async () => {
+            setBusy(true)
+            setMsg(null)
+            try {
+              await createManufacturerAlias(alias, canonicalId.trim(), displayName.trim())
+              setAlias('')
+              setCanonicalId('')
+              setDisplayName('')
+              onSuccess()
+            } catch (e) {
+              setMsg(e instanceof Error ? e.message : '提交失败')
+            } finally {
+              setBusy(false)
+            }
+          }}
+          className="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-900 disabled:opacity-50"
+        >
+          {busy ? '提交中…' : '写入别名'}
+        </button>
+      </div>
+      {msg && <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{msg}</div>}
+    </div>
+  )
 }
 
 function MfrAliasReviewPanel({
@@ -689,6 +785,33 @@ function DetailModal({ item, onClose }: { item: MatchItem; onClose: () => void }
             </div>
           </div>
         )}
+        {(item.hs_code_status ||
+          item.code_ts ||
+          item.control_mark ||
+          item.import_tax_imp_ordinary_rate ||
+          item.hs_customs_error) && (
+          <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
+            <h4 className="mb-2 font-medium text-slate-700">HS / 商检 / 进口税</h4>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+              <span className="text-slate-500">HS 状态</span>
+              <span>{hsStatusLabel(item.hs_code_status)}</span>
+              <span className="text-slate-500">code_ts</span>
+              <span className="break-all">{item.code_ts?.trim() || '—'}</span>
+              <span className="text-slate-500">商检标记</span>
+              <span className="break-all">{item.control_mark?.trim() || '—'}</span>
+              <span className="text-slate-500">关税品名</span>
+              <span className="break-all">{item.import_tax_g_name?.trim() || '—'}</span>
+              <span className="text-slate-500">普通税率</span>
+              <span>{item.import_tax_imp_ordinary_rate?.trim() || '—'}</span>
+              <span className="text-slate-500">优惠税率</span>
+              <span>{item.import_tax_imp_discount_rate?.trim() || '—'}</span>
+              <span className="text-slate-500">暂定税率</span>
+              <span>{item.import_tax_imp_temp_rate?.trim() || '—'}</span>
+              <span className="text-slate-500">分项错误</span>
+              <span className="break-all text-amber-900">{item.hs_customs_error?.trim() || '—'}</span>
+            </div>
+          </div>
+        )}
         <p className="mb-4 text-sm text-slate-600">
           各平台搜索到的全部报价，当前选中已高亮
         </p>
@@ -723,12 +846,29 @@ function DetailModal({ item, onClose }: { item: MatchItem; onClose: () => void }
   )
 }
 
-function MatchRow({ item, statusFilter, onShowDetail }: { item: MatchItem; statusFilter: string; onShowDetail: (item: MatchItem) => void }) {
+function MatchRow({
+  item,
+  statusFilter,
+  onShowDetail,
+  onHsResolve,
+  sessionReady,
+}: {
+  item: MatchItem
+  statusFilter: string
+  onShowDetail: (item: MatchItem) => void
+  onHsResolve: (item: MatchItem) => void
+  sessionReady: boolean
+}) {
   const [expanded, setExpanded] = useState(false)
   const show = statusFilter === 'all' || item.match_status === statusFilter
   if (!show) return null
 
   const hasQuotes = item.all_quotes && item.all_quotes.length > 0
+  const showHsBtn = matchItemNeedsHsResolve(item)
+  const hsMain =
+    (item.hs_code_status || '').trim() === 'hs_found' && (item.code_ts || '').trim()
+      ? item.code_ts!.trim()
+      : hsStatusLabel(item.hs_code_status)
 
   return (
     <>
@@ -768,20 +908,54 @@ function MatchRow({ item, statusFilter, onShowDetail }: { item: MatchItem; statu
         <td className="py-3 px-3">{item.lead_time || '-'}</td>
         <td className="py-3 px-3">¥{item.unit_price?.toFixed(2) ?? '-'}</td>
         <td className="py-3 px-3 font-medium">¥{item.subtotal?.toFixed(2) ?? '-'}</td>
-        <td className="py-3 px-3">
-          {hasQuotes && (
-            <button
-              onClick={() => onShowDetail(item)}
-              className="text-blue-600 text-sm hover:underline"
-            >
-              查看详情
-            </button>
-          )}
+        <td className="py-3 px-3 text-sm align-top">
+          <div className="flex flex-col gap-1 max-w-[140px]">
+            <span className="font-mono text-xs break-all" title={item.hs_code_status}>
+              {hsMain}
+            </span>
+            {item.hs_customs_error ? (
+              <span className="text-amber-800 text-xs break-all" title={item.hs_customs_error}>
+                {item.hs_customs_error}
+              </span>
+            ) : null}
+          </div>
+        </td>
+        <td className="py-3 px-3 text-sm align-top break-all max-w-[100px]">
+          {(item.control_mark || '').trim() || '—'}
+        </td>
+        <td
+          className="py-3 px-3 text-sm align-top"
+          title={item.import_tax_g_name?.trim() || undefined}
+        >
+          {(item.import_tax_imp_ordinary_rate || '').trim() || '—'}
+        </td>
+        <td className="py-3 px-3 align-top">
+          <div className="flex flex-col gap-1">
+            {hasQuotes && (
+              <button
+                onClick={() => onShowDetail(item)}
+                className="text-blue-600 text-sm hover:underline text-left"
+              >
+                查看详情
+              </button>
+            )}
+            {showHsBtn && (
+              <button
+                type="button"
+                disabled={!sessionReady}
+                title={!sessionReady ? '需会话状态 data_ready' : undefined}
+                onClick={() => onHsResolve(item)}
+                className="text-sm rounded border border-blue-300 bg-blue-50 px-2 py-1 text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+              >
+                一键找HS
+              </button>
+            )}
+          </div>
         </td>
       </tr>
       {expanded && hasQuotes && (
         <tr>
-          <td colSpan={12} className="bg-slate-50 p-0 align-top">
+          <td colSpan={HS_TABLE_COLS} className="bg-slate-50 p-0 align-top">
             <div className="py-2" style={{ paddingLeft: '47%' }}>
               <table className="w-full min-w-[600px] text-sm">
                 <colgroup>
@@ -820,11 +994,13 @@ function MatchRow({ item, statusFilter, onShowDetail }: { item: MatchItem; statu
   )
 }
 
-export function MatchResultPage({ bomId }: MatchResultPageProps) {
+export function MatchResultPage({ bomId, onNavigateToHsResolve }: MatchResultPageProps) {
   const [items, setItems] = useState<MatchItem[]>([])
   const [totalAmount, setTotalAmount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sessionReady, setSessionReady] = useState(false)
+  const [sessionGateMsg, setSessionGateMsg] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState('all')
   const [strategy, setStrategy] = useState('price_first')
   const [running, setRunning] = useState(false)
@@ -833,6 +1009,7 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
   const [approvedMfrAliases, setApprovedMfrAliases] = useState<string[]>([])
   const [mfrReviewExpanded, setMfrReviewExpanded] = useState(false)
   const [sourcesOpen, setSourcesOpen] = useState(false)
+  const [mfrAliasNotice, setMfrAliasNotice] = useState<string | null>(null)
 
   const pendingMfrRows = useMemo(() => {
     const all = collectPendingMfrRows(items)
@@ -843,11 +1020,31 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
   const load = async () => {
     setLoading(true)
     setError(null)
+    setSessionGateMsg(null)
     try {
-      const res = await getMatchResult(bomId)
-      setItems(res.items || [])
-      setTotalAmount(res.total_amount || 0)
-    } catch {
+      const sess = await getSession(bomId)
+      const ok = (sess.status || '').trim() === SESSION_MATCH_READY
+      setSessionReady(ok)
+      if (!ok) {
+        const st = (sess.status || '').trim() || '未知'
+        setSessionGateMsg(`会话状态为「${st}」，须为 data_ready 后才可加载配单结果。请返回 BOM 会话看板等待搜索完成。`)
+        setItems([])
+        setTotalAmount(0)
+        return
+      }
+      try {
+        const res = await getMatchResult(bomId)
+        setItems(res.items || [])
+        setTotalAmount(res.total_amount || 0)
+      } catch (e2) {
+        setError(e2 instanceof Error ? e2.message : '配单结果加载失败')
+        setItems([])
+        setTotalAmount(0)
+      }
+    } catch (e) {
+      setSessionReady(false)
+      setSessionGateMsg(null)
+      setError(e instanceof Error ? e.message : '加载会话失败')
       setItems([])
       setTotalAmount(0)
     } finally {
@@ -856,23 +1053,18 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
   }
 
   useEffect(() => {
-    load()
+    void load()
   }, [bomId])
 
   useEffect(() => {
     setApprovedMfrAliases([])
     setMfrReviewExpanded(false)
     setCanonicalRows([])
+    setMfrAliasNotice(null)
   }, [bomId])
 
   useEffect(() => {
-    if (pendingMfrRows.length === 0) {
-      setMfrReviewExpanded(false)
-    }
-  }, [pendingMfrRows.length])
-
-  useEffect(() => {
-    if (!mfrReviewExpanded || pendingMfrRows.length === 0) {
+    if (!mfrReviewExpanded) {
       return
     }
     if (canonicalRows.length > 0) {
@@ -890,12 +1082,27 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
     return () => {
       cancelled = true
     }
-  }, [mfrReviewExpanded, pendingMfrRows.length, canonicalRows.length])
+  }, [mfrReviewExpanded, canonicalRows.length])
+
+  const handleHsResolve = (item: MatchItem) => {
+    setError(null)
+    if (!sessionReady) {
+      setError('会话未处于 data_ready，无法使用一键找 HS')
+      return
+    }
+    if (!onNavigateToHsResolve) return
+    onNavigateToHsResolve((item.model || '').trim(), (item.demand_manufacturer || '').trim())
+  }
 
   const runMatchOnly = async () => {
     setRunning(true)
     setError(null)
     try {
+      const sess = await getSession(bomId)
+      if ((sess.status || '').trim() !== SESSION_MATCH_READY) {
+        setError('会话未处于 data_ready，无法配单')
+        return
+      }
       const res = await autoMatch(bomId, strategy)
       setItems(res.items || [])
       setTotalAmount(res.total_amount || 0)
@@ -922,7 +1129,8 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
           <select
             value={strategy}
             onChange={(e) => setStrategy(e.target.value)}
-            className="border border-slate-300 rounded px-3 py-2"
+            disabled={!sessionReady}
+            className="border border-slate-300 rounded px-3 py-2 disabled:opacity-50"
           >
             {STRATEGY_OPTIONS.map((s) => (
               <option key={s.value} value={s.value}>
@@ -933,13 +1141,14 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
           <button
             type="button"
             onClick={() => setSourcesOpen(true)}
-            className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 text-sm font-medium hover:bg-slate-50"
+            disabled={!sessionReady}
+            className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
           >
             配单数据源
           </button>
           <button
-            onClick={runMatchOnly}
-            disabled={running}
+            onClick={() => void runMatchOnly()}
+            disabled={running || !sessionReady}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
           >
             {running ? '配单中...' : '重新配单'}
@@ -967,31 +1176,41 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
         </div>
       </div>
 
+      {sessionGateMsg && (
+        <div className="p-4 bg-amber-50 text-amber-950 rounded-lg border border-amber-200 text-sm">{sessionGateMsg}</div>
+      )}
       {error && (
         <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>
       )}
+      {mfrAliasNotice && (
+        <div className="p-3 bg-sky-50 text-sky-900 rounded-lg text-sm flex justify-between gap-3 border border-sky-200">
+          <span>{mfrAliasNotice}</span>
+          <button type="button" className="text-sky-800 underline shrink-0" onClick={() => setMfrAliasNotice(null)}>
+            关闭
+          </button>
+        </div>
+      )}
 
-      <div className="p-4 bg-amber-50 text-amber-800 rounded-lg text-sm space-y-1">
-        <p>经典「多平台搜价」已停用；本页配单仅依据服务端已缓存的报价（通常为空），多数行为「无法匹配」属预期。</p>
-        <p>报价与搜索请走「货源会话」流程。</p>
-        <p>价格/库存可能波动，以结算为准。</p>
-      </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full table-fixed" style={{ minWidth: 900 }}>
+        <table className="w-full table-fixed" style={{ minWidth: 1120 }}>
           <colgroup>
+            <col style={{ width: '3%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '5%' }} />
             <col style={{ width: '4%' }} />
-            <col style={{ width: '12%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '10%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '6%' }} />
+            <col style={{ width: '7%' }} />
             <col style={{ width: '6%' }} />
             <col style={{ width: '5%' }} />
-            <col style={{ width: '18%' }} />
             <col style={{ width: '8%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '8%' }} />
+            <col style={{ width: '6%' }} />
             <col style={{ width: '5%' }} />
-            <col style={{ width: '9%' }} />
+            <col style={{ width: '5%' }} />
+            <col style={{ width: '7%' }} />
           </colgroup>
           <thead>
             <tr className="bg-slate-100">
@@ -1006,46 +1225,81 @@ export function MatchResultPage({ bomId }: MatchResultPageProps) {
               <th className="py-3 px-3 text-left">货期</th>
               <th className="py-3 px-3 text-left">单价</th>
               <th className="py-3 px-3 text-left">小计</th>
+              <th className="py-3 px-3 text-left">HS</th>
+              <th className="py-3 px-3 text-left">商检</th>
+              <th className="py-3 px-3 text-left" title="进口普通税率（接口 impOrdinaryRate）">
+                进口税
+              </th>
               <th className="py-3 px-3 text-left">操作</th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={12} className="py-12 text-center text-slate-500">
+                <td colSpan={HS_TABLE_COLS} className="py-12 text-center text-slate-500">
                   暂无配单结果，请点击「重新搜索并配单」获取报价
                 </td>
               </tr>
             ) : (
               items.map((item) => (
-                <MatchRow key={item.index} item={item} statusFilter={statusFilter} onShowDetail={setDetailItem} />
+                <MatchRow
+                  key={item.index}
+                  item={item}
+                  statusFilter={statusFilter}
+                  onShowDetail={setDetailItem}
+                  onHsResolve={handleHsResolve}
+                  sessionReady={sessionReady}
+                />
               ))
             )}
           </tbody>
         </table>
       </div>
 
-      {pendingMfrRows.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-white shadow-sm overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setMfrReviewExpanded((e) => !e)}
-            className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-amber-950 bg-amber-50/90 hover:bg-amber-100/90 transition-colors"
-          >
-            <span>厂牌别名审核</span>
-            <span className="text-slate-600 font-normal shrink-0">
-              {mfrReviewExpanded ? '收起' : `展开（待处理 ${pendingMfrRows.length} 项）`}
-            </span>
-          </button>
-          {mfrReviewExpanded && (
-            <MfrAliasReviewPanel
-              pendingRows={pendingMfrRows}
-              onApproved={(alias) => setApprovedMfrAliases((prev) => [...prev, alias])}
-              canonicalRows={canonicalRows}
-            />
-          )}
-        </div>
-      )}
+      <div className="rounded-lg border border-amber-200 bg-white shadow-sm overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setMfrReviewExpanded((e) => !e)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-amber-950 bg-amber-50/90 hover:bg-amber-100/90 transition-colors"
+        >
+          <span>厂牌别名审核</span>
+          <span className="text-slate-600 font-normal shrink-0">
+            {mfrReviewExpanded
+              ? '收起'
+              : pendingMfrRows.length > 0
+                ? `展开（待处理 ${pendingMfrRows.length} 项）`
+                : '展开'}
+          </span>
+        </button>
+        {mfrReviewExpanded && (
+          <div className="border-t border-amber-100">
+            {pendingMfrRows.length > 0 ? (
+              <MfrAliasReviewPanel
+                pendingRows={pendingMfrRows}
+                onApproved={(alias) => {
+                  setApprovedMfrAliases((prev) => [...prev, alias])
+                  setCanonicalRows([])
+                }}
+                canonicalRows={canonicalRows}
+              />
+            ) : (
+              <p className="px-4 py-3 text-sm text-slate-600 bg-amber-50/30 border-b border-amber-100/80">
+                当前配单结果中无「型号/封装已对齐但与需求厂牌不一致」的待审核项。若仍需录入别名，请使用下方表单。
+              </p>
+            )}
+            <div className="px-4 py-3 bg-white">
+              <p className="text-xs font-medium text-slate-700 mb-2">手动新增厂牌别名</p>
+              <ManualManufacturerAliasForm
+                canonicalRows={canonicalRows}
+                onSuccess={() => {
+                  setMfrAliasNotice('已写入别名表，请重新配单后生效。')
+                  setCanonicalRows([])
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
       {detailItem && (
         <DetailModal item={detailItem} onClose={() => setDetailItem(null)} />

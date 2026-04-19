@@ -15,16 +15,19 @@ import {
   type GetSessionSearchTaskCoverageReply,
 } from '../api'
 
+const SESSION_MATCH_READY = 'data_ready'
+
 interface SourcingSessionPageProps {
   sessionId: string
-  onOpenMatch: () => void
   /** 嵌入弹框时去掉与外层重复的页面大标题 */
   embedded?: boolean
+  /** 进入配单页；仅应在会话为 data_ready 时由父级传入并由本页启用按钮 */
+  onEnterMatch?: () => void
 }
 
 type LineDraft = { mpn: string; mfr: string; package: string; qty: string }
 
-export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: SourcingSessionPageProps) {
+export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: SourcingSessionPageProps) {
   const [sessionTitle, setSessionTitle] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [contactPhone, setContactPhone] = useState('')
@@ -41,6 +44,7 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
   const [exporting, setExporting] = useState(false)
   const [savingHeader, setSavingHeader] = useState(false)
   const [lineMsg, setLineMsg] = useState<string | null>(null)
+  const [sessionStatus, setSessionStatus] = useState('')
 
   const [newLine, setNewLine] = useState<LineDraft>({ mpn: '', mfr: '', package: '', qty: '' })
   const [addingLine, setAddingLine] = useState(false)
@@ -51,6 +55,7 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
   const loadSession = useCallback(async () => {
     try {
       const s = await getSession(sessionId)
+      setSessionStatus((s.status || '').trim())
       setSessionTitle(s.title || sessionId.slice(0, 8))
       setCustomerName(s.customer_name || '')
       setContactPhone(s.contact_phone || '')
@@ -266,6 +271,8 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
     )
   }
 
+  const canEnterMatch = sessionStatus === SESSION_MATCH_READY && Boolean(onEnterMatch)
+
   return (
     <div className={embedded ? 'space-y-6' : 'space-y-8'}>
       <div>
@@ -274,8 +281,36 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
           <span className="font-medium text-slate-800">{sessionTitle}</span>
           {' · '}
           <span className="font-mono text-sm">{sessionId}</span>
+          {' · '}
+          <span className="text-slate-500">
+            状态 <code className="text-slate-800 bg-slate-100 px-1 rounded">{sessionStatus || '—'}</code>
+          </span>
+        </p>
+        <p className="mt-2 text-sm text-slate-600">
+          会话状态为 <code className="text-slate-800 bg-slate-100 px-1 rounded">data_ready</code> 时可使用下方「配单」或顶部「匹配单」。
         </p>
         <div className="mt-3 flex flex-wrap gap-2 items-center">
+          <button
+            type="button"
+            disabled={!canEnterMatch}
+            title={
+              canEnterMatch
+                ? '进入配单'
+                : !onEnterMatch
+                  ? '未配置配单入口'
+                  : `当前状态为「${sessionStatus || '—'}」，需 data_ready 后可配单`
+            }
+            onClick={() => {
+              if (canEnterMatch) onEnterMatch?.()
+            }}
+            className={
+              canEnterMatch
+                ? 'rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700'
+                : 'rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-400 cursor-not-allowed'
+            }
+          >
+            配单
+          </button>
           <button
             type="button"
             disabled={exporting}
@@ -294,17 +329,10 @@ export function SourcingSessionPage({ sessionId, onOpenMatch, embedded }: Sourci
           </button>
           <button
             type="button"
-            onClick={() => void loadLines()}
+            onClick={() => void Promise.all([loadSession(), loadLines()])}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
           >
             刷新行列表
-          </button>
-          <button
-            type="button"
-            onClick={onOpenMatch}
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-          >
-            打开经典配单页
           </button>
           <span className="text-xs text-slate-500 self-center">GET /bom-sessions/.../export</span>
         </div>

@@ -20,6 +20,7 @@ var _ = binding.EncodeURL
 const _ = http.SupportPackageIsVersion1
 
 const OperationBomServiceAutoMatch = "/api.bom.v1.BomService/AutoMatch"
+const OperationBomServiceCreateManufacturerAlias = "/api.bom.v1.BomService/CreateManufacturerAlias"
 const OperationBomServiceCreateSession = "/api.bom.v1.BomService/CreateSession"
 const OperationBomServiceCreateSessionLine = "/api.bom.v1.BomService/CreateSessionLine"
 const OperationBomServiceDeleteSessionLine = "/api.bom.v1.BomService/DeleteSessionLine"
@@ -28,9 +29,12 @@ const OperationBomServiceExportSession = "/api.bom.v1.BomService/ExportSession"
 const OperationBomServiceGetBOM = "/api.bom.v1.BomService/GetBOM"
 const OperationBomServiceGetBOMLines = "/api.bom.v1.BomService/GetBOMLines"
 const OperationBomServiceGetMatchResult = "/api.bom.v1.BomService/GetMatchResult"
+const OperationBomServiceGetMatchSourceDetail = "/api.bom.v1.BomService/GetMatchSourceDetail"
 const OperationBomServiceGetReadiness = "/api.bom.v1.BomService/GetReadiness"
 const OperationBomServiceGetSession = "/api.bom.v1.BomService/GetSession"
 const OperationBomServiceGetSessionSearchTaskCoverage = "/api.bom.v1.BomService/GetSessionSearchTaskCoverage"
+const OperationBomServiceListManufacturerCanonicals = "/api.bom.v1.BomService/ListManufacturerCanonicals"
+const OperationBomServiceListMatchSources = "/api.bom.v1.BomService/ListMatchSources"
 const OperationBomServiceListSessions = "/api.bom.v1.BomService/ListSessions"
 const OperationBomServicePatchSession = "/api.bom.v1.BomService/PatchSession"
 const OperationBomServicePatchSessionLine = "/api.bom.v1.BomService/PatchSessionLine"
@@ -43,6 +47,7 @@ const OperationBomServiceUploadBOM = "/api.bom.v1.BomService/UploadBOM"
 type BomServiceHTTPServer interface {
 	// AutoMatch 自动配单
 	AutoMatch(context.Context, *AutoMatchRequest) (*AutoMatchReply, error)
+	CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error)
 	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error)
 	// CreateSessionLine 追加一行
 	CreateSessionLine(context.Context, *CreateSessionLineRequest) (*CreateSessionLineReply, error)
@@ -57,10 +62,16 @@ type BomServiceHTTPServer interface {
 	GetBOMLines(context.Context, *GetBOMLinesRequest) (*GetBOMLinesReply, error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error)
+	// GetMatchSourceDetail 单行单平台：原始 quotes_json / no_mpn_detail（与 web/src/api/bomMatchExtras.ts 对齐）
+	GetMatchSourceDetail(context.Context, *GetMatchSourceDetailRequest) (*GetMatchSourceDetailReply, error)
 	GetReadiness(context.Context, *GetReadinessRequest) (*GetReadinessReply, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionReply, error)
 	// GetSessionSearchTaskCoverage 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
 	GetSessionSearchTaskCoverage(context.Context, *GetSessionSearchTaskCoverageRequest) (*GetSessionSearchTaskCoverageReply, error)
+	// ListManufacturerCanonicals 厂牌别名：规范 ID 下拉数据 + 写入 t_bom_manufacturer_alias（配单页「厂牌别名审核」）
+	ListManufacturerCanonicals(context.Context, *ListManufacturerCanonicalsRequest) (*ListManufacturerCanonicalsReply, error)
+	// ListMatchSources 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
+	ListMatchSources(context.Context, *ListMatchSourcesRequest) (*ListMatchSourcesReply, error)
 	// ListSessions 会话列表（分页、筛选）
 	ListSessions(context.Context, *ListSessionsRequest) (*ListSessionsReply, error)
 	// PatchSession 更新会话头信息（标题、客户联系方式等）
@@ -85,6 +96,10 @@ func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r.GET("/api/v1/bom/template", _BomService_DownloadTemplate0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}", _BomService_GetBOM0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match", _BomService_GetMatchResult0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom/{bom_id}/match-sources", _BomService_ListMatchSources0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom/{bom_id}/match-sources/{line_no}/{platform}", _BomService_GetMatchSourceDetail0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom/manufacturer-canonicals", _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv))
+	r.POST("/api/v1/bom/manufacturer-aliases", _BomService_CreateManufacturerAlias0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom-sessions", _BomService_CreateSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions/{session_id}", _BomService_GetSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions", _BomService_ListSessions0_HTTP_Handler(srv))
@@ -226,6 +241,91 @@ func _BomService_GetMatchResult0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx
 			return err
 		}
 		reply := out.(*GetMatchResultReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_ListMatchSources0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ListMatchSourcesRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceListMatchSources)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListMatchSources(ctx, req.(*ListMatchSourcesRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListMatchSourcesReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_GetMatchSourceDetail0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetMatchSourceDetailRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceGetMatchSourceDetail)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetMatchSourceDetail(ctx, req.(*GetMatchSourceDetailRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetMatchSourceDetailReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ListManufacturerCanonicalsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceListManufacturerCanonicals)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListManufacturerCanonicals(ctx, req.(*ListManufacturerCanonicalsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListManufacturerCanonicalsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_CreateManufacturerAlias0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in CreateManufacturerAliasRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceCreateManufacturerAlias)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.CreateManufacturerAlias(ctx, req.(*CreateManufacturerAliasRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*CreateManufacturerAliasReply)
 		return ctx.Result(200, reply)
 	}
 }
@@ -556,6 +656,7 @@ func _BomService_ExportSession0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx 
 type BomServiceHTTPClient interface {
 	// AutoMatch 自动配单
 	AutoMatch(ctx context.Context, req *AutoMatchRequest, opts ...http.CallOption) (rsp *AutoMatchReply, err error)
+	CreateManufacturerAlias(ctx context.Context, req *CreateManufacturerAliasRequest, opts ...http.CallOption) (rsp *CreateManufacturerAliasReply, err error)
 	CreateSession(ctx context.Context, req *CreateSessionRequest, opts ...http.CallOption) (rsp *CreateSessionReply, err error)
 	// CreateSessionLine 追加一行
 	CreateSessionLine(ctx context.Context, req *CreateSessionLineRequest, opts ...http.CallOption) (rsp *CreateSessionLineReply, err error)
@@ -570,10 +671,16 @@ type BomServiceHTTPClient interface {
 	GetBOMLines(ctx context.Context, req *GetBOMLinesRequest, opts ...http.CallOption) (rsp *GetBOMLinesReply, err error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(ctx context.Context, req *GetMatchResultRequest, opts ...http.CallOption) (rsp *GetMatchResultReply, err error)
+	// GetMatchSourceDetail 单行单平台：原始 quotes_json / no_mpn_detail（与 web/src/api/bomMatchExtras.ts 对齐）
+	GetMatchSourceDetail(ctx context.Context, req *GetMatchSourceDetailRequest, opts ...http.CallOption) (rsp *GetMatchSourceDetailReply, err error)
 	GetReadiness(ctx context.Context, req *GetReadinessRequest, opts ...http.CallOption) (rsp *GetReadinessReply, err error)
 	GetSession(ctx context.Context, req *GetSessionRequest, opts ...http.CallOption) (rsp *GetSessionReply, err error)
 	// GetSessionSearchTaskCoverage 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
 	GetSessionSearchTaskCoverage(ctx context.Context, req *GetSessionSearchTaskCoverageRequest, opts ...http.CallOption) (rsp *GetSessionSearchTaskCoverageReply, err error)
+	// ListManufacturerCanonicals 厂牌别名：规范 ID 下拉数据 + 写入 t_bom_manufacturer_alias（配单页「厂牌别名审核」）
+	ListManufacturerCanonicals(ctx context.Context, req *ListManufacturerCanonicalsRequest, opts ...http.CallOption) (rsp *ListManufacturerCanonicalsReply, err error)
+	// ListMatchSources 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
+	ListMatchSources(ctx context.Context, req *ListMatchSourcesRequest, opts ...http.CallOption) (rsp *ListMatchSourcesReply, err error)
 	// ListSessions 会话列表（分页、筛选）
 	ListSessions(ctx context.Context, req *ListSessionsRequest, opts ...http.CallOption) (rsp *ListSessionsReply, err error)
 	// PatchSession 更新会话头信息（标题、客户联系方式等）
@@ -604,6 +711,19 @@ func (c *BomServiceHTTPClientImpl) AutoMatch(ctx context.Context, in *AutoMatchR
 	pattern := "/api/v1/bom/match"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationBomServiceAutoMatch))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *BomServiceHTTPClientImpl) CreateManufacturerAlias(ctx context.Context, in *CreateManufacturerAliasRequest, opts ...http.CallOption) (*CreateManufacturerAliasReply, error) {
+	var out CreateManufacturerAliasReply
+	pattern := "/api/v1/bom/manufacturer-aliases"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationBomServiceCreateManufacturerAlias))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {
@@ -722,6 +842,20 @@ func (c *BomServiceHTTPClientImpl) GetMatchResult(ctx context.Context, in *GetMa
 	return &out, nil
 }
 
+// GetMatchSourceDetail 单行单平台：原始 quotes_json / no_mpn_detail（与 web/src/api/bomMatchExtras.ts 对齐）
+func (c *BomServiceHTTPClientImpl) GetMatchSourceDetail(ctx context.Context, in *GetMatchSourceDetailRequest, opts ...http.CallOption) (*GetMatchSourceDetailReply, error) {
+	var out GetMatchSourceDetailReply
+	pattern := "/api/v1/bom/{bom_id}/match-sources/{line_no}/{platform}"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceGetMatchSourceDetail))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (c *BomServiceHTTPClientImpl) GetReadiness(ctx context.Context, in *GetReadinessRequest, opts ...http.CallOption) (*GetReadinessReply, error) {
 	var out GetReadinessReply
 	pattern := "/api/v1/bom-sessions/{session_id}/readiness"
@@ -754,6 +888,34 @@ func (c *BomServiceHTTPClientImpl) GetSessionSearchTaskCoverage(ctx context.Cont
 	pattern := "/api/v1/bom-sessions/{session_id}/search-tasks/coverage"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationBomServiceGetSessionSearchTaskCoverage))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListManufacturerCanonicals 厂牌别名：规范 ID 下拉数据 + 写入 t_bom_manufacturer_alias（配单页「厂牌别名审核」）
+func (c *BomServiceHTTPClientImpl) ListManufacturerCanonicals(ctx context.Context, in *ListManufacturerCanonicalsRequest, opts ...http.CallOption) (*ListManufacturerCanonicalsReply, error) {
+	var out ListManufacturerCanonicalsReply
+	pattern := "/api/v1/bom/manufacturer-canonicals"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceListManufacturerCanonicals))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListMatchSources 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
+func (c *BomServiceHTTPClientImpl) ListMatchSources(ctx context.Context, in *ListMatchSourcesRequest, opts ...http.CallOption) (*ListMatchSourcesReply, error) {
+	var out ListMatchSourcesReply
+	pattern := "/api/v1/bom/{bom_id}/match-sources"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceListMatchSources))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {

@@ -53,6 +53,34 @@ service BomService {
     };
   }
 
+  // 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
+  rpc ListMatchSources(ListMatchSourcesRequest) returns (ListMatchSourcesReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/{bom_id}/match-sources"
+    };
+  }
+
+  // 单行单平台：原始 quotes_json / no_mpn_detail（与 web/src/api/bomMatchExtras.ts 对齐）
+  rpc GetMatchSourceDetail(GetMatchSourceDetailRequest) returns (GetMatchSourceDetailReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/{bom_id}/match-sources/{line_no}/{platform}"
+    };
+  }
+
+  // 厂牌别名：规范 ID 下拉数据 + 写入 t_bom_manufacturer_alias（配单页「厂牌别名审核」）
+  rpc ListManufacturerCanonicals(ListManufacturerCanonicalsRequest) returns (ListManufacturerCanonicalsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/manufacturer-canonicals"
+    };
+  }
+
+  rpc CreateManufacturerAlias(CreateManufacturerAliasRequest) returns (CreateManufacturerAliasReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom/manufacturer-aliases"
+      body: "*"
+    };
+  }
+
   // ---------- BOM 会话（货源搜索 / 轮询就绪，见 docs/BOM货源搜索-接口清单.md）----------
 
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply) {
@@ -186,6 +214,9 @@ service HsResolveService {
       get: "/api/hs/resolve/history"
     };
   }
+
+  // 上传手册 PDF（二进制走 file；HTTP 亦可 multipart，由服务端自定义路由绑定）
+  rpc UploadHsManualDatasheet(UploadHsManualDatasheetRequest) returns (UploadHsManualDatasheetReply) {}
 }
 
 // ========== UploadBOM ==========
@@ -273,6 +304,16 @@ message MatchItem {
   repeated PlatformQuote all_quotes = 12;  // 该物料在各平台的全部报价，供「显示更多」展开展示
   string demand_manufacturer = 13;  // 需求厂牌（解析自 BOM）
   string demand_package = 14;       // 需求封装（解析自 BOM）
+  // ---------- HS / 商检 / 进口关税（见 docs/superpowers/specs/2026-04-19-bom-line-hs-customs-tax-design.md）----------
+  string hs_code_status = 15;  // hs_found | hs_not_mapped | hs_code_invalid
+  string code_ts = 16;
+  string control_mark = 17;
+  string import_tax_g_name = 18;
+  string import_tax_imp_ordinary_rate = 19;
+  string import_tax_imp_discount_rate = 20;
+  string import_tax_imp_temp_rate = 21;
+  // hs_customs_error：分号拼接分项码，如 tax_api_failed;hs_item_missing
+  string hs_customs_error = 22;
 }
 
 // ========== GetBOM ==========
@@ -295,6 +336,87 @@ message GetMatchResultReply {
   repeated MatchItem items = 1;
   double total_amount = 2;
 }
+
+// ========== Match sources（报价缓存诊断）==========
+message ListMatchSourcesRequest {
+  string bom_id = 1;
+}
+
+message MatchSourcePlatformRow {
+  string platform = 1;
+  bool cache_hit = 2;
+  string skip_reason = 3;
+  string outcome = 4;
+  int32 quotes_json_size = 5;
+}
+
+message MatchSourceLineRow {
+  int32 line_no = 1;
+  string mpn = 2;
+  string merge_mpn = 3;
+  int32 quantity = 4;
+  string demand_manufacturer = 5;
+  string demand_package = 6;
+  repeated MatchSourcePlatformRow platforms = 7;
+}
+
+message ListMatchSourcesReply {
+  string biz_date = 1;
+  repeated string session_platforms = 2;
+  repeated MatchSourceLineRow lines = 3;
+}
+
+message QuoteRowMatchEval {
+  int32 row_index = 1;
+  bool manufacturer_ok = 2;
+  bool passes_bom_filters = 3;
+  string summary = 4;
+  string model_reason = 5;
+  string package_reason = 6;
+  string manufacturer_reason = 7;
+}
+
+message GetMatchSourceDetailRequest {
+  string bom_id = 1;
+  int32 line_no = 2;
+  string platform = 3;
+}
+
+message GetMatchSourceDetailReply {
+  string merge_mpn = 1;
+  string platform = 2;
+  bool cache_hit = 3;
+  string skip_reason = 4;
+  string outcome = 5;
+  string no_mpn_detail = 6;
+  string quotes_json = 7;
+  repeated QuoteRowMatchEval quote_row_evals = 8;
+  string bom_demand_mpn = 9;
+  string bom_demand_package = 10;
+  string bom_demand_manufacturer = 11;
+}
+
+// ========== 厂牌别名 ==========
+message ListManufacturerCanonicalsRequest {
+  int32 limit = 1;
+}
+
+message BomManufacturerCanonicalRow {
+  string canonical_id = 1;
+  string display_name = 2;
+}
+
+message ListManufacturerCanonicalsReply {
+  repeated BomManufacturerCanonicalRow items = 1;
+}
+
+message CreateManufacturerAliasRequest {
+  string alias = 1;
+  string canonical_id = 2;
+  string display_name = 3;
+}
+
+message CreateManufacturerAliasReply {}
 
 // ========== DownloadTemplate ==========
 message DownloadTemplateRequest {}
@@ -528,6 +650,21 @@ message HsResolveByModelRequest {
   string manufacturer = 2;
   string request_trace_id = 3;
   bool force_refresh = 4;
+  // 主路径 datasheet 不可用时的纯文本补充（长度由服务端限制）
+  string manual_component_description = 5;
+  // UploadHsManualDatasheet 返回的 upload_id
+  string manual_upload_id = 6;
+}
+
+message UploadHsManualDatasheetRequest {
+  bytes file = 1;
+  string filename = 2;
+}
+
+message UploadHsManualDatasheetReply {
+  string upload_id = 1;
+  int64 expires_at_unix = 2;
+  string content_sha256 = 3;
 }
 
 message HsResolveCandidate {

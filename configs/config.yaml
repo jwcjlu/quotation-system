@@ -1,0 +1,114 @@
+server:
+  http:
+    addr: 0.0.0.0:18080
+    timeout: 30
+  grpc:
+    addr: 0.0.0.0:19090
+    timeout: 30
+
+data:
+  database:
+    driver: mysql
+    dsn: root:root@tcp(127.0.0.1:3306)/caichip?charset=utf8mb4&parseTime=True&loc=Local
+    auto_migrate: true
+    log_sql: false
+    mysql_loc: Asia/Shanghai
+  redis:
+    addr: 127.0.0.1:6379
+    read_timeout: 2
+    write_timeout: 2
+
+platform:
+  ickey:
+    search_url: ""
+    timeout: 60
+    crawler_path: ""
+    crawler_script: ""
+    work_dir: ""
+  szlcsc:
+    search_url: ""
+    timeout: 60
+    crawler_path: ""
+    crawler_script: ""
+    work_dir: ""
+  icgoo:
+    search_url: ""
+    timeout: 60
+    crawler_path: ""
+    crawler_script: ""
+    work_dir: ""
+
+agent:
+  enabled: false
+  api_keys: []
+  long_poll_max_sec: 55
+  default_task_heartbeat_sec: 10
+  offline_min_sec: 120
+  offline_heartbeat_multiplier: 6
+  dev_enqueue_enabled: false
+  dispatch_store: memory
+  dispatch_lease_extra_sec: 0
+
+script_store:
+  enabled: false
+  root: ./agent_data/script-store
+  url_prefix: /static/agent-scripts
+  public_base_url: ""
+  max_upload_mb: 64
+
+script_admin:
+  api_keys: []
+
+bom_search_callback:
+  api_keys: []
+
+agent_admin:
+  api_keys: []
+
+openai:
+  api_key: ""
+  base_url: ""
+  model: gpt-4o-mini
+
+agent_script_auth:
+  aes_key_base64: ""
+
+bom_match:
+  base_ccy: CNY
+  parse_price_tier_strings: true
+  rounding_mode: minor_unit
+  bom_qty_round: ceil
+
+table_cache:
+  enabled: false
+  refresh_interval_sec: 600
+
+kuaidaili:
+  enabled: false
+  secret_id: ""
+  sign_type: hmacsha1
+  secret_key: ""
+  secret_token: ""
+  num: 1
+  area: ""
+  f_auth: 1
+  max_qps: 1
+  base_url: ""
+
+proxy_backoff:
+  base_sec: 120
+  cap_sec: 1800
+  max_attempts: 5
+  wall_clock_deadline_sec: 21600
+
+merge_proxy_retry:
+  enabled: false
+  tick_interval_sec: 120
+  batch_limit: 100
+
+hs_resolve_sync_timeout_ms: 8000
+# 可通过环境变量 CAICHIP_HS_QUERY_API_URL 覆盖 HS 查询第三方接口地址。
+hs_query_api_url: ""
+hs_auto_accept_threshold: 0.9
+hs_resolve_max_candidates: 3
+hs_resolve_retry_max: 2

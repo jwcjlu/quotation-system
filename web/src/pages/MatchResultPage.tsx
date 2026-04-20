@@ -44,7 +44,44 @@ const SESSION_MATCH_READY = 'data_ready'
 /** 与后端 biz.MfrMismatchEmptyPlaceholder 一致 */
 const MFR_PLACEHOLDER = '(报价厂牌为空)'
 
-const HS_TABLE_COLS = 15
+const MATCH_RESULT_VISIBLE_COLS_KEY = 'match_result_visible_cols_v1'
+const OPTIONAL_COLUMNS = [
+  { key: 'index', label: '序号' },
+  { key: 'model', label: '需求型号' },
+  { key: 'manufacturer', label: '厂牌' },
+  { key: 'package', label: '封装' },
+  { key: 'quantity', label: '数量' },
+  { key: 'matchStatus', label: '结果' },
+  { key: 'bestModel', label: '推荐最优型号' },
+  { key: 'stock', label: '库存' },
+  { key: 'leadTime', label: '货期' },
+  { key: 'unitPrice', label: '单价' },
+  { key: 'subtotal', label: '小计' },
+  { key: 'hs', label: 'HS' },
+  { key: 'control', label: '商检' },
+  { key: 'ordinaryTax', label: '普通税率' },
+  { key: 'discountTax', label: '最惠税率' },
+  { key: 'tempTax', label: '暂定税率' },
+] as const
+type OptionalColumnKey = (typeof OPTIONAL_COLUMNS)[number]['key']
+const DEFAULT_VISIBLE_OPTIONAL_COLUMNS: Record<OptionalColumnKey, boolean> = {
+  index: true,
+  model: true,
+  manufacturer: true,
+  package: true,
+  quantity: true,
+  matchStatus: true,
+  bestModel: true,
+  stock: true,
+  leadTime: true,
+  unitPrice: true,
+  subtotal: true,
+  hs: true,
+  control: true,
+  ordinaryTax: true,
+  discountTax: true,
+  tempTax: true,
+}
 
 function hsStatusLabel(status: string | undefined): string {
   const s = (status || '').trim()
@@ -803,9 +840,9 @@ function DetailModal({ item, onClose }: { item: MatchItem; onClose: () => void }
               <span className="break-all">{item.import_tax_g_name?.trim() || '—'}</span>
               <span className="text-slate-500">普通税率</span>
               <span>{item.import_tax_imp_ordinary_rate?.trim() || '—'}</span>
-              <span className="text-slate-500">优惠税率</span>
+              <span className="text-slate-500">进口最惠国税率</span>
               <span>{item.import_tax_imp_discount_rate?.trim() || '—'}</span>
-              <span className="text-slate-500">暂定税率</span>
+              <span className="text-slate-500">进口暂定税率</span>
               <span>{item.import_tax_imp_temp_rate?.trim() || '—'}</span>
               <span className="text-slate-500">分项错误</span>
               <span className="break-all text-amber-900">{item.hs_customs_error?.trim() || '—'}</span>
@@ -852,12 +889,16 @@ function MatchRow({
   onShowDetail,
   onHsResolve,
   sessionReady,
+  visibleColumns,
+  tableCols,
 }: {
   item: MatchItem
   statusFilter: string
   onShowDetail: (item: MatchItem) => void
   onHsResolve: (item: MatchItem) => void
   sessionReady: boolean
+  visibleColumns: Record<OptionalColumnKey, boolean>
+  tableCols: number
 }) {
   const [expanded, setExpanded] = useState(false)
   const show = statusFilter === 'all' || item.match_status === statusFilter
@@ -873,62 +914,79 @@ function MatchRow({
   return (
     <>
       <tr className="border-b border-slate-200 hover:bg-slate-50">
-        <td className="py-3 px-3">{item.index}</td>
-        <td className="py-3 px-3 text-slate-800">{item.model}</td>
-        <td className="py-3 px-3">{item.demand_manufacturer || '-'}</td>
-        <td className="py-3 px-3">{item.demand_package || '-'}</td>
-        <td className="py-3 px-3">{item.quantity}</td>
-        <td className="py-3 px-3">
-          <StatusIcon status={item.match_status} />
-        </td>
-        <td className="py-3 px-3">
-          <div className="flex flex-col gap-0.5">
-            <span className="font-medium">{item.matched_model || '-'}</span>
-            {(item.manufacturer || item.platform) && (
-              <span className="text-slate-500 text-sm">
-                {item.manufacturer}{item.manufacturer && item.platform ? ' · ' : ''}{item.platform}
+        {visibleColumns.index && <td className="py-3 px-3">{item.index}</td>}
+        {visibleColumns.model && <td className="py-3 px-3 text-slate-800">{item.model}</td>}
+        {visibleColumns.manufacturer && <td className="py-3 px-3">{item.demand_manufacturer || '-'}</td>}
+        {visibleColumns.package && <td className="py-3 px-3">{item.demand_package || '-'}</td>}
+        {visibleColumns.quantity && <td className="py-3 px-3">{item.quantity}</td>}
+        {visibleColumns.matchStatus && (
+          <td className="py-3 px-3">
+            <StatusIcon status={item.match_status} />
+          </td>
+        )}
+        {visibleColumns.bestModel && (
+          <td className="py-3 px-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium">{item.matched_model || '-'}</span>
+              {(item.manufacturer || item.platform) && (
+                <span className="text-slate-500 text-sm">
+                  {item.manufacturer}{item.manufacturer && item.platform ? ' · ' : ''}{item.platform}
+                </span>
+              )}
+              {item.mfr_mismatch_quote_manufacturers && item.mfr_mismatch_quote_manufacturers.length > 0 && (
+                <span className="text-amber-700 text-xs" title="型号/封装已对齐但厂牌与需求不一致的报价原文（去重）">
+                  未匹配厂牌：{item.mfr_mismatch_quote_manufacturers.join('；')}
+                </span>
+              )}
+              {hasQuotes && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="text-blue-600 text-sm hover:underline"
+                >
+                  {expanded ? '收起' : '显示更多'}
+                </button>
+              )}
+            </div>
+          </td>
+        )}
+        {visibleColumns.stock && <td className="py-3 px-3">{item.stock ?? '-'}</td>}
+        {visibleColumns.leadTime && <td className="py-3 px-3">{item.lead_time || '-'}</td>}
+        {visibleColumns.unitPrice && <td className="py-3 px-3">¥{item.unit_price?.toFixed(2) ?? '-'}</td>}
+        {visibleColumns.subtotal && <td className="py-3 px-3 font-medium">¥{item.subtotal?.toFixed(2) ?? '-'}</td>}
+        {visibleColumns.hs && (
+          <td className="py-3 px-3 text-sm align-top">
+            <div className="flex flex-col gap-1 max-w-[140px]">
+              <span className="font-mono text-xs break-all" title={item.hs_code_status}>
+                {hsMain}
               </span>
-            )}
-            {item.mfr_mismatch_quote_manufacturers && item.mfr_mismatch_quote_manufacturers.length > 0 && (
-              <span className="text-amber-700 text-xs" title="型号/封装已对齐但厂牌与需求不一致的报价原文（去重）">
-                未匹配厂牌：{item.mfr_mismatch_quote_manufacturers.join('；')}
-              </span>
-            )}
-            {hasQuotes && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="text-blue-600 text-sm hover:underline"
-              >
-                {expanded ? '收起' : '显示更多'}
-              </button>
-            )}
-          </div>
-        </td>
-        <td className="py-3 px-3">{item.stock ?? '-'}</td>
-        <td className="py-3 px-3">{item.lead_time || '-'}</td>
-        <td className="py-3 px-3">¥{item.unit_price?.toFixed(2) ?? '-'}</td>
-        <td className="py-3 px-3 font-medium">¥{item.subtotal?.toFixed(2) ?? '-'}</td>
-        <td className="py-3 px-3 text-sm align-top">
-          <div className="flex flex-col gap-1 max-w-[140px]">
-            <span className="font-mono text-xs break-all" title={item.hs_code_status}>
-              {hsMain}
-            </span>
-            {item.hs_customs_error ? (
-              <span className="text-amber-800 text-xs break-all" title={item.hs_customs_error}>
-                {item.hs_customs_error}
-              </span>
-            ) : null}
-          </div>
-        </td>
-        <td className="py-3 px-3 text-sm align-top break-all max-w-[100px]">
-          {(item.control_mark || '').trim() || '—'}
-        </td>
-        <td
-          className="py-3 px-3 text-sm align-top"
-          title={item.import_tax_g_name?.trim() || undefined}
-        >
-          {(item.import_tax_imp_ordinary_rate || '').trim() || '—'}
-        </td>
+              {item.hs_customs_error ? (
+                <span className="text-amber-800 text-xs break-all" title={item.hs_customs_error}>
+                  {item.hs_customs_error}
+                </span>
+              ) : null}
+            </div>
+          </td>
+        )}
+        {visibleColumns.control && (
+          <td className="py-3 px-3 text-sm align-top break-all max-w-[100px]">
+            {(item.control_mark || '').trim() || '—'}
+          </td>
+        )}
+        {visibleColumns.ordinaryTax && (
+          <td className="py-3 px-3 text-sm align-top" title={item.import_tax_g_name?.trim() || undefined}>
+            {(item.import_tax_imp_ordinary_rate || '').trim() || '—'}
+          </td>
+        )}
+        {visibleColumns.discountTax && (
+          <td className="py-3 px-3 text-sm align-top" title={item.import_tax_g_name?.trim() || undefined}>
+            {(item.import_tax_imp_discount_rate || '').trim() || '—'}
+          </td>
+        )}
+        {visibleColumns.tempTax && (
+          <td className="py-3 px-3 text-sm align-top" title={item.import_tax_g_name?.trim() || undefined}>
+            {(item.import_tax_imp_temp_rate || '').trim() || '—'}
+          </td>
+        )}
         <td className="py-3 px-3 align-top">
           <div className="flex flex-col gap-1">
             {hasQuotes && (
@@ -955,7 +1013,7 @@ function MatchRow({
       </tr>
       {expanded && hasQuotes && (
         <tr>
-          <td colSpan={HS_TABLE_COLS} className="bg-slate-50 p-0 align-top">
+          <td colSpan={tableCols} className="bg-slate-50 p-0 align-top">
             <div className="py-2" style={{ paddingLeft: '47%' }}>
               <table className="w-full min-w-[600px] text-sm">
                 <colgroup>
@@ -1010,6 +1068,44 @@ export function MatchResultPage({ bomId, onNavigateToHsResolve }: MatchResultPag
   const [mfrReviewExpanded, setMfrReviewExpanded] = useState(false)
   const [sourcesOpen, setSourcesOpen] = useState(false)
   const [mfrAliasNotice, setMfrAliasNotice] = useState<string | null>(null)
+  const [visibleColumns, setVisibleColumns] = useState<Record<OptionalColumnKey, boolean>>(DEFAULT_VISIBLE_OPTIONAL_COLUMNS)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MATCH_RESULT_VISIBLE_COLS_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Partial<Record<OptionalColumnKey, boolean>>
+      setVisibleColumns({
+        index: parsed.index ?? true,
+        model: parsed.model ?? true,
+        manufacturer: parsed.manufacturer ?? true,
+        package: parsed.package ?? true,
+        quantity: parsed.quantity ?? true,
+        matchStatus: parsed.matchStatus ?? true,
+        bestModel: parsed.bestModel ?? true,
+        stock: parsed.stock ?? true,
+        leadTime: parsed.leadTime ?? true,
+        unitPrice: parsed.unitPrice ?? true,
+        subtotal: parsed.subtotal ?? true,
+        hs: parsed.hs ?? true,
+        control: parsed.control ?? true,
+        ordinaryTax: parsed.ordinaryTax ?? true,
+        discountTax: parsed.discountTax ?? true,
+        tempTax: parsed.tempTax ?? true,
+      })
+    } catch {
+      setVisibleColumns(DEFAULT_VISIBLE_OPTIONAL_COLUMNS)
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(MATCH_RESULT_VISIBLE_COLS_KEY, JSON.stringify(visibleColumns))
+  }, [visibleColumns])
+
+  const tableCols = useMemo(
+    () => 1 + Object.values(visibleColumns).filter(Boolean).length,
+    [visibleColumns]
+  )
 
   const pendingMfrRows = useMemo(() => {
     const all = collectPendingMfrRows(items)
@@ -1171,8 +1267,35 @@ export function MatchResultPage({ bomId, onNavigateToHsResolve }: MatchResultPag
             )
           })}
         </div>
-        <div className="text-slate-600">
-          合计: <span className="font-bold text-slate-800">¥{totalAmount.toFixed(2)}</span>
+        <div className="flex items-center gap-3">
+          <details className="relative">
+            <summary className="cursor-pointer border border-slate-300 bg-white rounded-lg px-3 py-1.5 text-sm text-slate-700 select-none">
+              显示字段
+            </summary>
+            <div className="absolute right-0 z-10 mt-2 w-56 rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
+              <div className="mb-2 text-xs text-slate-500">勾选后在列表显示对应列</div>
+              <div className="space-y-1.5">
+                {OPTIONAL_COLUMNS.map((col) => (
+                  <label key={col.key} className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns[col.key]}
+                      onChange={(e) =>
+                        setVisibleColumns((prev) => ({
+                          ...prev,
+                          [col.key]: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{col.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </details>
+          <div className="text-slate-600">
+            合计: <span className="font-bold text-slate-800">¥{totalAmount.toFixed(2)}</span>
+          </div>
         </div>
       </div>
 
@@ -1193,50 +1316,44 @@ export function MatchResultPage({ bomId, onNavigateToHsResolve }: MatchResultPag
 
 
       <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full table-fixed" style={{ minWidth: 1120 }}>
-          <colgroup>
-            <col style={{ width: '3%' }} />
-            <col style={{ width: '10%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '5%' }} />
-            <col style={{ width: '4%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '6%' }} />
-            <col style={{ width: '7%' }} />
-            <col style={{ width: '6%' }} />
-            <col style={{ width: '5%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '6%' }} />
-            <col style={{ width: '5%' }} />
-            <col style={{ width: '5%' }} />
-            <col style={{ width: '7%' }} />
-          </colgroup>
+        <table className="w-full" style={{ minWidth: 1360 }}>
           <thead>
             <tr className="bg-slate-100">
-              <th className="py-3 px-3 text-left">序号</th>
-              <th className="py-3 px-3 text-left">需求型号</th>
-              <th className="py-3 px-3 text-left">厂牌</th>
-              <th className="py-3 px-3 text-left">封装</th>
-              <th className="py-3 px-3 text-left">数量</th>
-              <th className="py-3 px-3 text-left">结果</th>
-              <th className="py-3 px-3 text-left">推荐最优型号</th>
-              <th className="py-3 px-3 text-left">库存</th>
-              <th className="py-3 px-3 text-left">货期</th>
-              <th className="py-3 px-3 text-left">单价</th>
-              <th className="py-3 px-3 text-left">小计</th>
-              <th className="py-3 px-3 text-left">HS</th>
-              <th className="py-3 px-3 text-left">商检</th>
-              <th className="py-3 px-3 text-left" title="进口普通税率（接口 impOrdinaryRate）">
-                进口税
-              </th>
-              <th className="py-3 px-3 text-left">操作</th>
+              {visibleColumns.index && <th className="py-3 px-3 text-left whitespace-nowrap">序号</th>}
+              {visibleColumns.model && <th className="py-3 px-3 text-left whitespace-nowrap">需求型号</th>}
+              {visibleColumns.manufacturer && <th className="py-3 px-3 text-left whitespace-nowrap">厂牌</th>}
+              {visibleColumns.package && <th className="py-3 px-3 text-left whitespace-nowrap">封装</th>}
+              {visibleColumns.quantity && <th className="py-3 px-3 text-left whitespace-nowrap">数量</th>}
+              {visibleColumns.matchStatus && <th className="py-3 px-3 text-left whitespace-nowrap">结果</th>}
+              {visibleColumns.bestModel && <th className="py-3 px-3 text-left whitespace-nowrap">推荐最优型号</th>}
+              {visibleColumns.stock && <th className="py-3 px-3 text-left whitespace-nowrap">库存</th>}
+              {visibleColumns.leadTime && <th className="py-3 px-3 text-left whitespace-nowrap">货期</th>}
+              {visibleColumns.unitPrice && <th className="py-3 px-3 text-left whitespace-nowrap">单价</th>}
+              {visibleColumns.subtotal && <th className="py-3 px-3 text-left whitespace-nowrap">小计</th>}
+              {visibleColumns.hs && <th className="py-3 px-3 text-left whitespace-nowrap">HS</th>}
+              {visibleColumns.control && <th className="py-3 px-3 text-left whitespace-nowrap">商检</th>}
+              {visibleColumns.ordinaryTax && (
+                <th className="py-3 px-3 text-left whitespace-nowrap" title="进口普通税率（接口字段 imp_ordinary_rate）">
+                  普通税率
+                </th>
+              )}
+              {visibleColumns.discountTax && (
+                <th className="py-3 px-3 text-left whitespace-nowrap" title="进口最惠国税率（接口字段 imp_discount_rate）">
+                  最惠税率
+                </th>
+              )}
+              {visibleColumns.tempTax && (
+                <th className="py-3 px-3 text-left whitespace-nowrap" title="进口暂定税率（接口字段 imp_temp_rate）">
+                  暂定税率
+                </th>
+              )}
+              <th className="py-3 px-3 text-left whitespace-nowrap">操作</th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={HS_TABLE_COLS} className="py-12 text-center text-slate-500">
+                <td colSpan={tableCols} className="py-12 text-center text-slate-500">
                   暂无配单结果，请点击「重新搜索并配单」获取报价
                 </td>
               </tr>
@@ -1249,6 +1366,8 @@ export function MatchResultPage({ bomId, onNavigateToHsResolve }: MatchResultPag
                   onShowDetail={setDetailItem}
                   onHsResolve={handleHsResolve}
                   sessionReady={sessionReady}
+                  visibleColumns={visibleColumns}
+                  tableCols={tableCols}
                 />
               ))
             )}

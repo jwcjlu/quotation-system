@@ -33,6 +33,21 @@ func TestDispatchRetryPolicyFromBootstrap_ZeroMaxDisablesRetries(t *testing.T) {
 	}
 }
 
+func TestDispatchRetryPolicyFromBootstrap_NegativeMaxFallsBackToDefault(t *testing.T) {
+	p := DispatchRetryPolicyFromBootstrap(&conf.Bootstrap{
+		Agent: &conf.Agent{
+			DispatchRetryMax:        -1,
+			DispatchRetryBackoffSec: []int32{10, 20},
+		},
+	})
+	if p.RetryMax != 3 {
+		t.Fatalf("expected negative retry max to fall back to default 3, got %d", p.RetryMax)
+	}
+	if !reflect.DeepEqual(p.BackoffSec, []int{10, 20}) {
+		t.Fatalf("expected custom backoff to remain applied, got %+v", p.BackoffSec)
+	}
+}
+
 func TestDispatchRetryPolicyFromBootstrap_CustomBackoff(t *testing.T) {
 	p := DispatchRetryPolicyFromBootstrap(&conf.Bootstrap{
 		Agent: &conf.Agent{

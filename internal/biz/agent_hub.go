@@ -36,9 +36,9 @@ type TaskMessage struct {
 // QueuedTask 调度队列中的任务。
 type QueuedTask struct {
 	TaskMessage
-	Queue        string   `json:"queue"`
-	RequiredTags []string `json:"-"` // 可选：非空则 Agent 须包含这些 tag
-	DefaultQueue bool     // 若 true 且 Queue 空则匹配 default
+	Queue           string   `json:"queue"`
+	RequiredTags    []string `json:"-"` // 可选：非空则 Agent 须包含这些 tag
+	DefaultQueue    bool     // 若 true 且 Queue 空则匹配 default
 	RetryMax        *int     `json:"-"`
 	RetryBackoffSec []int    `json:"-"`
 	// NextClaimAt 若设置，则在到达该时间前任务不可被 Agent 认领（t_caichip_dispatch_task.next_claim_at）。
@@ -53,7 +53,8 @@ type TaskResultIn struct {
 	Status  string `json:"status"`
 	Attempt int    `json:"attempt"`
 	// Stdout Agent 采集脚本标准输出（各平台统一报价 JSON）；与 proto TaskResultRequest.stdout 对齐。
-	Stdout string `json:"stdout,omitempty"`
+	Stdout       string `json:"stdout,omitempty"`
+	ErrorMessage string `json:"error_message,omitempty"`
 }
 
 type assignment struct {

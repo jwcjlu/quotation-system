@@ -903,6 +903,7 @@ type TaskResultRequest struct {
 	LeaseId         string                 `protobuf:"bytes,13,opt,name=lease_id,json=leaseId,proto3" json:"lease_id,omitempty"`
 	Attempt         int32                  `protobuf:"varint,14,opt,name=attempt,proto3" json:"attempt,omitempty"`
 	TraceId         string                 `protobuf:"bytes,15,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
+	ErrorMessage    string                 `protobuf:"bytes,16,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1038,6 +1039,13 @@ func (x *TaskResultRequest) GetAttempt() int32 {
 func (x *TaskResultRequest) GetTraceId() string {
 	if x != nil {
 		return x.TraceId
+	}
+	return ""
+}
+
+func (x *TaskResultRequest) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
 	}
 	return ""
 }
@@ -1284,7 +1292,7 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"expires_at\x18\x04 \x01(\tR\texpiresAt\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8b\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb0\x04\n" +
 	"\x11TaskResultRequest\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\tR\x0fprotocolVersion\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x17\n" +
@@ -1304,7 +1312,8 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\f \x01(\tR\x0eidempotencyKey\x12\x19\n" +
 	"\blease_id\x18\r \x01(\tR\aleaseId\x12\x18\n" +
 	"\aattempt\x18\x0e \x01(\x05R\aattempt\x12\x19\n" +
-	"\btrace_id\x18\x0f \x01(\tR\atraceIdB\f\n" +
+	"\btrace_id\x18\x0f \x01(\tR\atraceId\x12#\n" +
+	"\rerror_message\x18\x10 \x01(\tR\ferrorMessageB\f\n" +
 	"\n" +
 	"_exit_code\"N\n" +
 	"\x0fTaskResultReply\x12\x1a\n" +

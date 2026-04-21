@@ -252,12 +252,13 @@ func (s *AgentService) TaskResult(ctx context.Context, req *v1.TaskResultRequest
 		attempt = 1
 	}
 	in := &biz.TaskResultIn{
-		TaskID:  req.GetTaskId(),
-		AgentID: req.GetAgentId(),
-		LeaseID: req.GetLeaseId(),
-		Status:  req.GetStatus(),
-		Attempt: attempt,
-		Stdout:  req.GetStdout(),
+		TaskID:       req.GetTaskId(),
+		AgentID:      req.GetAgentId(),
+		LeaseID:      req.GetLeaseId(),
+		Status:       req.GetStatus(),
+		Attempt:      attempt,
+		Stdout:       req.GetStdout(),
+		ErrorMessage: req.GetErrorMessage(),
 	}
 	if err := s.sched.SubmitTaskResult(in); err != nil {
 		if errors.Is(err, biz.ErrLeaseReassigned) {

@@ -153,6 +153,7 @@ message TaskResultRequest {
   string lease_id = 13;
   int32 attempt = 14;
   string trace_id = 15;
+  string error_message = 16;
 }
 
 message TaskResultReply {

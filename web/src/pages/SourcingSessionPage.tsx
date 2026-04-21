@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   PLATFORM_IDS,
   createSessionLine,
@@ -14,6 +14,7 @@ import {
   type BOMLineRow,
   type GetSessionSearchTaskCoverageReply,
 } from '../api'
+import { SessionImportStatusCard } from './sourcing-session/SessionImportStatusCard'
 
 const SESSION_MATCH_READY = 'data_ready'
 
@@ -45,12 +46,20 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
   const [savingHeader, setSavingHeader] = useState(false)
   const [lineMsg, setLineMsg] = useState<string | null>(null)
   const [sessionStatus, setSessionStatus] = useState('')
+  const [importStatus, setImportStatus] = useState('')
+  const [importProgress, setImportProgress] = useState(0)
+  const [importStage, setImportStage] = useState('')
+  const [importMessage, setImportMessage] = useState('')
+  const [importErrorCode, setImportErrorCode] = useState('')
+  const [importError, setImportError] = useState('')
+  const [importUpdatedAt, setImportUpdatedAt] = useState('')
 
   const [newLine, setNewLine] = useState<LineDraft>({ mpn: '', mfr: '', package: '', qty: '' })
   const [addingLine, setAddingLine] = useState(false)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<LineDraft>({ mpn: '', mfr: '', package: '', qty: '' })
+  const previousImportStatusRef = useRef('')
 
   const loadSession = useCallback(async () => {
     try {
@@ -62,6 +71,13 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
       setContactEmail(s.contact_email || '')
       setContactExtra(s.contact_extra || '')
       setRevision(s.selection_revision)
+      setImportStatus((s.import_status || '').trim())
+      setImportProgress(s.import_progress ?? 0)
+      setImportStage((s.import_stage || '').trim())
+      setImportMessage((s.import_message || '').trim())
+      setImportErrorCode((s.import_error_code || '').trim())
+      setImportError((s.import_error || '').trim())
+      setImportUpdatedAt((s.import_updated_at || '').trim())
       if (s.platform_ids?.length) setSelectedPlatforms(s.platform_ids)
     } catch (e) {
       setErr(e instanceof Error ? e.message : '加载会话失败')
@@ -96,6 +112,22 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
       cancelled = true
     }
   }, [loadSession, loadLines])
+
+  useEffect(() => {
+    if (importStatus !== 'parsing') return
+    const timer = window.setInterval(() => {
+      void loadSession()
+    }, 2000)
+    return () => window.clearInterval(timer)
+  }, [importStatus, loadSession])
+
+  useEffect(() => {
+    const previous = previousImportStatusRef.current
+    previousImportStatusRef.current = importStatus
+    if (previous === 'parsing' && importStatus === 'ready') {
+      void loadLines()
+    }
+  }, [importStatus, loadLines])
 
   const togglePlatform = (id: string) => {
     setSelectedPlatforms((prev) =>
@@ -271,7 +303,8 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     )
   }
 
-  const canEnterMatch = sessionStatus === SESSION_MATCH_READY && Boolean(onEnterMatch)
+  const importParsing = importStatus === 'parsing'
+  const canEnterMatch = !importParsing && sessionStatus === SESSION_MATCH_READY && Boolean(onEnterMatch)
 
   return (
     <div className={embedded ? 'space-y-6' : 'space-y-8'}>
@@ -313,7 +346,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           </button>
           <button
             type="button"
-            disabled={exporting}
+            disabled={exporting || importParsing}
             onClick={() => void handleExport('xlsx')}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
           >
@@ -321,7 +354,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           </button>
           <button
             type="button"
-            disabled={exporting}
+            disabled={exporting || importParsing}
             onClick={() => void handleExport('csv')}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-50"
           >
@@ -343,6 +376,18 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           <strong className="block mb-1">接口提示</strong>
           {err}
         </div>
+      )}
+
+      {importStatus && (
+        <SessionImportStatusCard
+          status={importStatus}
+          progress={importProgress}
+          stage={importStage}
+          message={importMessage}
+          errorCode={importErrorCode}
+          error={importError}
+          updatedAt={importUpdatedAt}
+        />
       )}
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -438,8 +483,9 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           <h3 className="font-semibold text-slate-800">BOM 行（GET /lines · 增删改）</h3>
           <button
             type="button"
+            disabled={importParsing}
             onClick={() => void handleRetryFirstGap()}
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline"
           >
             重试第一条缺口（示例）
           </button>

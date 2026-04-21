@@ -84,6 +84,13 @@ export interface GetSessionReply {
   contact_email?: string
   contact_extra?: string
   readiness_mode?: string
+  import_status?: string
+  import_progress?: number
+  import_stage?: string
+  import_message?: string
+  import_error_code?: string
+  import_error?: string
+  import_updated_at?: string
 }
 
 export interface SessionListItem {

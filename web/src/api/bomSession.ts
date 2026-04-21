@@ -70,6 +70,13 @@ function parseGetSession(json: Record<string, unknown>): GetSessionReply {
     contact_email: str(json.contact_email ?? json.contactEmail),
     contact_extra: str(json.contact_extra ?? json.contactExtra),
     readiness_mode: str(json.readiness_mode ?? json.readinessMode) || undefined,
+    import_status: str(json.import_status ?? json.importStatus) || undefined,
+    import_progress: num(json.import_progress ?? json.importProgress, 0),
+    import_stage: str(json.import_stage ?? json.importStage) || undefined,
+    import_message: str(json.import_message ?? json.importMessage) || undefined,
+    import_error_code: str(json.import_error_code ?? json.importErrorCode) || undefined,
+    import_error: str(json.import_error ?? json.importError) || undefined,
+    import_updated_at: str(json.import_updated_at ?? json.importUpdatedAt) || undefined,
   }
 }
 

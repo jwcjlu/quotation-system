@@ -76,7 +76,14 @@ export async function uploadBOM(
   parseMode: string,
   columnMapping: Record<string, string> | undefined,
   opts?: { sessionId?: string }
-): Promise<{ bom_id: string; items: ParsedItem[]; total: number }> {
+): Promise<{
+  bom_id: string
+  items: ParsedItem[]
+  total: number
+  accepted: boolean
+  import_status: string
+  import_message: string
+}> {
   const buf = await file.arrayBuffer()
   const bytes = new Uint8Array(buf)
   let binary = ''
@@ -100,6 +107,9 @@ export async function uploadBOM(
     bom_id: (json.bom_id ?? json.bomId) as string,
     items: (json.items ?? []) as ParsedItem[],
     total: Number(json.total ?? 0),
+    accepted: Boolean(json.accepted),
+    import_status: String(json.import_status ?? json.importStatus ?? ''),
+    import_message: String(json.import_message ?? json.importMessage ?? ''),
   }
 }
 

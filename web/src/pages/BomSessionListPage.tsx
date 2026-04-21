@@ -64,6 +64,7 @@ export function BomSessionListPage({ onEnterMatch }: BomSessionListPageProps) {
     localStorage.setItem(LAST_SESSION_KEY, id)
     localStorage.setItem(LAST_BOM_KEY, id)
     setUploadOpen(false)
+    setDetailSessionId(id)
     if (listPage !== 1) setListPage(1)
     else void load()
   }

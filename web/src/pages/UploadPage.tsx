@@ -4,7 +4,6 @@ import { createSession, uploadBOM, downloadTemplate, PLATFORM_IDS } from '../api
 import { validateSessionHeaderFields, type ReadinessMode } from '../utils/sessionFields'
 
 const PARSE_MODES = [
-  { value: 'auto', label: '通用模式', desc: '自动识别表头' },
   { value: 'llm', label: '大模型解析', desc: '服务端 OpenAI 读全表并输出结构化行（需 openai.api_key）' },
   { value: 'custom', label: '自定义映射', desc: '手动指定列映射' },
 ] as const
@@ -62,7 +61,7 @@ export function UploadPage({ onSuccess, embedded }: UploadPageProps) {
   const [readinessMode, setReadinessMode] = useState<ReadinessMode>('lenient')
   const [sessionPlatforms, setSessionPlatforms] = useState<string[]>([...PLATFORM_IDS])
   const [file, setFile] = useState<File | null>(null)
-  const [parseMode, setParseMode] = useState<string>('auto')
+  const [parseMode, setParseMode] = useState<string>('llm')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
@@ -147,6 +146,12 @@ export function UploadPage({ onSuccess, embedded }: UploadPageProps) {
         readiness_mode: readinessMode,
       })
       const res = await uploadBOM(file, parseMode, mapping, { sessionId: sess.session_id })
+      if (!res.bom_id) {
+        throw new Error('upload succeeded without bom_id')
+      }
+      if (parseMode === 'llm' && !res.accepted) {
+        throw new Error(res.import_message || 'llm import was not accepted')
+      }
       onSuccess(res.bom_id)
     } catch (e) {
       setError(e instanceof Error ? e.message : '上传失败')
@@ -275,6 +280,7 @@ export function UploadPage({ onSuccess, embedded }: UploadPageProps) {
             }`}
           >
             <input
+              data-testid="upload-file-input"
               type="file"
               accept=".xlsx,.xls"
               onChange={onFileSelect}
@@ -363,6 +369,7 @@ export function UploadPage({ onSuccess, embedded }: UploadPageProps) {
 
           <div className="flex flex-col gap-3">
             <button
+              data-testid="upload-submit-button"
               onClick={handleUpload}
               disabled={loading || !file}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"

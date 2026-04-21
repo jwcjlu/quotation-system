@@ -43,7 +43,7 @@ type DispatchTaskRepo interface {
 	Ping(ctx context.Context) error
 	EnqueuePending(ctx context.Context, t *QueuedTask) error
 	ReclaimStaleLeases(ctx context.Context, now, offlineBefore time.Time) (int64, error)
-	FinishLeased(ctx context.Context, taskID, leaseID, resultStatus string) error
+	SubmitLeasedResult(ctx context.Context, in *TaskResultIn) error
 	PullAndLeaseForAgent(ctx context.Context, queue, agentID string, meta *AgentSchedulingMeta, running []RunningTaskReport, max int, leaseExtraSec int32) ([]TaskMessage, error)
 	ListLeasedTasksByAgent(ctx context.Context, agentID string) ([]LeasedDispatchTaskRow, error)
 }

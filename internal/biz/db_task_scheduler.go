@@ -69,7 +69,7 @@ func (s *dbTaskScheduler) PullTasksForAgent(agentID string, running []RunningTas
 
 func (s *dbTaskScheduler) SubmitTaskResult(in *TaskResultIn) error {
 	ctx := context.Background()
-	err := s.dispatch.FinishLeased(ctx, in.TaskID, in.LeaseID, in.Status)
+	err := s.dispatch.SubmitLeasedResult(ctx, in)
 	if errors.Is(err, ErrDispatchLeaseMismatch) {
 		return ErrLeaseReassigned
 	}

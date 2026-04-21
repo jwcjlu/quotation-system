@@ -39,6 +39,8 @@ type QueuedTask struct {
 	Queue        string   `json:"queue"`
 	RequiredTags []string `json:"-"` // 可选：非空则 Agent 须包含这些 tag
 	DefaultQueue bool     // 若 true 且 Queue 空则匹配 default
+	RetryMax        *int     `json:"-"`
+	RetryBackoffSec []int    `json:"-"`
 	// NextClaimAt 若设置，则在到达该时间前任务不可被 Agent 认领（t_caichip_dispatch_task.next_claim_at）。
 	NextClaimAt *time.Time `json:"-"`
 }

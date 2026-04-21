@@ -120,6 +120,8 @@ message Agent {
   string dispatch_store = 8;
   // 租约 deadline 在任务 timeout_sec 基础上的额外秒数（0 表示仅用 timeout_sec）
   int32 dispatch_lease_extra_sec = 9;
+  int32 dispatch_retry_max = 10;
+  repeated int32 dispatch_retry_backoff_sec = 11;
 }
 
 // ScriptStore 脚本制品落盘与对外 URL（见 docs/Agent脚本包分发-PRD与接口.md §7）

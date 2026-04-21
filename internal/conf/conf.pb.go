@@ -800,9 +800,11 @@ type Agent struct {
 	// 任务队列：memory=纯内存 AgentHub；mysql=多实例共用 caichip_dispatch_task（须 MySQL8+）
 	DispatchStore string `protobuf:"bytes,8,opt,name=dispatch_store,json=dispatchStore,proto3" json:"dispatch_store,omitempty"`
 	// 租约 deadline 在任务 timeout_sec 基础上的额外秒数（0 表示仅用 timeout_sec）
-	DispatchLeaseExtraSec int32 `protobuf:"varint,9,opt,name=dispatch_lease_extra_sec,json=dispatchLeaseExtraSec,proto3" json:"dispatch_lease_extra_sec,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	DispatchLeaseExtraSec   int32   `protobuf:"varint,9,opt,name=dispatch_lease_extra_sec,json=dispatchLeaseExtraSec,proto3" json:"dispatch_lease_extra_sec,omitempty"`
+	DispatchRetryMax        int32   `protobuf:"varint,10,opt,name=dispatch_retry_max,json=dispatchRetryMax,proto3" json:"dispatch_retry_max,omitempty"`
+	DispatchRetryBackoffSec []int32 `protobuf:"varint,11,rep,packed,name=dispatch_retry_backoff_sec,json=dispatchRetryBackoffSec,proto3" json:"dispatch_retry_backoff_sec,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Agent) Reset() {
@@ -896,6 +898,20 @@ func (x *Agent) GetDispatchLeaseExtraSec() int32 {
 		return x.DispatchLeaseExtraSec
 	}
 	return 0
+}
+
+func (x *Agent) GetDispatchRetryMax() int32 {
+	if x != nil {
+		return x.DispatchRetryMax
+	}
+	return 0
+}
+
+func (x *Agent) GetDispatchRetryBackoffSec() []int32 {
+	if x != nil {
+		return x.DispatchRetryBackoffSec
+	}
+	return nil
 }
 
 // ScriptStore 脚本制品落盘与对外 URL（见 docs/Agent脚本包分发-PRD与接口.md §7）
@@ -1251,7 +1267,7 @@ var File_conf_proto protoreflect.FileDescriptor
 const file_conf_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"conf.proto\x12\x04conf\"\xd4\x06\n" +
+	"conf.proto\x12\x04conf\"\xfd\x06\n" +
 	"\tBootstrap\x12$\n" +
 	"\x06server\x18\x01 \x01(\v2\f.conf.ServerR\x06server\x12\x1e\n" +
 	"\x04data\x18\x02 \x01(\v2\n" +
@@ -1272,7 +1288,8 @@ const file_conf_proto_rawDesc = "" +
 	"\x1ahs_resolve_sync_timeout_ms\x18\r \x01(\x05R\x16hsResolveSyncTimeoutMs\x12<\n" +
 	"\x18hs_auto_accept_threshold\x18\x0e \x01(\x01H\x00R\x15hsAutoAcceptThreshold\x88\x01\x01\x129\n" +
 	"\x19hs_resolve_max_candidates\x18\x0f \x01(\x05R\x16hsResolveMaxCandidates\x12/\n" +
-	"\x14hs_resolve_retry_max\x18\x10 \x01(\x05R\x11hsResolveRetryMaxB\x1b\n" +
+	"\x14hs_resolve_retry_max\x18\x10 \x01(\x05R\x11hsResolveRetryMax\x12'\n" +
+	"\x10hs_query_api_url\x18\x11 \x01(\tR\rhsQueryApiUrlB\x1b\n" +
 	"\x19_hs_auto_accept_threshold\"X\n" +
 	"\n" +
 	"TableCache\x12\x18\n" +
@@ -1318,7 +1335,7 @@ const file_conf_proto_rawDesc = "" +
 	"\tDataRedis\x12\x12\n" +
 	"\x04addr\x18\x01 \x01(\tR\x04addr\x12!\n" +
 	"\fread_timeout\x18\x02 \x01(\x05R\vreadTimeout\x12#\n" +
-	"\rwrite_timeout\x18\x03 \x01(\x05R\fwriteTimeout\"\x9e\x03\n" +
+	"\rwrite_timeout\x18\x03 \x01(\x05R\fwriteTimeout\"\x89\x04\n" +
 	"\x05Agent\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x19\n" +
 	"\bapi_keys\x18\x02 \x03(\tR\aapiKeys\x12)\n" +
@@ -1328,7 +1345,10 @@ const file_conf_proto_rawDesc = "" +
 	"\x1coffline_heartbeat_multiplier\x18\x06 \x01(\x05R\x1aofflineHeartbeatMultiplier\x12.\n" +
 	"\x13dev_enqueue_enabled\x18\a \x01(\bR\x11devEnqueueEnabled\x12%\n" +
 	"\x0edispatch_store\x18\b \x01(\tR\rdispatchStore\x127\n" +
-	"\x18dispatch_lease_extra_sec\x18\t \x01(\x05R\x15dispatchLeaseExtraSec\"\xa6\x01\n" +
+	"\x18dispatch_lease_extra_sec\x18\t \x01(\x05R\x15dispatchLeaseExtraSec\x12,\n" +
+	"\x12dispatch_retry_max\x18\n" +
+	" \x01(\x05R\x10dispatchRetryMax\x12;\n" +
+	"\x1adispatch_retry_backoff_sec\x18\v \x03(\x05R\x17dispatchRetryBackoffSec\"\xa6\x01\n" +
 	"\vScriptStore\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x12\n" +
 	"\x04root\x18\x02 \x01(\tR\x04root\x12\x1d\n" +

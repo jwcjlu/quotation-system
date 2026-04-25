@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SourcingSessionPage } from './SourcingSessionPage'
@@ -7,6 +7,8 @@ const {
   getSession,
   getBOMLines,
   getSessionSearchTaskCoverage,
+  listLineGaps,
+  listMatchRuns,
   createSessionLine,
   deleteSessionLine,
   exportSessionFile,
@@ -14,10 +16,15 @@ const {
   patchSessionLine,
   putPlatforms,
   retrySearchTasks,
+  resolveLineGapManualQuote,
+  saveMatchRun,
+  selectLineGapSubstitute,
 } = vi.hoisted(() => ({
   getSession: vi.fn(),
   getBOMLines: vi.fn(),
   getSessionSearchTaskCoverage: vi.fn(),
+  listLineGaps: vi.fn(),
+  listMatchRuns: vi.fn(),
   createSessionLine: vi.fn(),
   deleteSessionLine: vi.fn(),
   exportSessionFile: vi.fn(),
@@ -25,6 +32,9 @@ const {
   patchSessionLine: vi.fn(),
   putPlatforms: vi.fn(),
   retrySearchTasks: vi.fn(),
+  resolveLineGapManualQuote: vi.fn(),
+  saveMatchRun: vi.fn(),
+  selectLineGapSubstitute: vi.fn(),
 }))
 
 vi.mock('../api', async () => {
@@ -35,6 +45,8 @@ vi.mock('../api', async () => {
     getSession,
     getBOMLines,
     getSessionSearchTaskCoverage,
+    listLineGaps,
+    listMatchRuns,
     createSessionLine,
     deleteSessionLine,
     exportSessionFile,
@@ -42,6 +54,9 @@ vi.mock('../api', async () => {
     patchSessionLine,
     putPlatforms,
     retrySearchTasks,
+    resolveLineGapManualQuote,
+    saveMatchRun,
+    selectLineGapSubstitute,
   }
 })
 
@@ -83,6 +98,8 @@ describe('SourcingSessionPage', () => {
     vi.useFakeTimers()
     getBOMLines.mockResolvedValue({ lines: [] })
     getSessionSearchTaskCoverage.mockResolvedValue(emptyCoverage)
+    listLineGaps.mockResolvedValue({ gaps: [] })
+    listMatchRuns.mockResolvedValue({ runs: [] })
     createSessionLine.mockResolvedValue(undefined)
     deleteSessionLine.mockResolvedValue(undefined)
     exportSessionFile.mockResolvedValue({ blob: new Blob(), filename: 'session.xlsx' })
@@ -90,6 +107,9 @@ describe('SourcingSessionPage', () => {
     patchSessionLine.mockResolvedValue(undefined)
     putPlatforms.mockResolvedValue({ selection_revision: 1 })
     retrySearchTasks.mockResolvedValue(undefined)
+    resolveLineGapManualQuote.mockResolvedValue({ accepted: true })
+    saveMatchRun.mockResolvedValue({ run_id: '1', run_no: 1 })
+    selectLineGapSubstitute.mockResolvedValue({ accepted: true })
   })
 
   afterEach(() => {
@@ -199,5 +219,66 @@ describe('SourcingSessionPage', () => {
     })
 
     expect(getSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('shows open gaps and saves a match run', async () => {
+    getSession.mockResolvedValue({
+      ...baseSession,
+      status: 'data_ready',
+      import_status: 'ready',
+      import_progress: 100,
+    })
+    listLineGaps.mockResolvedValue({
+      gaps: [
+        {
+          gap_id: '99',
+          session_id: 'session-1',
+          line_id: '2',
+          line_no: 2,
+          mpn: 'NO-DATA',
+          gap_type: 'NO_DATA',
+          reason_code: 'NO_DATA',
+          reason_detail: 'all selected platforms returned no data',
+          resolution_status: 'open',
+          substitute_mpn: '',
+          substitute_reason: '',
+          updated_at: '',
+        },
+      ],
+    })
+    listMatchRuns.mockResolvedValueOnce({ runs: [] }).mockResolvedValueOnce({
+      runs: [
+        {
+          run_id: '7',
+          run_no: 1,
+          session_id: 'session-1',
+          status: 'saved',
+          line_total: 2,
+          matched_line_count: 1,
+          unresolved_line_count: 1,
+          total_amount: 10,
+          currency: 'CNY',
+          created_at: '',
+          saved_at: '',
+        },
+      ],
+    })
+    saveMatchRun.mockResolvedValue({ run_id: '7', run_no: 1 })
+
+    render(<SourcingSessionPage sessionId="session-1" onEnterMatch={vi.fn()} />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    expect(screen.getByText('NO-DATA')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: '保存配单方案' })[0])
+      await flushAsyncWork()
+    })
+
+    expect(saveMatchRun).toHaveBeenCalledWith('session-1')
+    expect(screen.getAllByText(/配单 V1/).length).toBeGreaterThan(0)
   })
 })

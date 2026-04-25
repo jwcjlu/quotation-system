@@ -242,6 +242,13 @@ func (s *BomService) loadSessionLinesAndPlatforms(ctx context.Context, sid strin
 // matchReadinessError 在会话尚未满足与 GetReadiness 一致的「可进入配单」条件时拒绝。
 // gRPC FailedPrecondition 常映射为 HTTP 400；此处选用 ServiceUnavailable，表示依赖侧（搜索任务/缓存）未就绪、可稍后重试。
 func (s *BomService) matchReadinessError(ctx context.Context, sid string, view *biz.BOMSessionView, lines []data.BomSessionLine) error {
+	_, availabilitySummary, err := s.computeLineAvailability(ctx, view, lines, view.PlatformIDs)
+	if err != nil {
+		return err
+	}
+	if availabilitySummary.HasStrictBlockingGap() {
+		return kerrors.ServiceUnavailable("BOM_LINE_AVAILABILITY_GAP", "session has BOM lines without usable data; see GetReadiness")
+	}
 	tasks, err := s.search.ListTasksForSession(ctx, sid)
 	if err != nil {
 		return err
@@ -573,7 +580,14 @@ func (s *BomService) GetReadiness(ctx context.Context, req *v1.GetReadinessReque
 		}
 		return nil, err
 	}
-	lines, err := s.session.ListSessionLines(ctx, sid)
+	if view == nil {
+		return nil, kerrors.NotFound("SESSION_NOT_FOUND", "session not found")
+	}
+	lines, err := s.dataListLines(ctx, sid)
+	if err != nil {
+		return nil, err
+	}
+	_, availabilitySummary, err := s.computeLineAvailability(ctx, view, lines, view.PlatformIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -607,12 +621,20 @@ func (s *BomService) GetReadiness(ctx context.Context, req *v1.GetReadinessReque
 		}
 	}
 	return &v1.GetReadinessReply{
-		SessionId:         sid,
-		BizDate:           view.BizDate.Format("2006-01-02"),
-		SelectionRevision: int32(view.SelectionRevision),
-		Phase:             phase,
-		CanEnterMatch:     can,
-		BlockReason:       block,
+		SessionId:                      sid,
+		BizDate:                        view.BizDate.Format("2006-01-02"),
+		SelectionRevision:              int32(view.SelectionRevision),
+		Phase:                          phase,
+		CanEnterMatch:                  can,
+		BlockReason:                    block,
+		LineTotal:                      int32(availabilitySummary.LineTotal),
+		ReadyLineCount:                 int32(availabilitySummary.ReadyLineCount),
+		GapLineCount:                   int32(availabilitySummary.GapLineCount),
+		NoDataLineCount:                int32(availabilitySummary.NoDataLineCount),
+		CollectionUnavailableLineCount: int32(availabilitySummary.CollectionUnavailableLineCount),
+		NoMatchAfterFilterLineCount:    int32(availabilitySummary.NoMatchAfterFilterLineCount),
+		CollectingLineCount:            int32(availabilitySummary.CollectingLineCount),
+		HasStrictBlockingGap:           availabilitySummary.HasStrictBlockingGap(),
 	}, nil
 }
 
@@ -620,19 +642,46 @@ func (s *BomService) GetBOMLines(ctx context.Context, req *v1.GetBOMLinesRequest
 	if !s.dbOK() {
 		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
 	}
-	rows, err := s.dataListLines(ctx, req.GetSessionId())
+	sid := req.GetSessionId()
+	view, err := s.session.GetSession(ctx, sid)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, kerrors.NotFound("SESSION_NOT_FOUND", "session not found")
+		}
+		return nil, err
+	}
+	if view == nil {
+		return nil, kerrors.NotFound("SESSION_NOT_FOUND", "session not found")
+	}
+	rows, err := s.dataListLines(ctx, sid)
 	if err != nil {
 		return nil, err
 	}
+	availability, _, err := s.computeLineAvailability(ctx, view, rows, view.PlatformIDs)
+	if err != nil {
+		return nil, err
+	}
+	availabilityByLineNo := make(map[int]biz.LineAvailability, len(availability))
+	for _, item := range availability {
+		availabilityByLineNo[item.LineNo] = item
+	}
 	out := make([]*v1.BOMLineRow, 0, len(rows))
 	for _, row := range rows {
+		lineAvailability := availabilityByLineNo[row.LineNo]
 		out = append(out, &v1.BOMLineRow{
-			LineId:  strconv.FormatInt(row.ID, 10),
-			LineNo:  int32(row.LineNo),
-			Mpn:     row.Mpn,
-			Mfr:     derefStrPtr(row.Mfr),
-			Package: derefStrPtr(row.Package),
-			Qty:     derefFloat(row.Qty),
+			LineId:                   strconv.FormatInt(row.ID, 10),
+			LineNo:                   int32(row.LineNo),
+			Mpn:                      row.Mpn,
+			Mfr:                      derefStrPtr(row.Mfr),
+			Package:                  derefStrPtr(row.Package),
+			Qty:                      derefFloat(row.Qty),
+			AvailabilityStatus:       lineAvailability.Status,
+			AvailabilityReasonCode:   lineAvailability.ReasonCode,
+			AvailabilityReason:       lineAvailability.Reason,
+			HasUsableQuote:           lineAvailability.HasUsableQuote,
+			RawQuotePlatformCount:    int32(lineAvailability.RawQuotePlatformCount),
+			UsableQuotePlatformCount: int32(lineAvailability.UsableQuotePlatformCount),
+			ResolutionStatus:         lineAvailability.ResolutionStatus,
 		})
 	}
 	return &v1.GetBOMLinesReply{Lines: out}, nil

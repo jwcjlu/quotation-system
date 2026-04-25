@@ -2711,15 +2711,23 @@ func (x *GetReadinessRequest) GetSessionId() string {
 }
 
 type GetReadinessReply struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	SessionId         string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	BizDate           string                 `protobuf:"bytes,2,opt,name=biz_date,json=bizDate,proto3" json:"biz_date,omitempty"`
-	SelectionRevision int32                  `protobuf:"varint,3,opt,name=selection_revision,json=selectionRevision,proto3" json:"selection_revision,omitempty"`
-	Phase             string                 `protobuf:"bytes,4,opt,name=phase,proto3" json:"phase,omitempty"`
-	CanEnterMatch     bool                   `protobuf:"varint,5,opt,name=can_enter_match,json=canEnterMatch,proto3" json:"can_enter_match,omitempty"`
-	BlockReason       string                 `protobuf:"bytes,6,opt,name=block_reason,json=blockReason,proto3" json:"block_reason,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state                          protoimpl.MessageState `protogen:"open.v1"`
+	SessionId                      string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	BizDate                        string                 `protobuf:"bytes,2,opt,name=biz_date,json=bizDate,proto3" json:"biz_date,omitempty"`
+	SelectionRevision              int32                  `protobuf:"varint,3,opt,name=selection_revision,json=selectionRevision,proto3" json:"selection_revision,omitempty"`
+	Phase                          string                 `protobuf:"bytes,4,opt,name=phase,proto3" json:"phase,omitempty"`
+	CanEnterMatch                  bool                   `protobuf:"varint,5,opt,name=can_enter_match,json=canEnterMatch,proto3" json:"can_enter_match,omitempty"`
+	BlockReason                    string                 `protobuf:"bytes,6,opt,name=block_reason,json=blockReason,proto3" json:"block_reason,omitempty"`
+	LineTotal                      int32                  `protobuf:"varint,7,opt,name=line_total,json=lineTotal,proto3" json:"line_total,omitempty"`
+	ReadyLineCount                 int32                  `protobuf:"varint,8,opt,name=ready_line_count,json=readyLineCount,proto3" json:"ready_line_count,omitempty"`
+	GapLineCount                   int32                  `protobuf:"varint,9,opt,name=gap_line_count,json=gapLineCount,proto3" json:"gap_line_count,omitempty"`
+	NoDataLineCount                int32                  `protobuf:"varint,10,opt,name=no_data_line_count,json=noDataLineCount,proto3" json:"no_data_line_count,omitempty"`
+	CollectionUnavailableLineCount int32                  `protobuf:"varint,11,opt,name=collection_unavailable_line_count,json=collectionUnavailableLineCount,proto3" json:"collection_unavailable_line_count,omitempty"`
+	NoMatchAfterFilterLineCount    int32                  `protobuf:"varint,12,opt,name=no_match_after_filter_line_count,json=noMatchAfterFilterLineCount,proto3" json:"no_match_after_filter_line_count,omitempty"`
+	CollectingLineCount            int32                  `protobuf:"varint,13,opt,name=collecting_line_count,json=collectingLineCount,proto3" json:"collecting_line_count,omitempty"`
+	HasStrictBlockingGap           bool                   `protobuf:"varint,14,opt,name=has_strict_blocking_gap,json=hasStrictBlockingGap,proto3" json:"has_strict_blocking_gap,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *GetReadinessReply) Reset() {
@@ -2794,6 +2802,62 @@ func (x *GetReadinessReply) GetBlockReason() string {
 	return ""
 }
 
+func (x *GetReadinessReply) GetLineTotal() int32 {
+	if x != nil {
+		return x.LineTotal
+	}
+	return 0
+}
+
+func (x *GetReadinessReply) GetReadyLineCount() int32 {
+	if x != nil {
+		return x.ReadyLineCount
+	}
+	return 0
+}
+
+func (x *GetReadinessReply) GetGapLineCount() int32 {
+	if x != nil {
+		return x.GapLineCount
+	}
+	return 0
+}
+
+func (x *GetReadinessReply) GetNoDataLineCount() int32 {
+	if x != nil {
+		return x.NoDataLineCount
+	}
+	return 0
+}
+
+func (x *GetReadinessReply) GetCollectionUnavailableLineCount() int32 {
+	if x != nil {
+		return x.CollectionUnavailableLineCount
+	}
+	return 0
+}
+
+func (x *GetReadinessReply) GetNoMatchAfterFilterLineCount() int32 {
+	if x != nil {
+		return x.NoMatchAfterFilterLineCount
+	}
+	return 0
+}
+
+func (x *GetReadinessReply) GetCollectingLineCount() int32 {
+	if x != nil {
+		return x.CollectingLineCount
+	}
+	return 0
+}
+
+func (x *GetReadinessReply) GetHasStrictBlockingGap() bool {
+	if x != nil {
+		return x.HasStrictBlockingGap
+	}
+	return false
+}
+
 type GetBOMLinesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -2839,17 +2903,24 @@ func (x *GetBOMLinesRequest) GetSessionId() string {
 }
 
 type BOMLineRow struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	LineId        string                 `protobuf:"bytes,1,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
-	LineNo        int32                  `protobuf:"varint,2,opt,name=line_no,json=lineNo,proto3" json:"line_no,omitempty"`
-	Mpn           string                 `protobuf:"bytes,3,opt,name=mpn,proto3" json:"mpn,omitempty"`
-	Mfr           string                 `protobuf:"bytes,4,opt,name=mfr,proto3" json:"mfr,omitempty"`
-	Package       string                 `protobuf:"bytes,5,opt,name=package,proto3" json:"package,omitempty"`
-	Qty           float64                `protobuf:"fixed64,6,opt,name=qty,proto3" json:"qty,omitempty"`
-	MatchStatus   string                 `protobuf:"bytes,7,opt,name=match_status,json=matchStatus,proto3" json:"match_status,omitempty"`
-	PlatformGaps  []*PlatformGap         `protobuf:"bytes,8,rep,name=platform_gaps,json=platformGaps,proto3" json:"platform_gaps,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	LineId                   string                 `protobuf:"bytes,1,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	LineNo                   int32                  `protobuf:"varint,2,opt,name=line_no,json=lineNo,proto3" json:"line_no,omitempty"`
+	Mpn                      string                 `protobuf:"bytes,3,opt,name=mpn,proto3" json:"mpn,omitempty"`
+	Mfr                      string                 `protobuf:"bytes,4,opt,name=mfr,proto3" json:"mfr,omitempty"`
+	Package                  string                 `protobuf:"bytes,5,opt,name=package,proto3" json:"package,omitempty"`
+	Qty                      float64                `protobuf:"fixed64,6,opt,name=qty,proto3" json:"qty,omitempty"`
+	MatchStatus              string                 `protobuf:"bytes,7,opt,name=match_status,json=matchStatus,proto3" json:"match_status,omitempty"`
+	PlatformGaps             []*PlatformGap         `protobuf:"bytes,8,rep,name=platform_gaps,json=platformGaps,proto3" json:"platform_gaps,omitempty"`
+	AvailabilityStatus       string                 `protobuf:"bytes,9,opt,name=availability_status,json=availabilityStatus,proto3" json:"availability_status,omitempty"`
+	AvailabilityReasonCode   string                 `protobuf:"bytes,10,opt,name=availability_reason_code,json=availabilityReasonCode,proto3" json:"availability_reason_code,omitempty"`
+	AvailabilityReason       string                 `protobuf:"bytes,11,opt,name=availability_reason,json=availabilityReason,proto3" json:"availability_reason,omitempty"`
+	HasUsableQuote           bool                   `protobuf:"varint,12,opt,name=has_usable_quote,json=hasUsableQuote,proto3" json:"has_usable_quote,omitempty"`
+	RawQuotePlatformCount    int32                  `protobuf:"varint,13,opt,name=raw_quote_platform_count,json=rawQuotePlatformCount,proto3" json:"raw_quote_platform_count,omitempty"`
+	UsableQuotePlatformCount int32                  `protobuf:"varint,14,opt,name=usable_quote_platform_count,json=usableQuotePlatformCount,proto3" json:"usable_quote_platform_count,omitempty"`
+	ResolutionStatus         string                 `protobuf:"bytes,15,opt,name=resolution_status,json=resolutionStatus,proto3" json:"resolution_status,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *BOMLineRow) Reset() {
@@ -2936,6 +3007,55 @@ func (x *BOMLineRow) GetPlatformGaps() []*PlatformGap {
 		return x.PlatformGaps
 	}
 	return nil
+}
+
+func (x *BOMLineRow) GetAvailabilityStatus() string {
+	if x != nil {
+		return x.AvailabilityStatus
+	}
+	return ""
+}
+
+func (x *BOMLineRow) GetAvailabilityReasonCode() string {
+	if x != nil {
+		return x.AvailabilityReasonCode
+	}
+	return ""
+}
+
+func (x *BOMLineRow) GetAvailabilityReason() string {
+	if x != nil {
+		return x.AvailabilityReason
+	}
+	return ""
+}
+
+func (x *BOMLineRow) GetHasUsableQuote() bool {
+	if x != nil {
+		return x.HasUsableQuote
+	}
+	return false
+}
+
+func (x *BOMLineRow) GetRawQuotePlatformCount() int32 {
+	if x != nil {
+		return x.RawQuotePlatformCount
+	}
+	return 0
+}
+
+func (x *BOMLineRow) GetUsableQuotePlatformCount() int32 {
+	if x != nil {
+		return x.UsableQuotePlatformCount
+	}
+	return 0
+}
+
+func (x *BOMLineRow) GetResolutionStatus() string {
+	if x != nil {
+		return x.ResolutionStatus
+	}
+	return ""
 }
 
 type PlatformGap struct {
@@ -6854,7 +6974,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x12selection_revision\x18\x01 \x01(\x05R\x11selectionRevision\"4\n" +
 	"\x13GetReadinessRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"\xdd\x01\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"\xf6\x04\n" +
 	"\x11GetReadinessReply\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n" +
@@ -6862,10 +6982,20 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x12selection_revision\x18\x03 \x01(\x05R\x11selectionRevision\x12\x14\n" +
 	"\x05phase\x18\x04 \x01(\tR\x05phase\x12&\n" +
 	"\x0fcan_enter_match\x18\x05 \x01(\bR\rcanEnterMatch\x12!\n" +
-	"\fblock_reason\x18\x06 \x01(\tR\vblockReason\"3\n" +
+	"\fblock_reason\x18\x06 \x01(\tR\vblockReason\x12\x1d\n" +
+	"\n" +
+	"line_total\x18\a \x01(\x05R\tlineTotal\x12(\n" +
+	"\x10ready_line_count\x18\b \x01(\x05R\x0ereadyLineCount\x12$\n" +
+	"\x0egap_line_count\x18\t \x01(\x05R\fgapLineCount\x12+\n" +
+	"\x12no_data_line_count\x18\n" +
+	" \x01(\x05R\x0fnoDataLineCount\x12I\n" +
+	"!collection_unavailable_line_count\x18\v \x01(\x05R\x1ecollectionUnavailableLineCount\x12E\n" +
+	" no_match_after_filter_line_count\x18\f \x01(\x05R\x1bnoMatchAfterFilterLineCount\x122\n" +
+	"\x15collecting_line_count\x18\r \x01(\x05R\x13collectingLineCount\x125\n" +
+	"\x17has_strict_blocking_gap\x18\x0e \x01(\bR\x14hasStrictBlockingGap\"3\n" +
 	"\x12GetBOMLinesRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"\xef\x01\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"\xda\x04\n" +
 	"\n" +
 	"BOMLineRow\x12\x17\n" +
 	"\aline_id\x18\x01 \x01(\tR\x06lineId\x12\x17\n" +
@@ -6875,7 +7005,15 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\apackage\x18\x05 \x01(\tR\apackage\x12\x10\n" +
 	"\x03qty\x18\x06 \x01(\x01R\x03qty\x12!\n" +
 	"\fmatch_status\x18\a \x01(\tR\vmatchStatus\x12<\n" +
-	"\rplatform_gaps\x18\b \x03(\v2\x17.api.bom.v1.PlatformGapR\fplatformGaps\"\xf1\x01\n" +
+	"\rplatform_gaps\x18\b \x03(\v2\x17.api.bom.v1.PlatformGapR\fplatformGaps\x12/\n" +
+	"\x13availability_status\x18\t \x01(\tR\x12availabilityStatus\x128\n" +
+	"\x18availability_reason_code\x18\n" +
+	" \x01(\tR\x16availabilityReasonCode\x12/\n" +
+	"\x13availability_reason\x18\v \x01(\tR\x12availabilityReason\x12(\n" +
+	"\x10has_usable_quote\x18\f \x01(\bR\x0ehasUsableQuote\x127\n" +
+	"\x18raw_quote_platform_count\x18\r \x01(\x05R\x15rawQuotePlatformCount\x12=\n" +
+	"\x1busable_quote_platform_count\x18\x0e \x01(\x05R\x18usableQuotePlatformCount\x12+\n" +
+	"\x11resolution_status\x18\x0f \x01(\tR\x10resolutionStatus\"\xf1\x01\n" +
 	"\vPlatformGap\x12\x1f\n" +
 	"\vplatform_id\x18\x01 \x01(\tR\n" +
 	"platformId\x12\x14\n" +

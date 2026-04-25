@@ -183,6 +183,47 @@ describe('SourcingSessionPage', () => {
     expect(getSession).toHaveBeenCalledTimes(2)
   })
 
+  it('shows line availability gaps returned by the API', async () => {
+    getSession.mockResolvedValue({
+      ...baseSession,
+      status: 'data_ready',
+      import_status: 'ready',
+      import_progress: 100,
+      import_stage: 'completed',
+      import_message: 'import finished',
+    })
+    getBOMLines.mockResolvedValue({
+      lines: [
+        {
+          line_id: 'line-1',
+          line_no: 1,
+          mpn: 'NO-DATA',
+          mfr: '',
+          package: '',
+          qty: 1,
+          match_status: '',
+          platform_gaps: [],
+          availability_status: 'no_data',
+          availability_reason: 'NO_DATA_REASON',
+          has_usable_quote: false,
+          raw_quote_platform_count: 0,
+          usable_quote_platform_count: 0,
+          resolution_status: 'open',
+        },
+      ],
+    })
+
+    render(<SourcingSessionPage sessionId="session-1" onEnterMatch={vi.fn()} />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    expect(screen.getByText(/当前 BOM 有/)).toHaveTextContent('1')
+    expect(screen.getByText('无数据')).toBeInTheDocument()
+    expect(screen.getByText('NO_DATA_REASON')).toBeInTheDocument()
+  })
+
   it('shows failed state and stops polling when import fails', async () => {
     getSession
       .mockResolvedValueOnce(baseSession)

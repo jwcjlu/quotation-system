@@ -24,6 +24,43 @@ import {
 import { SessionImportStatusCard } from './sourcing-session/SessionImportStatusCard'
 
 const SESSION_MATCH_READY = 'data_ready'
+const BLOCKING_AVAILABILITY_STATUSES = new Set(['no_data', 'collection_unavailable', 'no_match_after_filter'])
+
+function normalizeAvailabilityStatus(status?: string) {
+  return (status || '').trim()
+}
+
+function availabilityStatusLabel(status?: string) {
+  switch (normalizeAvailabilityStatus(status)) {
+    case 'ready':
+      return '可配单'
+    case 'collecting':
+      return '采集中'
+    case 'no_data':
+      return '无数据'
+    case 'collection_unavailable':
+      return '采集不可用'
+    case 'no_match_after_filter':
+      return '筛选后无匹配'
+    default:
+      return '待判断'
+  }
+}
+
+function availabilityStatusClass(status?: string) {
+  switch (normalizeAvailabilityStatus(status)) {
+    case 'ready':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    case 'collecting':
+      return 'border-sky-200 bg-sky-50 text-sky-700'
+    case 'no_data':
+    case 'collection_unavailable':
+    case 'no_match_after_filter':
+      return 'border-amber-200 bg-amber-50 text-amber-800'
+    default:
+      return 'border-slate-200 bg-slate-50 text-slate-600'
+  }
+}
 
 interface SourcingSessionPageProps {
   sessionId: string
@@ -418,6 +455,18 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
 
   const importParsing = importStatus === 'parsing'
   const canEnterMatch = !importParsing && sessionStatus === SESSION_MATCH_READY && Boolean(onEnterMatch)
+  const blockingAvailabilityLines = lines.filter((line) =>
+    BLOCKING_AVAILABILITY_STATUSES.has(normalizeAvailabilityStatus(line.availability_status)),
+  )
+  const noDataLineCount = blockingAvailabilityLines.filter(
+    (line) => normalizeAvailabilityStatus(line.availability_status) === 'no_data',
+  ).length
+  const unavailableLineCount = blockingAvailabilityLines.filter(
+    (line) => normalizeAvailabilityStatus(line.availability_status) === 'collection_unavailable',
+  ).length
+  const noMatchAfterFilterLineCount = blockingAvailabilityLines.filter(
+    (line) => normalizeAvailabilityStatus(line.availability_status) === 'no_match_after_filter',
+  ).length
 
   return (
     <div className={embedded ? 'space-y-6' : 'space-y-8'}>
@@ -811,6 +860,13 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           </div>
         )}
 
+        {blockingAvailabilityLines.length > 0 && (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            当前 BOM 有 {blockingAvailabilityLines.length} 行暂不能配单：无数据 {noDataLineCount} 行，采集不可用{' '}
+            {unavailableLineCount} 行，筛选后无匹配 {noMatchAfterFilterLineCount} 行。
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -820,6 +876,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                 <th className="py-2 px-2">厂牌</th>
                 <th className="py-2 px-2">封装</th>
                 <th className="py-2 px-2">数量</th>
+                <th className="py-2 px-2">数据可用性</th>
                 <th className="py-2 px-2">match_status</th>
                 <th className="py-2 px-2">platform（四态 / phase）</th>
                 <th className="py-2 px-2 w-40">操作</th>
@@ -828,7 +885,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
             <tbody>
               {lines.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-500">
+                  <td colSpan={9} className="py-8 text-center text-slate-500">
                     暂无行数据（可上方添加，或上传 Excel）
                   </td>
                 </tr>
@@ -875,6 +932,18 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                         <td className="py-2 px-2">{row.qty}</td>
                       </>
                     )}
+                    <td className="py-2 px-2">
+                      <span
+                        className={`inline-flex whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium ${availabilityStatusClass(
+                          row.availability_status,
+                        )}`}
+                      >
+                        {availabilityStatusLabel(row.availability_status)}
+                      </span>
+                      {row.availability_reason && (
+                        <div className="mt-1 max-w-48 text-xs text-slate-500">{row.availability_reason}</div>
+                      )}
+                    </td>
                     <td className="py-2 px-2">{row.match_status || '—'}</td>
                     <td className="py-2 px-2 max-w-xs">
                       {(row.platform_gaps || []).length === 0 ? (

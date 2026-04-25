@@ -115,6 +115,14 @@ export interface GetReadinessReply {
   phase: string
   can_enter_match: boolean
   block_reason: string
+  line_total: number
+  ready_line_count: number
+  gap_line_count: number
+  no_data_line_count: number
+  collection_unavailable_line_count: number
+  no_match_after_filter_line_count: number
+  collecting_line_count: number
+  has_strict_blocking_gap: boolean
 }
 
 export interface PlatformGap {
@@ -151,6 +159,13 @@ export interface BOMLineRow {
   qty: number
   match_status: string
   platform_gaps: PlatformGap[]
+  availability_status?: string
+  availability_reason_code?: string
+  availability_reason?: string
+  has_usable_quote: boolean
+  raw_quote_platform_count: number
+  usable_quote_platform_count: number
+  resolution_status?: string
 }
 
 export interface GetBOMLinesReply {

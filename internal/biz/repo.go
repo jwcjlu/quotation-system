@@ -92,6 +92,40 @@ type BOMSearchTaskRepo interface {
 	LoadQuoteCacheByMergeKey(ctx context.Context, mpnNorm, platformID string, bizDate time.Time) (*QuoteCacheSnapshot, bool, error)
 	LoadQuoteCachesForKeys(ctx context.Context, bizDate time.Time, pairs []MpnPlatformPair) (map[string]*QuoteCacheSnapshot, error)
 	DistinctPendingMergeKeysForSession(ctx context.Context, sessionID string) ([]MergeKey, error)
+	UpsertManualQuote(ctx context.Context, gapID uint64, row AgentQuoteRow) error
+}
+
+type BOMLineGapRepo interface {
+	DBOk() bool
+	UpsertOpenGaps(ctx context.Context, gaps []BOMLineGap) error
+	ListLineGaps(ctx context.Context, sessionID string, statuses []string) ([]BOMLineGap, error)
+	GetLineGap(ctx context.Context, gapID uint64) (*BOMLineGap, error)
+	UpdateLineGapStatus(ctx context.Context, gapID uint64, fromStatus string, toStatus string, actor string, note string) error
+	SelectLineGapSubstitute(ctx context.Context, gapID uint64, actor string, substituteMpn string, reason string) error
+}
+
+type BOMMatchRunRepo interface {
+	DBOk() bool
+	CreateMatchRun(ctx context.Context, sessionID string, selectionRevision int, currency string, createdBy string, items []BOMMatchResultItemDraft) (uint64, int, error)
+	ListMatchRuns(ctx context.Context, sessionID string) ([]BOMMatchRunView, error)
+	GetMatchRun(ctx context.Context, runID uint64) (*BOMMatchRunView, []BOMMatchResultItemDraft, error)
+	SupersedePreviousRuns(ctx context.Context, sessionID string, keepRunID uint64) error
+}
+
+type BOMMatchRunView struct {
+	ID                  uint64
+	RunNo               int
+	SessionID           string
+	SelectionRevision   int
+	Status              string
+	LineTotal           int
+	MatchedLineCount    int
+	UnresolvedLineCount int
+	TotalAmount         float64
+	Currency            string
+	CreatedBy           string
+	CreatedAt           time.Time
+	SavedAt             *time.Time
 }
 
 // MpnPlatformPair 会话内待搜索的 (规范化型号, 平台)。

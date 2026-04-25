@@ -27,6 +27,8 @@ import (
 type BomService struct {
 	session    biz.BOMSessionRepo
 	search     biz.BOMSearchTaskRepo
+	gaps       biz.BOMLineGapRepo
+	matchRuns  biz.BOMMatchRunRepo
 	merge      biz.MergeDispatchExecutor
 	openai     *data.OpenAIChat
 	fx         *data.BomFxRateRepo
@@ -43,6 +45,8 @@ type BomService struct {
 func NewBomService(
 	session biz.BOMSessionRepo,
 	search biz.BOMSearchTaskRepo,
+	gaps biz.BOMLineGapRepo,
+	matchRuns biz.BOMMatchRunRepo,
 	merge biz.MergeDispatchExecutor,
 	openai *data.OpenAIChat,
 	fx *data.BomFxRateRepo,
@@ -61,6 +65,8 @@ func NewBomService(
 	return &BomService{
 		session:    session,
 		search:     search,
+		gaps:       gaps,
+		matchRuns:  matchRuns,
 		merge:      merge,
 		openai:     openai,
 		fx:         fx,
@@ -1127,6 +1133,17 @@ func (s *BomService) DownloadTemplate(ctx context.Context, req *v1.DownloadTempl
 func (s *BomService) ExportSession(ctx context.Context, req *v1.ExportSessionRequest) (*v1.ExportSessionReply, error) {
 	if !s.dbOK() {
 		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	if strings.TrimSpace(req.GetRunId()) != "" {
+		runID, err := strconv.ParseUint(req.GetRunId(), 10, 64)
+		if err != nil {
+			return nil, kerrors.BadRequest("BAD_RUN_ID", "invalid run_id")
+		}
+		_, items, err := s.matchRuns.GetMatchRun(ctx, runID)
+		if err != nil {
+			return nil, err
+		}
+		return s.exportMatchRunItems(items, req.GetFormat())
 	}
 	rows, err := s.dataListLines(ctx, req.GetSessionId())
 	if err != nil {

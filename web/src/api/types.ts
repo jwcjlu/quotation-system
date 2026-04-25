@@ -156,3 +156,32 @@ export interface BOMLineRow {
 export interface GetBOMLinesReply {
   lines: BOMLineRow[]
 }
+
+export interface BOMLineGap {
+  gap_id: string
+  session_id: string
+  line_id: string
+  line_no: number
+  mpn: string
+  gap_type: string
+  reason_code: string
+  reason_detail: string
+  resolution_status: string
+  substitute_mpn: string
+  substitute_reason: string
+  updated_at: string
+}
+
+export interface MatchRunListItem {
+  run_id: string
+  run_no: number
+  session_id: string
+  status: string
+  line_total: number
+  matched_line_count: number
+  unresolved_line_count: number
+  total_amount: number
+  currency: string
+  created_at: string
+  saved_at: string
+}

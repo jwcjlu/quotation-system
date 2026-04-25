@@ -4,12 +4,14 @@
  */
 import { fetchJson } from './http'
 import type {
+  BOMLineGap,
   CreateSessionReply,
   GetBOMLinesReply,
   GetReadinessReply,
   GetSessionReply,
   GetSessionSearchTaskCoverageReply,
   ListSessionsReply,
+  MatchRunListItem,
 } from './types'
 
 const BASE = '/api/v1/bom-sessions'
@@ -224,6 +226,120 @@ export async function getSessionSearchTaskCoverage(
       reason: str(m.reason),
     })),
   }
+}
+
+function parseLineGap(row: Record<string, unknown>): BOMLineGap {
+  return {
+    gap_id: str(row.gap_id ?? row.gapId),
+    session_id: str(row.session_id ?? row.sessionId),
+    line_id: str(row.line_id ?? row.lineId),
+    line_no: num(row.line_no ?? row.lineNo, 0),
+    mpn: str(row.mpn),
+    gap_type: str(row.gap_type ?? row.gapType),
+    reason_code: str(row.reason_code ?? row.reasonCode),
+    reason_detail: str(row.reason_detail ?? row.reasonDetail),
+    resolution_status: str(row.resolution_status ?? row.resolutionStatus),
+    substitute_mpn: str(row.substitute_mpn ?? row.substituteMpn),
+    substitute_reason: str(row.substitute_reason ?? row.substituteReason),
+    updated_at: str(row.updated_at ?? row.updatedAt),
+  }
+}
+
+function parseMatchRun(row: Record<string, unknown>): MatchRunListItem {
+  return {
+    run_id: str(row.run_id ?? row.runId),
+    run_no: num(row.run_no ?? row.runNo, 0),
+    session_id: str(row.session_id ?? row.sessionId),
+    status: str(row.status),
+    line_total: num(row.line_total ?? row.lineTotal, 0),
+    matched_line_count: num(row.matched_line_count ?? row.matchedLineCount, 0),
+    unresolved_line_count: num(row.unresolved_line_count ?? row.unresolvedLineCount, 0),
+    total_amount: num(row.total_amount ?? row.totalAmount, 0),
+    currency: str(row.currency),
+    created_at: str(row.created_at ?? row.createdAt),
+    saved_at: str(row.saved_at ?? row.savedAt),
+  }
+}
+
+export async function listLineGaps(
+  sessionId: string,
+  statuses: string[] = []
+): Promise<{ gaps: BOMLineGap[] }> {
+  const q = new URLSearchParams()
+  statuses.forEach((status) => {
+    if (status) q.append('statuses', status)
+  })
+  const qs = q.toString()
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/sessions/${encodeURIComponent(sessionId)}/gaps${qs ? `?${qs}` : ''}`
+  )
+  const gapsRaw = (json.gaps ?? []) as Record<string, unknown>[]
+  return { gaps: gapsRaw.map(parseLineGap) }
+}
+
+export async function saveMatchRun(sessionId: string): Promise<{ run_id: string; run_no: number }> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/sessions/${encodeURIComponent(sessionId)}/match-runs`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    }
+  )
+  return {
+    run_id: str(json.run_id ?? json.runId),
+    run_no: num(json.run_no ?? json.runNo, 0),
+  }
+}
+
+export async function listMatchRuns(
+  sessionId: string
+): Promise<{ runs: MatchRunListItem[] }> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/sessions/${encodeURIComponent(sessionId)}/match-runs`
+  )
+  const runsRaw = (json.runs ?? []) as Record<string, unknown>[]
+  return { runs: runsRaw.map(parseMatchRun) }
+}
+
+export async function resolveLineGapManualQuote(
+  gapId: string,
+  body: {
+    model: string
+    manufacturer?: string
+    package?: string
+    stock?: string
+    lead_time?: string
+    price_tiers?: string
+    hk_price?: string
+    mainland_price?: string
+    note?: string
+  }
+): Promise<{ accepted: boolean }> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/gaps/${encodeURIComponent(gapId)}/manual-quote`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gap_id: gapId, ...body }),
+    }
+  )
+  return { accepted: Boolean(json.accepted) }
+}
+
+export async function selectLineGapSubstitute(
+  gapId: string,
+  body: { substitute_mpn: string; reason?: string }
+): Promise<{ accepted: boolean }> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/gaps/${encodeURIComponent(gapId)}/substitute`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gap_id: gapId, ...body }),
+    }
+  )
+  return { accepted: Boolean(json.accepted) }
 }
 
 export async function createSessionLine(

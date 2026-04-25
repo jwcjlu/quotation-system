@@ -136,11 +136,21 @@ func (s *stubDatasheetSource) ListQuoteDatasheetCandidates(ctx context.Context, 
 	}, nil
 }
 
+func defaultDatasheetSource() *stubDatasheetSource {
+	return &stubDatasheetSource{
+		asset: &biz.HsDatasheetAssetRecord{
+			ID:           1,
+			DatasheetURL: "https://example.com/default.pdf",
+			UpdatedAt:    time.Now(),
+		},
+	}
+}
+
 func TestHsResolveService_Return202WhenTimeout(t *testing.T) {
 	svc := NewHsResolveService(&stubResolveRunner{
 		task: &biz.HsModelTaskRecord{RunID: "run-timeout", TaskStatus: biz.HsTaskStatusRunning, ResultStatus: biz.HsResultStatusPendingReview},
 		wait: 50 * time.Millisecond,
-	}, &stubTaskQuery{}, &stubRecoRepo{}, nil, nil, 1*time.Millisecond)
+	}, &stubTaskQuery{}, &stubRecoRepo{}, defaultDatasheetSource(), nil, 1*time.Millisecond)
 
 	resp, err := svc.ResolveByModel(context.Background(), &v1.HsResolveByModelRequest{
 		Model:          "STM32F103",
@@ -164,7 +174,7 @@ func TestHsResolveService_Return200WhenCompleted(t *testing.T) {
 			BestCodeTS:   "1234567890",
 			BestScore:    0.98,
 		},
-	}, &stubTaskQuery{}, &stubRecoRepo{}, nil, nil, time.Second)
+	}, &stubTaskQuery{}, &stubRecoRepo{}, defaultDatasheetSource(), nil, time.Second)
 
 	resp, err := svc.ResolveByModel(context.Background(), &v1.HsResolveByModelRequest{
 		Model:          "STM32F103",
@@ -192,7 +202,7 @@ func TestHsResolveService_ResponseFields(t *testing.T) {
 			BestScore:    0.91,
 		},
 	}
-	svc := NewHsResolveService(runner, &stubTaskQuery{}, &stubRecoRepo{}, nil, nil, time.Second)
+	svc := NewHsResolveService(runner, &stubTaskQuery{}, &stubRecoRepo{}, defaultDatasheetSource(), nil, time.Second)
 	resp, err := svc.ResolveByModel(context.Background(), &v1.HsResolveByModelRequest{
 		Model:          "STM32F103",
 		Manufacturer:   "ST",
@@ -226,7 +236,7 @@ func TestHsResolveService_AllowsEmptyManufacturer(t *testing.T) {
 			BestCodeTS:   "1234567890",
 			BestScore:    0.9,
 		},
-	}, &stubTaskQuery{}, &stubRecoRepo{}, nil, nil, time.Second)
+	}, &stubTaskQuery{}, &stubRecoRepo{}, defaultDatasheetSource(), nil, time.Second)
 	resp, err := svc.ResolveByModel(context.Background(), &v1.HsResolveByModelRequest{
 		Model:          "PART-A",
 		Manufacturer:   "",
@@ -332,7 +342,7 @@ func TestHsResolveService_ForceRefreshBypassesMappingCache(t *testing.T) {
 			ResultStatus: biz.HsResultStatusConfirmed,
 		},
 	}
-	svc := NewHsResolveService(runner, &stubTaskQuery{}, &stubRecoRepo{}, nil, nil, time.Second)
+	svc := NewHsResolveService(runner, &stubTaskQuery{}, &stubRecoRepo{}, defaultDatasheetSource(), nil, time.Second)
 	_, err := svc.ResolveByModel(context.Background(), &v1.HsResolveByModelRequest{
 		Model:          "STM32F103",
 		Manufacturer:   "ST",
@@ -362,7 +372,7 @@ func TestHsResolveService_TaskIDEqualsRunID(t *testing.T) {
 			ResultStatus: biz.HsResultStatusConfirmed,
 		},
 	}
-	svc := NewHsResolveService(runner, &stubTaskQuery{}, &stubRecoRepo{}, nil, nil, time.Second)
+	svc := NewHsResolveService(runner, &stubTaskQuery{}, &stubRecoRepo{}, defaultDatasheetSource(), nil, time.Second)
 	resp, err := svc.ResolveByModel(context.Background(), &v1.HsResolveByModelRequest{
 		Model:          "STM32F103",
 		Manufacturer:   "ST",
@@ -471,7 +481,7 @@ func TestHsResolveService_LogFieldsForResolveReply(t *testing.T) {
 			ResultStatus: biz.HsResultStatusConfirmed,
 		},
 	}
-	svc := NewHsResolveService(runner, &stubTaskQuery{}, &stubRecoRepo{}, nil, nil, time.Second)
+	svc := NewHsResolveService(runner, &stubTaskQuery{}, &stubRecoRepo{}, defaultDatasheetSource(), nil, time.Second)
 	logSink := &captureLogger{}
 	svc.log = log.NewHelper(logSink)
 
@@ -499,7 +509,7 @@ func TestHsResolveService_LogFieldsForResolveAcceptedAsync(t *testing.T) {
 	svc := NewHsResolveService(&stubResolveRunner{
 		task: &biz.HsModelTaskRecord{RunID: "run-log-async", TaskStatus: biz.HsTaskStatusRunning, ResultStatus: biz.HsResultStatusPendingReview},
 		wait: 60 * time.Millisecond,
-	}, &stubTaskQuery{}, &stubRecoRepo{}, nil, nil, 1*time.Millisecond)
+	}, &stubTaskQuery{}, &stubRecoRepo{}, defaultDatasheetSource(), nil, 1*time.Millisecond)
 	logSink := &captureLogger{}
 	svc.log = log.NewHelper(logSink)
 

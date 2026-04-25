@@ -7,12 +7,19 @@ import {
   getBOMLines,
   getSession,
   getSessionSearchTaskCoverage,
+  listLineGaps,
+  listMatchRuns,
   patchSession,
   patchSessionLine,
   putPlatforms,
   retrySearchTasks,
+  resolveLineGapManualQuote,
+  saveMatchRun,
+  selectLineGapSubstitute,
+  type BOMLineGap,
   type BOMLineRow,
   type GetSessionSearchTaskCoverageReply,
+  type MatchRunListItem,
 } from '../api'
 import { SessionImportStatusCard } from './sourcing-session/SessionImportStatusCard'
 
@@ -27,6 +34,17 @@ interface SourcingSessionPageProps {
 }
 
 type LineDraft = { mpn: string; mfr: string; package: string; qty: string }
+type ManualQuoteDraft = {
+  model: string
+  manufacturer: string
+  package: string
+  stock: string
+  price_tiers: string
+  note: string
+}
+type SubstituteDraft = { substitute_mpn: string; reason: string }
+
+const GAP_STATUSES = ['open', 'manual_quote_added', 'substitute_selected']
 
 export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: SourcingSessionPageProps) {
   const [sessionTitle, setSessionTitle] = useState('')
@@ -37,6 +55,8 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
   const [revision, setRevision] = useState(1)
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([...PLATFORM_IDS])
   const [lines, setLines] = useState<BOMLineRow[]>([])
+  const [lineGaps, setLineGaps] = useState<BOMLineGap[]>([])
+  const [matchRuns, setMatchRuns] = useState<MatchRunListItem[]>([])
   const [searchCoverage, setSearchCoverage] = useState<GetSessionSearchTaskCoverageReply | null>(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
@@ -44,7 +64,10 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
   const [savingPlatforms, setSavingPlatforms] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [savingHeader, setSavingHeader] = useState(false)
+  const [savingRun, setSavingRun] = useState(false)
+  const [gapActionId, setGapActionId] = useState<string | null>(null)
   const [lineMsg, setLineMsg] = useState<string | null>(null)
+  const [runMsg, setRunMsg] = useState<string | null>(null)
   const [sessionStatus, setSessionStatus] = useState('')
   const [importStatus, setImportStatus] = useState('')
   const [importProgress, setImportProgress] = useState(0)
@@ -56,6 +79,15 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
 
   const [newLine, setNewLine] = useState<LineDraft>({ mpn: '', mfr: '', package: '', qty: '' })
   const [addingLine, setAddingLine] = useState(false)
+  const [manualQuote, setManualQuote] = useState<ManualQuoteDraft>({
+    model: '',
+    manufacturer: '',
+    package: '',
+    stock: '',
+    price_tiers: '',
+    note: '',
+  })
+  const [substitute, setSubstitute] = useState<SubstituteDraft>({ substitute_mpn: '', reason: '' })
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<LineDraft>({ mpn: '', mfr: '', package: '', qty: '' })
@@ -100,18 +132,33 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     }
   }, [sessionId])
 
+  const loadGapAndRuns = useCallback(async () => {
+    try {
+      const [{ gaps }, { runs }] = await Promise.all([
+        listLineGaps(sessionId, GAP_STATUSES),
+        listMatchRuns(sessionId),
+      ])
+      setLineGaps(gaps)
+      setMatchRuns(runs)
+    } catch {
+      setLineGaps([])
+      setMatchRuns([])
+    }
+  }, [sessionId])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     ;(async () => {
       await loadSession()
       await loadLines()
+      await loadGapAndRuns()
       if (!cancelled) setLoading(false)
     })()
     return () => {
       cancelled = true
     }
-  }, [loadSession, loadLines])
+  }, [loadSession, loadLines, loadGapAndRuns])
 
   useEffect(() => {
     if (importStatus !== 'parsing') return
@@ -126,8 +173,9 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     previousImportStatusRef.current = importStatus
     if (previous === 'parsing' && importStatus === 'ready') {
       void loadLines()
+      void loadGapAndRuns()
     }
-  }, [importStatus, loadLines])
+  }, [importStatus, loadLines, loadGapAndRuns])
 
   const togglePlatform = (id: string) => {
     setSelectedPlatforms((prev) =>
@@ -199,6 +247,71 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
       await loadLines()
     } catch (e) {
       setErr(e instanceof Error ? e.message : '重试失败')
+    }
+  }
+
+  const handleSaveMatchRun = async () => {
+    setSavingRun(true)
+    setRunMsg(null)
+    try {
+      const r = await saveMatchRun(sessionId)
+      await loadGapAndRuns()
+      setRunMsg(`已保存配单 V${r.run_no}`)
+    } catch (e) {
+      setRunMsg(e instanceof Error ? e.message : '保存配单方案失败')
+    } finally {
+      setSavingRun(false)
+    }
+  }
+
+  const startGapAction = (gap: BOMLineGap) => {
+    setGapActionId(gap.gap_id)
+    setManualQuote((draft) => ({ ...draft, model: gap.mpn || draft.model }))
+    setSubstitute({ substitute_mpn: gap.substitute_mpn || '', reason: gap.substitute_reason || '' })
+    setRunMsg(null)
+  }
+
+  const handleManualQuote = async (gapId: string) => {
+    const model = manualQuote.model.trim()
+    if (!model) {
+      setRunMsg('请填写人工报价型号')
+      return
+    }
+    setRunMsg(null)
+    try {
+      await resolveLineGapManualQuote(gapId, {
+        model,
+        manufacturer: manualQuote.manufacturer.trim(),
+        package: manualQuote.package.trim(),
+        stock: manualQuote.stock.trim(),
+        price_tiers: manualQuote.price_tiers.trim(),
+        note: manualQuote.note.trim(),
+      })
+      setGapActionId(null)
+      await Promise.all([loadLines(), loadGapAndRuns()])
+      setRunMsg('已补充人工报价')
+    } catch (e) {
+      setRunMsg(e instanceof Error ? e.message : '人工报价保存失败')
+    }
+  }
+
+  const handleSelectSubstitute = async (gapId: string) => {
+    const substituteMpn = substitute.substitute_mpn.trim()
+    if (!substituteMpn) {
+      setRunMsg('请填写替代料 MPN')
+      return
+    }
+    setRunMsg(null)
+    try {
+      await selectLineGapSubstitute(gapId, {
+        substitute_mpn: substituteMpn,
+        reason: substitute.reason.trim(),
+      })
+      setGapActionId(null)
+      await Promise.all([loadLines(), loadGapAndRuns()])
+      setRunMsg('已选择替代料')
+    } catch (e) {
+      setRunMsg(e instanceof Error ? e.message : '替代料保存失败')
     }
   }
 
@@ -362,7 +475,15 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           </button>
           <button
             type="button"
-            onClick={() => void Promise.all([loadSession(), loadLines()])}
+            disabled={savingRun || importParsing}
+            onClick={() => void handleSaveMatchRun()}
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {savingRun ? '保存中...' : '保存配单方案'}
+          </button>
+          <button
+            type="button"
+            onClick={() => void Promise.all([loadSession(), loadLines(), loadGapAndRuns()])}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
           >
             刷新行列表
@@ -389,6 +510,157 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           updatedAt={importUpdatedAt}
         />
       )}
+
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="font-semibold text-slate-800">缺口与配单方案</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              当前缺口 {lineGaps.length} 个，已保存配单方案 {matchRuns.length} 个。
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={savingRun || importParsing}
+            onClick={() => void handleSaveMatchRun()}
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {savingRun ? '保存中...' : '保存配单方案'}
+          </button>
+        </div>
+
+        {runMsg && <p className="mb-3 text-sm text-slate-700">{runMsg}</p>}
+
+        {matchRuns.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {matchRuns.map((run) => (
+              <span
+                key={run.run_id}
+                className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-700"
+                title={run.saved_at || run.created_at}
+              >
+                配单 V{run.run_no} · 匹配 {run.matched_line_count}/{run.line_total} · 未解决{' '}
+                {run.unresolved_line_count}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {lineGaps.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+            暂无待处理缺口。
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {lineGaps.map((gap) => (
+              <div key={gap.gap_id} className="rounded-lg border border-slate-200 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="font-mono text-sm font-semibold text-slate-800">{gap.mpn}</div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      行 {gap.line_no} · {gap.gap_type} · {gap.reason_code} · {gap.resolution_status}
+                    </div>
+                    {gap.reason_detail && (
+                      <div className="mt-1 text-sm text-slate-600">{gap.reason_detail}</div>
+                    )}
+                    {gap.substitute_mpn && (
+                      <div className="mt-1 text-sm text-emerald-700">
+                        替代料 {gap.substitute_mpn}
+                        {gap.substitute_reason ? `：${gap.substitute_reason}` : ''}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => startGapAction(gap)}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs hover:bg-slate-50"
+                  >
+                    处理缺口
+                  </button>
+                </div>
+
+                {gapActionId === gap.gap_id && (
+                  <div className="mt-3 grid gap-3 border-t border-slate-100 pt-3 lg:grid-cols-2">
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <div className="mb-2 text-sm font-medium text-slate-700">补人工报价</div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <input
+                          placeholder="型号 *"
+                          value={manualQuote.model}
+                          onChange={(e) => setManualQuote((d) => ({ ...d, model: e.target.value }))}
+                          className="border border-slate-300 rounded px-2 py-1.5 text-sm font-mono"
+                        />
+                        <input
+                          placeholder="厂牌"
+                          value={manualQuote.manufacturer}
+                          onChange={(e) =>
+                            setManualQuote((d) => ({ ...d, manufacturer: e.target.value }))
+                          }
+                          className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                        />
+                        <input
+                          placeholder="封装"
+                          value={manualQuote.package}
+                          onChange={(e) => setManualQuote((d) => ({ ...d, package: e.target.value }))}
+                          className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                        />
+                        <input
+                          placeholder="库存"
+                          value={manualQuote.stock}
+                          onChange={(e) => setManualQuote((d) => ({ ...d, stock: e.target.value }))}
+                          className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                        />
+                        <input
+                          placeholder="阶梯价"
+                          value={manualQuote.price_tiers}
+                          onChange={(e) =>
+                            setManualQuote((d) => ({ ...d, price_tiers: e.target.value }))
+                          }
+                          className="border border-slate-300 rounded px-2 py-1.5 text-sm sm:col-span-2"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleManualQuote(gap.gap_id)}
+                        className="mt-2 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-white hover:bg-slate-900"
+                      >
+                        保存人工报价
+                      </button>
+                    </div>
+
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <div className="mb-2 text-sm font-medium text-slate-700">选择替代料</div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <input
+                          placeholder="替代料 MPN *"
+                          value={substitute.substitute_mpn}
+                          onChange={(e) =>
+                            setSubstitute((d) => ({ ...d, substitute_mpn: e.target.value }))
+                          }
+                          className="border border-slate-300 rounded px-2 py-1.5 text-sm font-mono"
+                        />
+                        <input
+                          placeholder="原因"
+                          value={substitute.reason}
+                          onChange={(e) => setSubstitute((d) => ({ ...d, reason: e.target.value }))}
+                          className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleSelectSubstitute(gap.gap_id)}
+                        className="mt-2 rounded-lg bg-slate-800 px-3 py-1.5 text-xs text-white hover:bg-slate-900"
+                      >
+                        使用替代料
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="font-semibold text-slate-800 mb-3">单据信息（PATCH /bom-sessions）</h3>

@@ -105,6 +105,10 @@ type BomQuoteCache struct {
 	MpnNorm     string    `gorm:"column:mpn_norm;size:256;not null;uniqueIndex:uk_bom_quote_cache_merge,priority:1"`
 	PlatformID  string    `gorm:"column:platform_id;size:32;not null;uniqueIndex:uk_bom_quote_cache_merge,priority:2"`
 	BizDate     time.Time `gorm:"column:biz_date;type:date;not null;uniqueIndex:uk_bom_quote_cache_merge,priority:3"`
+	SourceType  string    `gorm:"column:source_type;size:32;not null;default:platform"`
+	SessionID   *string   `gorm:"column:session_id;size:36"`
+	LineID      *int64    `gorm:"column:line_id"`
+	CreatedBy   *string   `gorm:"column:created_by;size:128"`
 	Outcome     string    `gorm:"column:outcome;size:32;not null"`
 	QuotesJSON  []byte    `gorm:"column:quotes_json;type:json"`
 	NoMpnDetail []byte    `gorm:"column:no_mpn_detail;type:json"`
@@ -118,6 +122,10 @@ func (BomQuoteCache) TableName() string { return TableBomQuoteCache }
 type BomQuoteItem struct {
 	ID                      uint64    `gorm:"column:id;primaryKey;autoIncrement"`
 	QuoteID                 uint64    `gorm:"column:quote_id;not null;index:idx_bom_quote_item_quote_id"`
+	SourceType              string    `gorm:"column:source_type;size:32;not null;default:platform"`
+	SessionID               *string   `gorm:"column:session_id;size:36"`
+	LineID                  *int64    `gorm:"column:line_id"`
+	CreatedBy               *string   `gorm:"column:created_by;size:128"`
 	Model                   string    `gorm:"column:model;size:255;not null;default:''"`
 	Manufacturer            string    `gorm:"column:manufacturer;size:255;not null;default:''"`
 	ManufacturerCanonicalID *string   `gorm:"column:manufacturer_canonical_id;size:128"`

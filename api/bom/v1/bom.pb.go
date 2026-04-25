@@ -3957,18 +3957,1143 @@ func (x *SubmitBomSearchResultReply) GetServerTime() string {
 }
 
 // ---------- Export（接口清单 §7）----------
+type BOMLineGap struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	GapId            string                 `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3" json:"gap_id,omitempty"`
+	SessionId        string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	LineId           string                 `protobuf:"bytes,3,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	LineNo           int32                  `protobuf:"varint,4,opt,name=line_no,json=lineNo,proto3" json:"line_no,omitempty"`
+	Mpn              string                 `protobuf:"bytes,5,opt,name=mpn,proto3" json:"mpn,omitempty"`
+	GapType          string                 `protobuf:"bytes,6,opt,name=gap_type,json=gapType,proto3" json:"gap_type,omitempty"`
+	ReasonCode       string                 `protobuf:"bytes,7,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	ReasonDetail     string                 `protobuf:"bytes,8,opt,name=reason_detail,json=reasonDetail,proto3" json:"reason_detail,omitempty"`
+	ResolutionStatus string                 `protobuf:"bytes,9,opt,name=resolution_status,json=resolutionStatus,proto3" json:"resolution_status,omitempty"`
+	SubstituteMpn    string                 `protobuf:"bytes,10,opt,name=substitute_mpn,json=substituteMpn,proto3" json:"substitute_mpn,omitempty"`
+	SubstituteReason string                 `protobuf:"bytes,11,opt,name=substitute_reason,json=substituteReason,proto3" json:"substitute_reason,omitempty"`
+	UpdatedAt        string                 `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *BOMLineGap) Reset() {
+	*x = BOMLineGap{}
+	mi := &file_bom_v1_bom_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BOMLineGap) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BOMLineGap) ProtoMessage() {}
+
+func (x *BOMLineGap) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BOMLineGap.ProtoReflect.Descriptor instead.
+func (*BOMLineGap) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *BOMLineGap) GetGapId() string {
+	if x != nil {
+		return x.GapId
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetLineId() string {
+	if x != nil {
+		return x.LineId
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetLineNo() int32 {
+	if x != nil {
+		return x.LineNo
+	}
+	return 0
+}
+
+func (x *BOMLineGap) GetMpn() string {
+	if x != nil {
+		return x.Mpn
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetGapType() string {
+	if x != nil {
+		return x.GapType
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetReasonCode() string {
+	if x != nil {
+		return x.ReasonCode
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetReasonDetail() string {
+	if x != nil {
+		return x.ReasonDetail
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetResolutionStatus() string {
+	if x != nil {
+		return x.ResolutionStatus
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetSubstituteMpn() string {
+	if x != nil {
+		return x.SubstituteMpn
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetSubstituteReason() string {
+	if x != nil {
+		return x.SubstituteReason
+	}
+	return ""
+}
+
+func (x *BOMLineGap) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type ListLineGapsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Statuses      []string               `protobuf:"bytes,2,rep,name=statuses,proto3" json:"statuses,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListLineGapsRequest) Reset() {
+	*x = ListLineGapsRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListLineGapsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListLineGapsRequest) ProtoMessage() {}
+
+func (x *ListLineGapsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListLineGapsRequest.ProtoReflect.Descriptor instead.
+func (*ListLineGapsRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *ListLineGapsRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ListLineGapsRequest) GetStatuses() []string {
+	if x != nil {
+		return x.Statuses
+	}
+	return nil
+}
+
+type ListLineGapsReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Gaps          []*BOMLineGap          `protobuf:"bytes,1,rep,name=gaps,proto3" json:"gaps,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListLineGapsReply) Reset() {
+	*x = ListLineGapsReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListLineGapsReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListLineGapsReply) ProtoMessage() {}
+
+func (x *ListLineGapsReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListLineGapsReply.ProtoReflect.Descriptor instead.
+func (*ListLineGapsReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *ListLineGapsReply) GetGaps() []*BOMLineGap {
+	if x != nil {
+		return x.Gaps
+	}
+	return nil
+}
+
+type ResolveLineGapManualQuoteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GapId         string                 `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3" json:"gap_id,omitempty"`
+	Model         string                 `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`
+	Manufacturer  string                 `protobuf:"bytes,3,opt,name=manufacturer,proto3" json:"manufacturer,omitempty"`
+	Package       string                 `protobuf:"bytes,4,opt,name=package,proto3" json:"package,omitempty"`
+	Stock         string                 `protobuf:"bytes,5,opt,name=stock,proto3" json:"stock,omitempty"`
+	LeadTime      string                 `protobuf:"bytes,6,opt,name=lead_time,json=leadTime,proto3" json:"lead_time,omitempty"`
+	PriceTiers    string                 `protobuf:"bytes,7,opt,name=price_tiers,json=priceTiers,proto3" json:"price_tiers,omitempty"`
+	HkPrice       string                 `protobuf:"bytes,8,opt,name=hk_price,json=hkPrice,proto3" json:"hk_price,omitempty"`
+	MainlandPrice string                 `protobuf:"bytes,9,opt,name=mainland_price,json=mainlandPrice,proto3" json:"mainland_price,omitempty"`
+	Note          string                 `protobuf:"bytes,10,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveLineGapManualQuoteRequest) Reset() {
+	*x = ResolveLineGapManualQuoteRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveLineGapManualQuoteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveLineGapManualQuoteRequest) ProtoMessage() {}
+
+func (x *ResolveLineGapManualQuoteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveLineGapManualQuoteRequest.ProtoReflect.Descriptor instead.
+func (*ResolveLineGapManualQuoteRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetGapId() string {
+	if x != nil {
+		return x.GapId
+	}
+	return ""
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetManufacturer() string {
+	if x != nil {
+		return x.Manufacturer
+	}
+	return ""
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetPackage() string {
+	if x != nil {
+		return x.Package
+	}
+	return ""
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetStock() string {
+	if x != nil {
+		return x.Stock
+	}
+	return ""
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetLeadTime() string {
+	if x != nil {
+		return x.LeadTime
+	}
+	return ""
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetPriceTiers() string {
+	if x != nil {
+		return x.PriceTiers
+	}
+	return ""
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetHkPrice() string {
+	if x != nil {
+		return x.HkPrice
+	}
+	return ""
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetMainlandPrice() string {
+	if x != nil {
+		return x.MainlandPrice
+	}
+	return ""
+}
+
+func (x *ResolveLineGapManualQuoteRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+type ResolveLineGapManualQuoteReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Accepted      bool                   `protobuf:"varint,1,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveLineGapManualQuoteReply) Reset() {
+	*x = ResolveLineGapManualQuoteReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveLineGapManualQuoteReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveLineGapManualQuoteReply) ProtoMessage() {}
+
+func (x *ResolveLineGapManualQuoteReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveLineGapManualQuoteReply.ProtoReflect.Descriptor instead.
+func (*ResolveLineGapManualQuoteReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *ResolveLineGapManualQuoteReply) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
+type SelectLineGapSubstituteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GapId         string                 `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3" json:"gap_id,omitempty"`
+	SubstituteMpn string                 `protobuf:"bytes,2,opt,name=substitute_mpn,json=substituteMpn,proto3" json:"substitute_mpn,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelectLineGapSubstituteRequest) Reset() {
+	*x = SelectLineGapSubstituteRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelectLineGapSubstituteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelectLineGapSubstituteRequest) ProtoMessage() {}
+
+func (x *SelectLineGapSubstituteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelectLineGapSubstituteRequest.ProtoReflect.Descriptor instead.
+func (*SelectLineGapSubstituteRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *SelectLineGapSubstituteRequest) GetGapId() string {
+	if x != nil {
+		return x.GapId
+	}
+	return ""
+}
+
+func (x *SelectLineGapSubstituteRequest) GetSubstituteMpn() string {
+	if x != nil {
+		return x.SubstituteMpn
+	}
+	return ""
+}
+
+func (x *SelectLineGapSubstituteRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type SelectLineGapSubstituteReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Accepted      bool                   `protobuf:"varint,1,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SelectLineGapSubstituteReply) Reset() {
+	*x = SelectLineGapSubstituteReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SelectLineGapSubstituteReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SelectLineGapSubstituteReply) ProtoMessage() {}
+
+func (x *SelectLineGapSubstituteReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SelectLineGapSubstituteReply.ProtoReflect.Descriptor instead.
+func (*SelectLineGapSubstituteReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *SelectLineGapSubstituteReply) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
+type SaveMatchRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Strategy      string                 `protobuf:"bytes,2,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveMatchRunRequest) Reset() {
+	*x = SaveMatchRunRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveMatchRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveMatchRunRequest) ProtoMessage() {}
+
+func (x *SaveMatchRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveMatchRunRequest.ProtoReflect.Descriptor instead.
+func (*SaveMatchRunRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *SaveMatchRunRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *SaveMatchRunRequest) GetStrategy() string {
+	if x != nil {
+		return x.Strategy
+	}
+	return ""
+}
+
+type SaveMatchRunReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	RunNo         int32                  `protobuf:"varint,2,opt,name=run_no,json=runNo,proto3" json:"run_no,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveMatchRunReply) Reset() {
+	*x = SaveMatchRunReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveMatchRunReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveMatchRunReply) ProtoMessage() {}
+
+func (x *SaveMatchRunReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveMatchRunReply.ProtoReflect.Descriptor instead.
+func (*SaveMatchRunReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *SaveMatchRunReply) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *SaveMatchRunReply) GetRunNo() int32 {
+	if x != nil {
+		return x.RunNo
+	}
+	return 0
+}
+
+type MatchRunListItem struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	RunId               string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	RunNo               int32                  `protobuf:"varint,2,opt,name=run_no,json=runNo,proto3" json:"run_no,omitempty"`
+	SessionId           string                 `protobuf:"bytes,3,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Status              string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	LineTotal           int32                  `protobuf:"varint,5,opt,name=line_total,json=lineTotal,proto3" json:"line_total,omitempty"`
+	MatchedLineCount    int32                  `protobuf:"varint,6,opt,name=matched_line_count,json=matchedLineCount,proto3" json:"matched_line_count,omitempty"`
+	UnresolvedLineCount int32                  `protobuf:"varint,7,opt,name=unresolved_line_count,json=unresolvedLineCount,proto3" json:"unresolved_line_count,omitempty"`
+	TotalAmount         float64                `protobuf:"fixed64,8,opt,name=total_amount,json=totalAmount,proto3" json:"total_amount,omitempty"`
+	Currency            string                 `protobuf:"bytes,9,opt,name=currency,proto3" json:"currency,omitempty"`
+	CreatedAt           string                 `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	SavedAt             string                 `protobuf:"bytes,11,opt,name=saved_at,json=savedAt,proto3" json:"saved_at,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *MatchRunListItem) Reset() {
+	*x = MatchRunListItem{}
+	mi := &file_bom_v1_bom_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MatchRunListItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MatchRunListItem) ProtoMessage() {}
+
+func (x *MatchRunListItem) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MatchRunListItem.ProtoReflect.Descriptor instead.
+func (*MatchRunListItem) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *MatchRunListItem) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *MatchRunListItem) GetRunNo() int32 {
+	if x != nil {
+		return x.RunNo
+	}
+	return 0
+}
+
+func (x *MatchRunListItem) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *MatchRunListItem) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *MatchRunListItem) GetLineTotal() int32 {
+	if x != nil {
+		return x.LineTotal
+	}
+	return 0
+}
+
+func (x *MatchRunListItem) GetMatchedLineCount() int32 {
+	if x != nil {
+		return x.MatchedLineCount
+	}
+	return 0
+}
+
+func (x *MatchRunListItem) GetUnresolvedLineCount() int32 {
+	if x != nil {
+		return x.UnresolvedLineCount
+	}
+	return 0
+}
+
+func (x *MatchRunListItem) GetTotalAmount() float64 {
+	if x != nil {
+		return x.TotalAmount
+	}
+	return 0
+}
+
+func (x *MatchRunListItem) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *MatchRunListItem) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *MatchRunListItem) GetSavedAt() string {
+	if x != nil {
+		return x.SavedAt
+	}
+	return ""
+}
+
+type ListMatchRunsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMatchRunsRequest) Reset() {
+	*x = ListMatchRunsRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMatchRunsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMatchRunsRequest) ProtoMessage() {}
+
+func (x *ListMatchRunsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMatchRunsRequest.ProtoReflect.Descriptor instead.
+func (*ListMatchRunsRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *ListMatchRunsRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type ListMatchRunsReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Runs          []*MatchRunListItem    `protobuf:"bytes,1,rep,name=runs,proto3" json:"runs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMatchRunsReply) Reset() {
+	*x = ListMatchRunsReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMatchRunsReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMatchRunsReply) ProtoMessage() {}
+
+func (x *ListMatchRunsReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMatchRunsReply.ProtoReflect.Descriptor instead.
+func (*ListMatchRunsReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *ListMatchRunsReply) GetRuns() []*MatchRunListItem {
+	if x != nil {
+		return x.Runs
+	}
+	return nil
+}
+
+type MatchRunResultItem struct {
+	state                    protoimpl.MessageState `protogen:"open.v1"`
+	LineId                   string                 `protobuf:"bytes,1,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	LineNo                   int32                  `protobuf:"varint,2,opt,name=line_no,json=lineNo,proto3" json:"line_no,omitempty"`
+	SourceType               string                 `protobuf:"bytes,3,opt,name=source_type,json=sourceType,proto3" json:"source_type,omitempty"`
+	MatchStatus              string                 `protobuf:"bytes,4,opt,name=match_status,json=matchStatus,proto3" json:"match_status,omitempty"`
+	GapId                    string                 `protobuf:"bytes,5,opt,name=gap_id,json=gapId,proto3" json:"gap_id,omitempty"`
+	QuoteItemId              string                 `protobuf:"bytes,6,opt,name=quote_item_id,json=quoteItemId,proto3" json:"quote_item_id,omitempty"`
+	PlatformId               string                 `protobuf:"bytes,7,opt,name=platform_id,json=platformId,proto3" json:"platform_id,omitempty"`
+	DemandMpn                string                 `protobuf:"bytes,8,opt,name=demand_mpn,json=demandMpn,proto3" json:"demand_mpn,omitempty"`
+	MatchedMpn               string                 `protobuf:"bytes,9,opt,name=matched_mpn,json=matchedMpn,proto3" json:"matched_mpn,omitempty"`
+	MatchedMfr               string                 `protobuf:"bytes,10,opt,name=matched_mfr,json=matchedMfr,proto3" json:"matched_mfr,omitempty"`
+	MatchedPackage           string                 `protobuf:"bytes,11,opt,name=matched_package,json=matchedPackage,proto3" json:"matched_package,omitempty"`
+	Stock                    int64                  `protobuf:"varint,12,opt,name=stock,proto3" json:"stock,omitempty"`
+	LeadTime                 string                 `protobuf:"bytes,13,opt,name=lead_time,json=leadTime,proto3" json:"lead_time,omitempty"`
+	UnitPrice                float64                `protobuf:"fixed64,14,opt,name=unit_price,json=unitPrice,proto3" json:"unit_price,omitempty"`
+	Subtotal                 float64                `protobuf:"fixed64,15,opt,name=subtotal,proto3" json:"subtotal,omitempty"`
+	Currency                 string                 `protobuf:"bytes,16,opt,name=currency,proto3" json:"currency,omitempty"`
+	SubstituteMpn            string                 `protobuf:"bytes,17,opt,name=substitute_mpn,json=substituteMpn,proto3" json:"substitute_mpn,omitempty"`
+	SubstituteReason         string                 `protobuf:"bytes,18,opt,name=substitute_reason,json=substituteReason,proto3" json:"substitute_reason,omitempty"`
+	CodeTs                   string                 `protobuf:"bytes,19,opt,name=code_ts,json=codeTs,proto3" json:"code_ts,omitempty"`
+	ControlMark              string                 `protobuf:"bytes,20,opt,name=control_mark,json=controlMark,proto3" json:"control_mark,omitempty"`
+	ImportTaxImpOrdinaryRate string                 `protobuf:"bytes,21,opt,name=import_tax_imp_ordinary_rate,json=importTaxImpOrdinaryRate,proto3" json:"import_tax_imp_ordinary_rate,omitempty"`
+	ImportTaxImpDiscountRate string                 `protobuf:"bytes,22,opt,name=import_tax_imp_discount_rate,json=importTaxImpDiscountRate,proto3" json:"import_tax_imp_discount_rate,omitempty"`
+	ImportTaxImpTempRate     string                 `protobuf:"bytes,23,opt,name=import_tax_imp_temp_rate,json=importTaxImpTempRate,proto3" json:"import_tax_imp_temp_rate,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *MatchRunResultItem) Reset() {
+	*x = MatchRunResultItem{}
+	mi := &file_bom_v1_bom_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MatchRunResultItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MatchRunResultItem) ProtoMessage() {}
+
+func (x *MatchRunResultItem) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MatchRunResultItem.ProtoReflect.Descriptor instead.
+func (*MatchRunResultItem) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *MatchRunResultItem) GetLineId() string {
+	if x != nil {
+		return x.LineId
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetLineNo() int32 {
+	if x != nil {
+		return x.LineNo
+	}
+	return 0
+}
+
+func (x *MatchRunResultItem) GetSourceType() string {
+	if x != nil {
+		return x.SourceType
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetMatchStatus() string {
+	if x != nil {
+		return x.MatchStatus
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetGapId() string {
+	if x != nil {
+		return x.GapId
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetQuoteItemId() string {
+	if x != nil {
+		return x.QuoteItemId
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetPlatformId() string {
+	if x != nil {
+		return x.PlatformId
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetDemandMpn() string {
+	if x != nil {
+		return x.DemandMpn
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetMatchedMpn() string {
+	if x != nil {
+		return x.MatchedMpn
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetMatchedMfr() string {
+	if x != nil {
+		return x.MatchedMfr
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetMatchedPackage() string {
+	if x != nil {
+		return x.MatchedPackage
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetStock() int64 {
+	if x != nil {
+		return x.Stock
+	}
+	return 0
+}
+
+func (x *MatchRunResultItem) GetLeadTime() string {
+	if x != nil {
+		return x.LeadTime
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetUnitPrice() float64 {
+	if x != nil {
+		return x.UnitPrice
+	}
+	return 0
+}
+
+func (x *MatchRunResultItem) GetSubtotal() float64 {
+	if x != nil {
+		return x.Subtotal
+	}
+	return 0
+}
+
+func (x *MatchRunResultItem) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetSubstituteMpn() string {
+	if x != nil {
+		return x.SubstituteMpn
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetSubstituteReason() string {
+	if x != nil {
+		return x.SubstituteReason
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetCodeTs() string {
+	if x != nil {
+		return x.CodeTs
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetControlMark() string {
+	if x != nil {
+		return x.ControlMark
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetImportTaxImpOrdinaryRate() string {
+	if x != nil {
+		return x.ImportTaxImpOrdinaryRate
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetImportTaxImpDiscountRate() string {
+	if x != nil {
+		return x.ImportTaxImpDiscountRate
+	}
+	return ""
+}
+
+func (x *MatchRunResultItem) GetImportTaxImpTempRate() string {
+	if x != nil {
+		return x.ImportTaxImpTempRate
+	}
+	return ""
+}
+
+type GetMatchRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMatchRunRequest) Reset() {
+	*x = GetMatchRunRequest{}
+	mi := &file_bom_v1_bom_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMatchRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMatchRunRequest) ProtoMessage() {}
+
+func (x *GetMatchRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMatchRunRequest.ProtoReflect.Descriptor instead.
+func (*GetMatchRunRequest) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *GetMatchRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type GetMatchRunReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *MatchRunListItem      `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	Items         []*MatchRunResultItem  `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMatchRunReply) Reset() {
+	*x = GetMatchRunReply{}
+	mi := &file_bom_v1_bom_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMatchRunReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMatchRunReply) ProtoMessage() {}
+
+func (x *GetMatchRunReply) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMatchRunReply.ProtoReflect.Descriptor instead.
+func (*GetMatchRunReply) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *GetMatchRunReply) GetRun() *MatchRunListItem {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+func (x *GetMatchRunReply) GetItems() []*MatchRunResultItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 type ExportSessionRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// xlsx | csv，缺省 xlsx
 	Format        string `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	RunId         string `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExportSessionRequest) Reset() {
 	*x = ExportSessionRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[58]
+	mi := &file_bom_v1_bom_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3980,7 +5105,7 @@ func (x *ExportSessionRequest) String() string {
 func (*ExportSessionRequest) ProtoMessage() {}
 
 func (x *ExportSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[58]
+	mi := &file_bom_v1_bom_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3993,7 +5118,7 @@ func (x *ExportSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportSessionRequest.ProtoReflect.Descriptor instead.
 func (*ExportSessionRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{58}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ExportSessionRequest) GetSessionId() string {
@@ -4010,6 +5135,13 @@ func (x *ExportSessionRequest) GetFormat() string {
 	return ""
 }
 
+func (x *ExportSessionRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
 type ExportSessionReply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	File          []byte                 `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
@@ -4020,7 +5152,7 @@ type ExportSessionReply struct {
 
 func (x *ExportSessionReply) Reset() {
 	*x = ExportSessionReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[59]
+	mi := &file_bom_v1_bom_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4032,7 +5164,7 @@ func (x *ExportSessionReply) String() string {
 func (*ExportSessionReply) ProtoMessage() {}
 
 func (x *ExportSessionReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[59]
+	mi := &file_bom_v1_bom_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4045,7 +5177,7 @@ func (x *ExportSessionReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportSessionReply.ProtoReflect.Descriptor instead.
 func (*ExportSessionReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{59}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *ExportSessionReply) GetFile() []byte {
@@ -4078,7 +5210,7 @@ type HsResolveByModelRequest struct {
 
 func (x *HsResolveByModelRequest) Reset() {
 	*x = HsResolveByModelRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[60]
+	mi := &file_bom_v1_bom_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4090,7 +5222,7 @@ func (x *HsResolveByModelRequest) String() string {
 func (*HsResolveByModelRequest) ProtoMessage() {}
 
 func (x *HsResolveByModelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[60]
+	mi := &file_bom_v1_bom_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4103,7 +5235,7 @@ func (x *HsResolveByModelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveByModelRequest.ProtoReflect.Descriptor instead.
 func (*HsResolveByModelRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{60}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *HsResolveByModelRequest) GetModel() string {
@@ -4158,7 +5290,7 @@ type UploadHsManualDatasheetRequest struct {
 
 func (x *UploadHsManualDatasheetRequest) Reset() {
 	*x = UploadHsManualDatasheetRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[61]
+	mi := &file_bom_v1_bom_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4170,7 +5302,7 @@ func (x *UploadHsManualDatasheetRequest) String() string {
 func (*UploadHsManualDatasheetRequest) ProtoMessage() {}
 
 func (x *UploadHsManualDatasheetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[61]
+	mi := &file_bom_v1_bom_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4183,7 +5315,7 @@ func (x *UploadHsManualDatasheetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadHsManualDatasheetRequest.ProtoReflect.Descriptor instead.
 func (*UploadHsManualDatasheetRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{61}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *UploadHsManualDatasheetRequest) GetFile() []byte {
@@ -4211,7 +5343,7 @@ type UploadHsManualDatasheetReply struct {
 
 func (x *UploadHsManualDatasheetReply) Reset() {
 	*x = UploadHsManualDatasheetReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[62]
+	mi := &file_bom_v1_bom_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4223,7 +5355,7 @@ func (x *UploadHsManualDatasheetReply) String() string {
 func (*UploadHsManualDatasheetReply) ProtoMessage() {}
 
 func (x *UploadHsManualDatasheetReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[62]
+	mi := &file_bom_v1_bom_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4236,7 +5368,7 @@ func (x *UploadHsManualDatasheetReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadHsManualDatasheetReply.ProtoReflect.Descriptor instead.
 func (*UploadHsManualDatasheetReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{62}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *UploadHsManualDatasheetReply) GetUploadId() string {
@@ -4272,7 +5404,7 @@ type HsResolveCandidate struct {
 
 func (x *HsResolveCandidate) Reset() {
 	*x = HsResolveCandidate{}
-	mi := &file_bom_v1_bom_proto_msgTypes[63]
+	mi := &file_bom_v1_bom_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4284,7 +5416,7 @@ func (x *HsResolveCandidate) String() string {
 func (*HsResolveCandidate) ProtoMessage() {}
 
 func (x *HsResolveCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[63]
+	mi := &file_bom_v1_bom_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4297,7 +5429,7 @@ func (x *HsResolveCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveCandidate.ProtoReflect.Descriptor instead.
 func (*HsResolveCandidate) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{63}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *HsResolveCandidate) GetCandidateRank() uint32 {
@@ -4347,7 +5479,7 @@ type HsResolveByModelReply struct {
 
 func (x *HsResolveByModelReply) Reset() {
 	*x = HsResolveByModelReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[64]
+	mi := &file_bom_v1_bom_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4359,7 +5491,7 @@ func (x *HsResolveByModelReply) String() string {
 func (*HsResolveByModelReply) ProtoMessage() {}
 
 func (x *HsResolveByModelReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[64]
+	mi := &file_bom_v1_bom_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4372,7 +5504,7 @@ func (x *HsResolveByModelReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveByModelReply.ProtoReflect.Descriptor instead.
 func (*HsResolveByModelReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{64}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *HsResolveByModelReply) GetAccepted() bool {
@@ -4461,7 +5593,7 @@ type HsResolveTaskRequest struct {
 
 func (x *HsResolveTaskRequest) Reset() {
 	*x = HsResolveTaskRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[65]
+	mi := &file_bom_v1_bom_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4473,7 +5605,7 @@ func (x *HsResolveTaskRequest) String() string {
 func (*HsResolveTaskRequest) ProtoMessage() {}
 
 func (x *HsResolveTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[65]
+	mi := &file_bom_v1_bom_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4486,7 +5618,7 @@ func (x *HsResolveTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveTaskRequest.ProtoReflect.Descriptor instead.
 func (*HsResolveTaskRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{65}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *HsResolveTaskRequest) GetTaskId() string {
@@ -4514,7 +5646,7 @@ type HsResolveTaskReply struct {
 
 func (x *HsResolveTaskReply) Reset() {
 	*x = HsResolveTaskReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[66]
+	mi := &file_bom_v1_bom_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4526,7 +5658,7 @@ func (x *HsResolveTaskReply) String() string {
 func (*HsResolveTaskReply) ProtoMessage() {}
 
 func (x *HsResolveTaskReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[66]
+	mi := &file_bom_v1_bom_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4539,7 +5671,7 @@ func (x *HsResolveTaskReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveTaskReply.ProtoReflect.Descriptor instead.
 func (*HsResolveTaskReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{66}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *HsResolveTaskReply) GetTaskId() string {
@@ -4626,7 +5758,7 @@ type HsResolveConfirmRequest struct {
 
 func (x *HsResolveConfirmRequest) Reset() {
 	*x = HsResolveConfirmRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[67]
+	mi := &file_bom_v1_bom_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4638,7 +5770,7 @@ func (x *HsResolveConfirmRequest) String() string {
 func (*HsResolveConfirmRequest) ProtoMessage() {}
 
 func (x *HsResolveConfirmRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[67]
+	mi := &file_bom_v1_bom_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4651,7 +5783,7 @@ func (x *HsResolveConfirmRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveConfirmRequest.ProtoReflect.Descriptor instead.
 func (*HsResolveConfirmRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{67}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *HsResolveConfirmRequest) GetModel() string {
@@ -4711,7 +5843,7 @@ type HsResolveConfirmReply struct {
 
 func (x *HsResolveConfirmReply) Reset() {
 	*x = HsResolveConfirmReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[68]
+	mi := &file_bom_v1_bom_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4723,7 +5855,7 @@ func (x *HsResolveConfirmReply) String() string {
 func (*HsResolveConfirmReply) ProtoMessage() {}
 
 func (x *HsResolveConfirmReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[68]
+	mi := &file_bom_v1_bom_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4736,7 +5868,7 @@ func (x *HsResolveConfirmReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveConfirmReply.ProtoReflect.Descriptor instead.
 func (*HsResolveConfirmReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{68}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *HsResolveConfirmReply) GetRunId() string {
@@ -4799,7 +5931,7 @@ type HsResolveHistoryRequest struct {
 
 func (x *HsResolveHistoryRequest) Reset() {
 	*x = HsResolveHistoryRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[69]
+	mi := &file_bom_v1_bom_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4811,7 +5943,7 @@ func (x *HsResolveHistoryRequest) String() string {
 func (*HsResolveHistoryRequest) ProtoMessage() {}
 
 func (x *HsResolveHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[69]
+	mi := &file_bom_v1_bom_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4824,7 +5956,7 @@ func (x *HsResolveHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveHistoryRequest.ProtoReflect.Descriptor instead.
 func (*HsResolveHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{69}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *HsResolveHistoryRequest) GetModel() string {
@@ -4863,7 +5995,7 @@ type HsResolveHistoryItem struct {
 
 func (x *HsResolveHistoryItem) Reset() {
 	*x = HsResolveHistoryItem{}
-	mi := &file_bom_v1_bom_proto_msgTypes[70]
+	mi := &file_bom_v1_bom_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4875,7 +6007,7 @@ func (x *HsResolveHistoryItem) String() string {
 func (*HsResolveHistoryItem) ProtoMessage() {}
 
 func (x *HsResolveHistoryItem) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[70]
+	mi := &file_bom_v1_bom_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4888,7 +6020,7 @@ func (x *HsResolveHistoryItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveHistoryItem.ProtoReflect.Descriptor instead.
 func (*HsResolveHistoryItem) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{70}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *HsResolveHistoryItem) GetRunId() string {
@@ -4949,7 +6081,7 @@ type HsResolveHistoryReply struct {
 
 func (x *HsResolveHistoryReply) Reset() {
 	*x = HsResolveHistoryReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[71]
+	mi := &file_bom_v1_bom_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4961,7 +6093,7 @@ func (x *HsResolveHistoryReply) String() string {
 func (*HsResolveHistoryReply) ProtoMessage() {}
 
 func (x *HsResolveHistoryReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[71]
+	mi := &file_bom_v1_bom_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4974,7 +6106,7 @@ func (x *HsResolveHistoryReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveHistoryReply.ProtoReflect.Descriptor instead.
 func (*HsResolveHistoryReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{71}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *HsResolveHistoryReply) GetItems() []*HsResolveHistoryItem {
@@ -4999,7 +6131,7 @@ type HsMetaListRequest struct {
 
 func (x *HsMetaListRequest) Reset() {
 	*x = HsMetaListRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[72]
+	mi := &file_bom_v1_bom_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5011,7 +6143,7 @@ func (x *HsMetaListRequest) String() string {
 func (*HsMetaListRequest) ProtoMessage() {}
 
 func (x *HsMetaListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[72]
+	mi := &file_bom_v1_bom_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5024,7 +6156,7 @@ func (x *HsMetaListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaListRequest.ProtoReflect.Descriptor instead.
 func (*HsMetaListRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{72}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *HsMetaListRequest) GetPage() int32 {
@@ -5085,7 +6217,7 @@ type HsMetaListRow struct {
 
 func (x *HsMetaListRow) Reset() {
 	*x = HsMetaListRow{}
-	mi := &file_bom_v1_bom_proto_msgTypes[73]
+	mi := &file_bom_v1_bom_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5097,7 +6229,7 @@ func (x *HsMetaListRow) String() string {
 func (*HsMetaListRow) ProtoMessage() {}
 
 func (x *HsMetaListRow) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[73]
+	mi := &file_bom_v1_bom_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5110,7 +6242,7 @@ func (x *HsMetaListRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaListRow.ProtoReflect.Descriptor instead.
 func (*HsMetaListRow) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{73}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *HsMetaListRow) GetId() int64 {
@@ -5179,7 +6311,7 @@ type HsMetaListReply struct {
 
 func (x *HsMetaListReply) Reset() {
 	*x = HsMetaListReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[74]
+	mi := &file_bom_v1_bom_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5191,7 +6323,7 @@ func (x *HsMetaListReply) String() string {
 func (*HsMetaListReply) ProtoMessage() {}
 
 func (x *HsMetaListReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[74]
+	mi := &file_bom_v1_bom_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5204,7 +6336,7 @@ func (x *HsMetaListReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaListReply.ProtoReflect.Descriptor instead.
 func (*HsMetaListReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{74}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *HsMetaListReply) GetItems() []*HsMetaListRow {
@@ -5235,7 +6367,7 @@ type HsMetaCreateRequest struct {
 
 func (x *HsMetaCreateRequest) Reset() {
 	*x = HsMetaCreateRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[75]
+	mi := &file_bom_v1_bom_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5247,7 +6379,7 @@ func (x *HsMetaCreateRequest) String() string {
 func (*HsMetaCreateRequest) ProtoMessage() {}
 
 func (x *HsMetaCreateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[75]
+	mi := &file_bom_v1_bom_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5260,7 +6392,7 @@ func (x *HsMetaCreateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaCreateRequest.ProtoReflect.Descriptor instead.
 func (*HsMetaCreateRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{75}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *HsMetaCreateRequest) GetCategory() string {
@@ -5320,7 +6452,7 @@ type HsMetaUpdateRequest struct {
 
 func (x *HsMetaUpdateRequest) Reset() {
 	*x = HsMetaUpdateRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[76]
+	mi := &file_bom_v1_bom_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5332,7 +6464,7 @@ func (x *HsMetaUpdateRequest) String() string {
 func (*HsMetaUpdateRequest) ProtoMessage() {}
 
 func (x *HsMetaUpdateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[76]
+	mi := &file_bom_v1_bom_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5345,7 +6477,7 @@ func (x *HsMetaUpdateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaUpdateRequest.ProtoReflect.Descriptor instead.
 func (*HsMetaUpdateRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{76}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *HsMetaUpdateRequest) GetId() int64 {
@@ -5406,7 +6538,7 @@ type HsMetaDeleteRequest struct {
 
 func (x *HsMetaDeleteRequest) Reset() {
 	*x = HsMetaDeleteRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[77]
+	mi := &file_bom_v1_bom_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5418,7 +6550,7 @@ func (x *HsMetaDeleteRequest) String() string {
 func (*HsMetaDeleteRequest) ProtoMessage() {}
 
 func (x *HsMetaDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[77]
+	mi := &file_bom_v1_bom_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5431,7 +6563,7 @@ func (x *HsMetaDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaDeleteRequest.ProtoReflect.Descriptor instead.
 func (*HsMetaDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{77}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *HsMetaDeleteRequest) GetId() int64 {
@@ -5450,7 +6582,7 @@ type HsMetaMutationReply struct {
 
 func (x *HsMetaMutationReply) Reset() {
 	*x = HsMetaMutationReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[78]
+	mi := &file_bom_v1_bom_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5462,7 +6594,7 @@ func (x *HsMetaMutationReply) String() string {
 func (*HsMetaMutationReply) ProtoMessage() {}
 
 func (x *HsMetaMutationReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[78]
+	mi := &file_bom_v1_bom_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5475,7 +6607,7 @@ func (x *HsMetaMutationReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaMutationReply.ProtoReflect.Descriptor instead.
 func (*HsMetaMutationReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{78}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *HsMetaMutationReply) GetOk() string {
@@ -5838,11 +6970,121 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x1aSubmitBomSearchResultReply\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\x12\x1f\n" +
 	"\vserver_time\x18\x02 \x01(\tR\n" +
-	"serverTime\"M\n" +
+	"serverTime\"\x87\x03\n" +
+	"\n" +
+	"BOMLineGap\x12\x15\n" +
+	"\x06gap_id\x18\x01 \x01(\tR\x05gapId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x17\n" +
+	"\aline_id\x18\x03 \x01(\tR\x06lineId\x12\x17\n" +
+	"\aline_no\x18\x04 \x01(\x05R\x06lineNo\x12\x10\n" +
+	"\x03mpn\x18\x05 \x01(\tR\x03mpn\x12\x19\n" +
+	"\bgap_type\x18\x06 \x01(\tR\agapType\x12\x1f\n" +
+	"\vreason_code\x18\a \x01(\tR\n" +
+	"reasonCode\x12#\n" +
+	"\rreason_detail\x18\b \x01(\tR\freasonDetail\x12+\n" +
+	"\x11resolution_status\x18\t \x01(\tR\x10resolutionStatus\x12%\n" +
+	"\x0esubstitute_mpn\x18\n" +
+	" \x01(\tR\rsubstituteMpn\x12+\n" +
+	"\x11substitute_reason\x18\v \x01(\tR\x10substituteReason\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\f \x01(\tR\tupdatedAt\"P\n" +
+	"\x13ListLineGapsRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1a\n" +
+	"\bstatuses\x18\x02 \x03(\tR\bstatuses\"?\n" +
+	"\x11ListLineGapsReply\x12*\n" +
+	"\x04gaps\x18\x01 \x03(\v2\x16.api.bom.v1.BOMLineGapR\x04gaps\"\xb7\x02\n" +
+	" ResolveLineGapManualQuoteRequest\x12\x15\n" +
+	"\x06gap_id\x18\x01 \x01(\tR\x05gapId\x12\x14\n" +
+	"\x05model\x18\x02 \x01(\tR\x05model\x12\"\n" +
+	"\fmanufacturer\x18\x03 \x01(\tR\fmanufacturer\x12\x18\n" +
+	"\apackage\x18\x04 \x01(\tR\apackage\x12\x14\n" +
+	"\x05stock\x18\x05 \x01(\tR\x05stock\x12\x1b\n" +
+	"\tlead_time\x18\x06 \x01(\tR\bleadTime\x12\x1f\n" +
+	"\vprice_tiers\x18\a \x01(\tR\n" +
+	"priceTiers\x12\x19\n" +
+	"\bhk_price\x18\b \x01(\tR\ahkPrice\x12%\n" +
+	"\x0emainland_price\x18\t \x01(\tR\rmainlandPrice\x12\x12\n" +
+	"\x04note\x18\n" +
+	" \x01(\tR\x04note\"<\n" +
+	"\x1eResolveLineGapManualQuoteReply\x12\x1a\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted\"v\n" +
+	"\x1eSelectLineGapSubstituteRequest\x12\x15\n" +
+	"\x06gap_id\x18\x01 \x01(\tR\x05gapId\x12%\n" +
+	"\x0esubstitute_mpn\x18\x02 \x01(\tR\rsubstituteMpn\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\":\n" +
+	"\x1cSelectLineGapSubstituteReply\x12\x1a\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted\"P\n" +
+	"\x13SaveMatchRunRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1a\n" +
+	"\bstrategy\x18\x02 \x01(\tR\bstrategy\"A\n" +
+	"\x11SaveMatchRunReply\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x15\n" +
+	"\x06run_no\x18\x02 \x01(\x05R\x05runNo\"\xf1\x02\n" +
+	"\x10MatchRunListItem\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x15\n" +
+	"\x06run_no\x18\x02 \x01(\x05R\x05runNo\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x03 \x01(\tR\tsessionId\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"line_total\x18\x05 \x01(\x05R\tlineTotal\x12,\n" +
+	"\x12matched_line_count\x18\x06 \x01(\x05R\x10matchedLineCount\x122\n" +
+	"\x15unresolved_line_count\x18\a \x01(\x05R\x13unresolvedLineCount\x12!\n" +
+	"\ftotal_amount\x18\b \x01(\x01R\vtotalAmount\x12\x1a\n" +
+	"\bcurrency\x18\t \x01(\tR\bcurrency\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\n" +
+	" \x01(\tR\tcreatedAt\x12\x19\n" +
+	"\bsaved_at\x18\v \x01(\tR\asavedAt\"5\n" +
+	"\x14ListMatchRunsRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"F\n" +
+	"\x12ListMatchRunsReply\x120\n" +
+	"\x04runs\x18\x01 \x03(\v2\x1c.api.bom.v1.MatchRunListItemR\x04runs\"\xc2\x06\n" +
+	"\x12MatchRunResultItem\x12\x17\n" +
+	"\aline_id\x18\x01 \x01(\tR\x06lineId\x12\x17\n" +
+	"\aline_no\x18\x02 \x01(\x05R\x06lineNo\x12\x1f\n" +
+	"\vsource_type\x18\x03 \x01(\tR\n" +
+	"sourceType\x12!\n" +
+	"\fmatch_status\x18\x04 \x01(\tR\vmatchStatus\x12\x15\n" +
+	"\x06gap_id\x18\x05 \x01(\tR\x05gapId\x12\"\n" +
+	"\rquote_item_id\x18\x06 \x01(\tR\vquoteItemId\x12\x1f\n" +
+	"\vplatform_id\x18\a \x01(\tR\n" +
+	"platformId\x12\x1d\n" +
+	"\n" +
+	"demand_mpn\x18\b \x01(\tR\tdemandMpn\x12\x1f\n" +
+	"\vmatched_mpn\x18\t \x01(\tR\n" +
+	"matchedMpn\x12\x1f\n" +
+	"\vmatched_mfr\x18\n" +
+	" \x01(\tR\n" +
+	"matchedMfr\x12'\n" +
+	"\x0fmatched_package\x18\v \x01(\tR\x0ematchedPackage\x12\x14\n" +
+	"\x05stock\x18\f \x01(\x03R\x05stock\x12\x1b\n" +
+	"\tlead_time\x18\r \x01(\tR\bleadTime\x12\x1d\n" +
+	"\n" +
+	"unit_price\x18\x0e \x01(\x01R\tunitPrice\x12\x1a\n" +
+	"\bsubtotal\x18\x0f \x01(\x01R\bsubtotal\x12\x1a\n" +
+	"\bcurrency\x18\x10 \x01(\tR\bcurrency\x12%\n" +
+	"\x0esubstitute_mpn\x18\x11 \x01(\tR\rsubstituteMpn\x12+\n" +
+	"\x11substitute_reason\x18\x12 \x01(\tR\x10substituteReason\x12\x17\n" +
+	"\acode_ts\x18\x13 \x01(\tR\x06codeTs\x12!\n" +
+	"\fcontrol_mark\x18\x14 \x01(\tR\vcontrolMark\x12>\n" +
+	"\x1cimport_tax_imp_ordinary_rate\x18\x15 \x01(\tR\x18importTaxImpOrdinaryRate\x12>\n" +
+	"\x1cimport_tax_imp_discount_rate\x18\x16 \x01(\tR\x18importTaxImpDiscountRate\x126\n" +
+	"\x18import_tax_imp_temp_rate\x18\x17 \x01(\tR\x14importTaxImpTempRate\"+\n" +
+	"\x12GetMatchRunRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\"x\n" +
+	"\x10GetMatchRunReply\x12.\n" +
+	"\x03run\x18\x01 \x01(\v2\x1c.api.bom.v1.MatchRunListItemR\x03run\x124\n" +
+	"\x05items\x18\x02 \x03(\v2\x1e.api.bom.v1.MatchRunResultItemR\x05items\"d\n" +
 	"\x14ExportSessionRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x16\n" +
-	"\x06format\x18\x02 \x01(\tR\x06format\"D\n" +
+	"\x06format\x18\x02 \x01(\tR\x06format\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\tR\x05runId\"D\n" +
 	"\x12ExportSessionReply\x12\x12\n" +
 	"\x04file\x18\x01 \x01(\fR\x04file\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\"\x8e\x02\n" +
@@ -5980,7 +7222,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x13HsMetaDeleteRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"%\n" +
 	"\x13HsMetaMutationReply\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\tR\x02ok2\xc9\x19\n" +
+	"\x02ok\x18\x01 \x01(\tR\x02ok2\x8f \n" +
 	"\n" +
 	"BomService\x12d\n" +
 	"\tUploadBOM\x12\x1c.api.bom.v1.UploadBOMRequest\x1a\x1a.api.bom.v1.UploadBOMReply\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/api/v1/bom/upload\x12m\n" +
@@ -6006,7 +7248,13 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x10PatchSessionLine\x12#.api.bom.v1.PatchSessionLineRequest\x1a!.api.bom.v1.PatchSessionLineReply\"<\x82\xd3\xe4\x93\x026:\x01*21/api/v1/bom-sessions/{session_id}/lines/{line_id}\x12\x98\x01\n" +
 	"\x11DeleteSessionLine\x12$.api.bom.v1.DeleteSessionLineRequest\x1a\".api.bom.v1.DeleteSessionLineReply\"9\x82\xd3\xe4\x93\x023*1/api/v1/bom-sessions/{session_id}/lines/{line_id}\x12\x9b\x01\n" +
 	"\x10RetrySearchTasks\x12#.api.bom.v1.RetrySearchTasksRequest\x1a!.api.bom.v1.RetrySearchTasksReply\"?\x82\xd3\xe4\x93\x029:\x01*\"4/api/v1/bom-sessions/{session_id}/search-tasks/retry\x12\xa6\x01\n" +
-	"\x15SubmitBomSearchResult\x12(.api.bom.v1.SubmitBomSearchResultRequest\x1a&.api.bom.v1.SubmitBomSearchResultReply\";\x82\xd3\xe4\x93\x025:\x01*\"0/api/v1/bom-sessions/{session_id}/search-results\x12\x83\x01\n" +
+	"\x15SubmitBomSearchResult\x12(.api.bom.v1.SubmitBomSearchResultRequest\x1a&.api.bom.v1.SubmitBomSearchResultReply\";\x82\xd3\xe4\x93\x025:\x01*\"0/api/v1/bom-sessions/{session_id}/search-results\x12{\n" +
+	"\fListLineGaps\x12\x1f.api.bom.v1.ListLineGapsRequest\x1a\x1d.api.bom.v1.ListLineGapsReply\"+\x82\xd3\xe4\x93\x02%\x12#/api/bom/sessions/{session_id}/gaps\x12\xa5\x01\n" +
+	"\x19ResolveLineGapManualQuote\x12,.api.bom.v1.ResolveLineGapManualQuoteRequest\x1a*.api.bom.v1.ResolveLineGapManualQuoteReply\".\x82\xd3\xe4\x93\x02(:\x01*\"#/api/bom/gaps/{gap_id}/manual-quote\x12\x9d\x01\n" +
+	"\x17SelectLineGapSubstitute\x12*.api.bom.v1.SelectLineGapSubstituteRequest\x1a(.api.bom.v1.SelectLineGapSubstituteReply\",\x82\xd3\xe4\x93\x02&:\x01*\"!/api/bom/gaps/{gap_id}/substitute\x12\x84\x01\n" +
+	"\fSaveMatchRun\x12\x1f.api.bom.v1.SaveMatchRunRequest\x1a\x1d.api.bom.v1.SaveMatchRunReply\"4\x82\xd3\xe4\x93\x02.:\x01*\")/api/bom/sessions/{session_id}/match-runs\x12\x84\x01\n" +
+	"\rListMatchRuns\x12 .api.bom.v1.ListMatchRunsRequest\x1a\x1e.api.bom.v1.ListMatchRunsReply\"1\x82\xd3\xe4\x93\x02+\x12)/api/bom/sessions/{session_id}/match-runs\x12q\n" +
+	"\vGetMatchRun\x12\x1e.api.bom.v1.GetMatchRunRequest\x1a\x1c.api.bom.v1.GetMatchRunReply\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/api/bom/match-runs/{run_id}\x12\x83\x01\n" +
 	"\rExportSession\x12 .api.bom.v1.ExportSessionRequest\x1a\x1e.api.bom.v1.ExportSessionReply\"0\x82\xd3\xe4\x93\x02*\x12(/api/v1/bom-sessions/{session_id}/export2\xf2\x04\n" +
 	"\x10HsResolveService\x12}\n" +
 	"\x0eResolveByModel\x12#.api.bom.v1.HsResolveByModelRequest\x1a!.api.bom.v1.HsResolveByModelReply\"#\x82\xd3\xe4\x93\x02\x1d:\x01*\"\x18/api/hs/resolve/by-model\x12p\n" +
@@ -6033,7 +7281,7 @@ func file_bom_v1_bom_proto_rawDescGZIP() []byte {
 	return file_bom_v1_bom_proto_rawDescData
 }
 
-var file_bom_v1_bom_proto_msgTypes = make([]protoimpl.MessageInfo, 80)
+var file_bom_v1_bom_proto_msgTypes = make([]protoimpl.MessageInfo, 95)
 var file_bom_v1_bom_proto_goTypes = []any{
 	(*UploadBOMRequest)(nil),                    // 0: api.bom.v1.UploadBOMRequest
 	(*UploadBOMReply)(nil),                      // 1: api.bom.v1.UploadBOMReply
@@ -6093,31 +7341,46 @@ var file_bom_v1_bom_proto_goTypes = []any{
 	(*RetrySearchTasksReply)(nil),               // 55: api.bom.v1.RetrySearchTasksReply
 	(*SubmitBomSearchResultRequest)(nil),        // 56: api.bom.v1.SubmitBomSearchResultRequest
 	(*SubmitBomSearchResultReply)(nil),          // 57: api.bom.v1.SubmitBomSearchResultReply
-	(*ExportSessionRequest)(nil),                // 58: api.bom.v1.ExportSessionRequest
-	(*ExportSessionReply)(nil),                  // 59: api.bom.v1.ExportSessionReply
-	(*HsResolveByModelRequest)(nil),             // 60: api.bom.v1.HsResolveByModelRequest
-	(*UploadHsManualDatasheetRequest)(nil),      // 61: api.bom.v1.UploadHsManualDatasheetRequest
-	(*UploadHsManualDatasheetReply)(nil),        // 62: api.bom.v1.UploadHsManualDatasheetReply
-	(*HsResolveCandidate)(nil),                  // 63: api.bom.v1.HsResolveCandidate
-	(*HsResolveByModelReply)(nil),               // 64: api.bom.v1.HsResolveByModelReply
-	(*HsResolveTaskRequest)(nil),                // 65: api.bom.v1.HsResolveTaskRequest
-	(*HsResolveTaskReply)(nil),                  // 66: api.bom.v1.HsResolveTaskReply
-	(*HsResolveConfirmRequest)(nil),             // 67: api.bom.v1.HsResolveConfirmRequest
-	(*HsResolveConfirmReply)(nil),               // 68: api.bom.v1.HsResolveConfirmReply
-	(*HsResolveHistoryRequest)(nil),             // 69: api.bom.v1.HsResolveHistoryRequest
-	(*HsResolveHistoryItem)(nil),                // 70: api.bom.v1.HsResolveHistoryItem
-	(*HsResolveHistoryReply)(nil),               // 71: api.bom.v1.HsResolveHistoryReply
-	(*HsMetaListRequest)(nil),                   // 72: api.bom.v1.HsMetaListRequest
-	(*HsMetaListRow)(nil),                       // 73: api.bom.v1.HsMetaListRow
-	(*HsMetaListReply)(nil),                     // 74: api.bom.v1.HsMetaListReply
-	(*HsMetaCreateRequest)(nil),                 // 75: api.bom.v1.HsMetaCreateRequest
-	(*HsMetaUpdateRequest)(nil),                 // 76: api.bom.v1.HsMetaUpdateRequest
-	(*HsMetaDeleteRequest)(nil),                 // 77: api.bom.v1.HsMetaDeleteRequest
-	(*HsMetaMutationReply)(nil),                 // 78: api.bom.v1.HsMetaMutationReply
-	nil,                                         // 79: api.bom.v1.UploadBOMRequest.ColumnMappingEntry
+	(*BOMLineGap)(nil),                          // 58: api.bom.v1.BOMLineGap
+	(*ListLineGapsRequest)(nil),                 // 59: api.bom.v1.ListLineGapsRequest
+	(*ListLineGapsReply)(nil),                   // 60: api.bom.v1.ListLineGapsReply
+	(*ResolveLineGapManualQuoteRequest)(nil),    // 61: api.bom.v1.ResolveLineGapManualQuoteRequest
+	(*ResolveLineGapManualQuoteReply)(nil),      // 62: api.bom.v1.ResolveLineGapManualQuoteReply
+	(*SelectLineGapSubstituteRequest)(nil),      // 63: api.bom.v1.SelectLineGapSubstituteRequest
+	(*SelectLineGapSubstituteReply)(nil),        // 64: api.bom.v1.SelectLineGapSubstituteReply
+	(*SaveMatchRunRequest)(nil),                 // 65: api.bom.v1.SaveMatchRunRequest
+	(*SaveMatchRunReply)(nil),                   // 66: api.bom.v1.SaveMatchRunReply
+	(*MatchRunListItem)(nil),                    // 67: api.bom.v1.MatchRunListItem
+	(*ListMatchRunsRequest)(nil),                // 68: api.bom.v1.ListMatchRunsRequest
+	(*ListMatchRunsReply)(nil),                  // 69: api.bom.v1.ListMatchRunsReply
+	(*MatchRunResultItem)(nil),                  // 70: api.bom.v1.MatchRunResultItem
+	(*GetMatchRunRequest)(nil),                  // 71: api.bom.v1.GetMatchRunRequest
+	(*GetMatchRunReply)(nil),                    // 72: api.bom.v1.GetMatchRunReply
+	(*ExportSessionRequest)(nil),                // 73: api.bom.v1.ExportSessionRequest
+	(*ExportSessionReply)(nil),                  // 74: api.bom.v1.ExportSessionReply
+	(*HsResolveByModelRequest)(nil),             // 75: api.bom.v1.HsResolveByModelRequest
+	(*UploadHsManualDatasheetRequest)(nil),      // 76: api.bom.v1.UploadHsManualDatasheetRequest
+	(*UploadHsManualDatasheetReply)(nil),        // 77: api.bom.v1.UploadHsManualDatasheetReply
+	(*HsResolveCandidate)(nil),                  // 78: api.bom.v1.HsResolveCandidate
+	(*HsResolveByModelReply)(nil),               // 79: api.bom.v1.HsResolveByModelReply
+	(*HsResolveTaskRequest)(nil),                // 80: api.bom.v1.HsResolveTaskRequest
+	(*HsResolveTaskReply)(nil),                  // 81: api.bom.v1.HsResolveTaskReply
+	(*HsResolveConfirmRequest)(nil),             // 82: api.bom.v1.HsResolveConfirmRequest
+	(*HsResolveConfirmReply)(nil),               // 83: api.bom.v1.HsResolveConfirmReply
+	(*HsResolveHistoryRequest)(nil),             // 84: api.bom.v1.HsResolveHistoryRequest
+	(*HsResolveHistoryItem)(nil),                // 85: api.bom.v1.HsResolveHistoryItem
+	(*HsResolveHistoryReply)(nil),               // 86: api.bom.v1.HsResolveHistoryReply
+	(*HsMetaListRequest)(nil),                   // 87: api.bom.v1.HsMetaListRequest
+	(*HsMetaListRow)(nil),                       // 88: api.bom.v1.HsMetaListRow
+	(*HsMetaListReply)(nil),                     // 89: api.bom.v1.HsMetaListReply
+	(*HsMetaCreateRequest)(nil),                 // 90: api.bom.v1.HsMetaCreateRequest
+	(*HsMetaUpdateRequest)(nil),                 // 91: api.bom.v1.HsMetaUpdateRequest
+	(*HsMetaDeleteRequest)(nil),                 // 92: api.bom.v1.HsMetaDeleteRequest
+	(*HsMetaMutationReply)(nil),                 // 93: api.bom.v1.HsMetaMutationReply
+	nil,                                         // 94: api.bom.v1.UploadBOMRequest.ColumnMappingEntry
 }
 var file_bom_v1_bom_proto_depIdxs = []int32{
-	79, // 0: api.bom.v1.UploadBOMRequest.column_mapping:type_name -> api.bom.v1.UploadBOMRequest.ColumnMappingEntry
+	94, // 0: api.bom.v1.UploadBOMRequest.column_mapping:type_name -> api.bom.v1.UploadBOMRequest.ColumnMappingEntry
 	2,  // 1: api.bom.v1.UploadBOMReply.items:type_name -> api.bom.v1.ParsedItem
 	5,  // 2: api.bom.v1.SearchQuotesReply.item_quotes:type_name -> api.bom.v1.ItemQuotes
 	6,  // 3: api.bom.v1.ItemQuotes.quotes:type_name -> api.bom.v1.PlatformQuote
@@ -6134,82 +7397,98 @@ var file_bom_v1_bom_proto_depIdxs = []int32{
 	44, // 14: api.bom.v1.GetSessionSearchTaskCoverageReply.missing_tasks:type_name -> api.bom.v1.SearchTaskMissingItem
 	41, // 15: api.bom.v1.GetBOMLinesReply.lines:type_name -> api.bom.v1.BOMLineRow
 	54, // 16: api.bom.v1.RetrySearchTasksRequest.items:type_name -> api.bom.v1.RetrySearchItem
-	63, // 17: api.bom.v1.HsResolveByModelReply.candidates:type_name -> api.bom.v1.HsResolveCandidate
-	63, // 18: api.bom.v1.HsResolveTaskReply.candidates:type_name -> api.bom.v1.HsResolveCandidate
-	63, // 19: api.bom.v1.HsResolveHistoryItem.candidates:type_name -> api.bom.v1.HsResolveCandidate
-	70, // 20: api.bom.v1.HsResolveHistoryReply.items:type_name -> api.bom.v1.HsResolveHistoryItem
-	73, // 21: api.bom.v1.HsMetaListReply.items:type_name -> api.bom.v1.HsMetaListRow
-	0,  // 22: api.bom.v1.BomService.UploadBOM:input_type -> api.bom.v1.UploadBOMRequest
-	3,  // 23: api.bom.v1.BomService.SearchQuotes:input_type -> api.bom.v1.SearchQuotesRequest
-	7,  // 24: api.bom.v1.BomService.AutoMatch:input_type -> api.bom.v1.AutoMatchRequest
-	26, // 25: api.bom.v1.BomService.DownloadTemplate:input_type -> api.bom.v1.DownloadTemplateRequest
-	10, // 26: api.bom.v1.BomService.GetBOM:input_type -> api.bom.v1.GetBOMRequest
-	12, // 27: api.bom.v1.BomService.GetMatchResult:input_type -> api.bom.v1.GetMatchResultRequest
-	14, // 28: api.bom.v1.BomService.ListMatchSources:input_type -> api.bom.v1.ListMatchSourcesRequest
-	19, // 29: api.bom.v1.BomService.GetMatchSourceDetail:input_type -> api.bom.v1.GetMatchSourceDetailRequest
-	21, // 30: api.bom.v1.BomService.ListManufacturerCanonicals:input_type -> api.bom.v1.ListManufacturerCanonicalsRequest
-	24, // 31: api.bom.v1.BomService.CreateManufacturerAlias:input_type -> api.bom.v1.CreateManufacturerAliasRequest
-	28, // 32: api.bom.v1.BomService.CreateSession:input_type -> api.bom.v1.CreateSessionRequest
-	30, // 33: api.bom.v1.BomService.GetSession:input_type -> api.bom.v1.GetSessionRequest
-	32, // 34: api.bom.v1.BomService.ListSessions:input_type -> api.bom.v1.ListSessionsRequest
-	35, // 35: api.bom.v1.BomService.PatchSession:input_type -> api.bom.v1.PatchSessionRequest
-	36, // 36: api.bom.v1.BomService.PutPlatforms:input_type -> api.bom.v1.PutPlatformsRequest
-	38, // 37: api.bom.v1.BomService.GetReadiness:input_type -> api.bom.v1.GetReadinessRequest
-	40, // 38: api.bom.v1.BomService.GetBOMLines:input_type -> api.bom.v1.GetBOMLinesRequest
-	43, // 39: api.bom.v1.BomService.GetSessionSearchTaskCoverage:input_type -> api.bom.v1.GetSessionSearchTaskCoverageRequest
-	47, // 40: api.bom.v1.BomService.CreateSessionLine:input_type -> api.bom.v1.CreateSessionLineRequest
-	49, // 41: api.bom.v1.BomService.PatchSessionLine:input_type -> api.bom.v1.PatchSessionLineRequest
-	51, // 42: api.bom.v1.BomService.DeleteSessionLine:input_type -> api.bom.v1.DeleteSessionLineRequest
-	53, // 43: api.bom.v1.BomService.RetrySearchTasks:input_type -> api.bom.v1.RetrySearchTasksRequest
-	56, // 44: api.bom.v1.BomService.SubmitBomSearchResult:input_type -> api.bom.v1.SubmitBomSearchResultRequest
-	58, // 45: api.bom.v1.BomService.ExportSession:input_type -> api.bom.v1.ExportSessionRequest
-	60, // 46: api.bom.v1.HsResolveService.ResolveByModel:input_type -> api.bom.v1.HsResolveByModelRequest
-	65, // 47: api.bom.v1.HsResolveService.GetResolveTask:input_type -> api.bom.v1.HsResolveTaskRequest
-	67, // 48: api.bom.v1.HsResolveService.ConfirmResolve:input_type -> api.bom.v1.HsResolveConfirmRequest
-	69, // 49: api.bom.v1.HsResolveService.GetResolveHistory:input_type -> api.bom.v1.HsResolveHistoryRequest
-	61, // 50: api.bom.v1.HsResolveService.UploadHsManualDatasheet:input_type -> api.bom.v1.UploadHsManualDatasheetRequest
-	72, // 51: api.bom.v1.HsMetaService.ListHsMeta:input_type -> api.bom.v1.HsMetaListRequest
-	75, // 52: api.bom.v1.HsMetaService.CreateHsMeta:input_type -> api.bom.v1.HsMetaCreateRequest
-	76, // 53: api.bom.v1.HsMetaService.UpdateHsMeta:input_type -> api.bom.v1.HsMetaUpdateRequest
-	77, // 54: api.bom.v1.HsMetaService.DeleteHsMeta:input_type -> api.bom.v1.HsMetaDeleteRequest
-	1,  // 55: api.bom.v1.BomService.UploadBOM:output_type -> api.bom.v1.UploadBOMReply
-	4,  // 56: api.bom.v1.BomService.SearchQuotes:output_type -> api.bom.v1.SearchQuotesReply
-	8,  // 57: api.bom.v1.BomService.AutoMatch:output_type -> api.bom.v1.AutoMatchReply
-	27, // 58: api.bom.v1.BomService.DownloadTemplate:output_type -> api.bom.v1.DownloadTemplateReply
-	11, // 59: api.bom.v1.BomService.GetBOM:output_type -> api.bom.v1.GetBOMReply
-	13, // 60: api.bom.v1.BomService.GetMatchResult:output_type -> api.bom.v1.GetMatchResultReply
-	17, // 61: api.bom.v1.BomService.ListMatchSources:output_type -> api.bom.v1.ListMatchSourcesReply
-	20, // 62: api.bom.v1.BomService.GetMatchSourceDetail:output_type -> api.bom.v1.GetMatchSourceDetailReply
-	23, // 63: api.bom.v1.BomService.ListManufacturerCanonicals:output_type -> api.bom.v1.ListManufacturerCanonicalsReply
-	25, // 64: api.bom.v1.BomService.CreateManufacturerAlias:output_type -> api.bom.v1.CreateManufacturerAliasReply
-	29, // 65: api.bom.v1.BomService.CreateSession:output_type -> api.bom.v1.CreateSessionReply
-	31, // 66: api.bom.v1.BomService.GetSession:output_type -> api.bom.v1.GetSessionReply
-	34, // 67: api.bom.v1.BomService.ListSessions:output_type -> api.bom.v1.ListSessionsReply
-	31, // 68: api.bom.v1.BomService.PatchSession:output_type -> api.bom.v1.GetSessionReply
-	37, // 69: api.bom.v1.BomService.PutPlatforms:output_type -> api.bom.v1.PutPlatformsReply
-	39, // 70: api.bom.v1.BomService.GetReadiness:output_type -> api.bom.v1.GetReadinessReply
-	46, // 71: api.bom.v1.BomService.GetBOMLines:output_type -> api.bom.v1.GetBOMLinesReply
-	45, // 72: api.bom.v1.BomService.GetSessionSearchTaskCoverage:output_type -> api.bom.v1.GetSessionSearchTaskCoverageReply
-	48, // 73: api.bom.v1.BomService.CreateSessionLine:output_type -> api.bom.v1.CreateSessionLineReply
-	50, // 74: api.bom.v1.BomService.PatchSessionLine:output_type -> api.bom.v1.PatchSessionLineReply
-	52, // 75: api.bom.v1.BomService.DeleteSessionLine:output_type -> api.bom.v1.DeleteSessionLineReply
-	55, // 76: api.bom.v1.BomService.RetrySearchTasks:output_type -> api.bom.v1.RetrySearchTasksReply
-	57, // 77: api.bom.v1.BomService.SubmitBomSearchResult:output_type -> api.bom.v1.SubmitBomSearchResultReply
-	59, // 78: api.bom.v1.BomService.ExportSession:output_type -> api.bom.v1.ExportSessionReply
-	64, // 79: api.bom.v1.HsResolveService.ResolveByModel:output_type -> api.bom.v1.HsResolveByModelReply
-	66, // 80: api.bom.v1.HsResolveService.GetResolveTask:output_type -> api.bom.v1.HsResolveTaskReply
-	68, // 81: api.bom.v1.HsResolveService.ConfirmResolve:output_type -> api.bom.v1.HsResolveConfirmReply
-	71, // 82: api.bom.v1.HsResolveService.GetResolveHistory:output_type -> api.bom.v1.HsResolveHistoryReply
-	62, // 83: api.bom.v1.HsResolveService.UploadHsManualDatasheet:output_type -> api.bom.v1.UploadHsManualDatasheetReply
-	74, // 84: api.bom.v1.HsMetaService.ListHsMeta:output_type -> api.bom.v1.HsMetaListReply
-	78, // 85: api.bom.v1.HsMetaService.CreateHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
-	78, // 86: api.bom.v1.HsMetaService.UpdateHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
-	78, // 87: api.bom.v1.HsMetaService.DeleteHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
-	55, // [55:88] is the sub-list for method output_type
-	22, // [22:55] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	58, // 17: api.bom.v1.ListLineGapsReply.gaps:type_name -> api.bom.v1.BOMLineGap
+	67, // 18: api.bom.v1.ListMatchRunsReply.runs:type_name -> api.bom.v1.MatchRunListItem
+	67, // 19: api.bom.v1.GetMatchRunReply.run:type_name -> api.bom.v1.MatchRunListItem
+	70, // 20: api.bom.v1.GetMatchRunReply.items:type_name -> api.bom.v1.MatchRunResultItem
+	78, // 21: api.bom.v1.HsResolveByModelReply.candidates:type_name -> api.bom.v1.HsResolveCandidate
+	78, // 22: api.bom.v1.HsResolveTaskReply.candidates:type_name -> api.bom.v1.HsResolveCandidate
+	78, // 23: api.bom.v1.HsResolveHistoryItem.candidates:type_name -> api.bom.v1.HsResolveCandidate
+	85, // 24: api.bom.v1.HsResolveHistoryReply.items:type_name -> api.bom.v1.HsResolveHistoryItem
+	88, // 25: api.bom.v1.HsMetaListReply.items:type_name -> api.bom.v1.HsMetaListRow
+	0,  // 26: api.bom.v1.BomService.UploadBOM:input_type -> api.bom.v1.UploadBOMRequest
+	3,  // 27: api.bom.v1.BomService.SearchQuotes:input_type -> api.bom.v1.SearchQuotesRequest
+	7,  // 28: api.bom.v1.BomService.AutoMatch:input_type -> api.bom.v1.AutoMatchRequest
+	26, // 29: api.bom.v1.BomService.DownloadTemplate:input_type -> api.bom.v1.DownloadTemplateRequest
+	10, // 30: api.bom.v1.BomService.GetBOM:input_type -> api.bom.v1.GetBOMRequest
+	12, // 31: api.bom.v1.BomService.GetMatchResult:input_type -> api.bom.v1.GetMatchResultRequest
+	14, // 32: api.bom.v1.BomService.ListMatchSources:input_type -> api.bom.v1.ListMatchSourcesRequest
+	19, // 33: api.bom.v1.BomService.GetMatchSourceDetail:input_type -> api.bom.v1.GetMatchSourceDetailRequest
+	21, // 34: api.bom.v1.BomService.ListManufacturerCanonicals:input_type -> api.bom.v1.ListManufacturerCanonicalsRequest
+	24, // 35: api.bom.v1.BomService.CreateManufacturerAlias:input_type -> api.bom.v1.CreateManufacturerAliasRequest
+	28, // 36: api.bom.v1.BomService.CreateSession:input_type -> api.bom.v1.CreateSessionRequest
+	30, // 37: api.bom.v1.BomService.GetSession:input_type -> api.bom.v1.GetSessionRequest
+	32, // 38: api.bom.v1.BomService.ListSessions:input_type -> api.bom.v1.ListSessionsRequest
+	35, // 39: api.bom.v1.BomService.PatchSession:input_type -> api.bom.v1.PatchSessionRequest
+	36, // 40: api.bom.v1.BomService.PutPlatforms:input_type -> api.bom.v1.PutPlatformsRequest
+	38, // 41: api.bom.v1.BomService.GetReadiness:input_type -> api.bom.v1.GetReadinessRequest
+	40, // 42: api.bom.v1.BomService.GetBOMLines:input_type -> api.bom.v1.GetBOMLinesRequest
+	43, // 43: api.bom.v1.BomService.GetSessionSearchTaskCoverage:input_type -> api.bom.v1.GetSessionSearchTaskCoverageRequest
+	47, // 44: api.bom.v1.BomService.CreateSessionLine:input_type -> api.bom.v1.CreateSessionLineRequest
+	49, // 45: api.bom.v1.BomService.PatchSessionLine:input_type -> api.bom.v1.PatchSessionLineRequest
+	51, // 46: api.bom.v1.BomService.DeleteSessionLine:input_type -> api.bom.v1.DeleteSessionLineRequest
+	53, // 47: api.bom.v1.BomService.RetrySearchTasks:input_type -> api.bom.v1.RetrySearchTasksRequest
+	56, // 48: api.bom.v1.BomService.SubmitBomSearchResult:input_type -> api.bom.v1.SubmitBomSearchResultRequest
+	59, // 49: api.bom.v1.BomService.ListLineGaps:input_type -> api.bom.v1.ListLineGapsRequest
+	61, // 50: api.bom.v1.BomService.ResolveLineGapManualQuote:input_type -> api.bom.v1.ResolveLineGapManualQuoteRequest
+	63, // 51: api.bom.v1.BomService.SelectLineGapSubstitute:input_type -> api.bom.v1.SelectLineGapSubstituteRequest
+	65, // 52: api.bom.v1.BomService.SaveMatchRun:input_type -> api.bom.v1.SaveMatchRunRequest
+	68, // 53: api.bom.v1.BomService.ListMatchRuns:input_type -> api.bom.v1.ListMatchRunsRequest
+	71, // 54: api.bom.v1.BomService.GetMatchRun:input_type -> api.bom.v1.GetMatchRunRequest
+	73, // 55: api.bom.v1.BomService.ExportSession:input_type -> api.bom.v1.ExportSessionRequest
+	75, // 56: api.bom.v1.HsResolveService.ResolveByModel:input_type -> api.bom.v1.HsResolveByModelRequest
+	80, // 57: api.bom.v1.HsResolveService.GetResolveTask:input_type -> api.bom.v1.HsResolveTaskRequest
+	82, // 58: api.bom.v1.HsResolveService.ConfirmResolve:input_type -> api.bom.v1.HsResolveConfirmRequest
+	84, // 59: api.bom.v1.HsResolveService.GetResolveHistory:input_type -> api.bom.v1.HsResolveHistoryRequest
+	76, // 60: api.bom.v1.HsResolveService.UploadHsManualDatasheet:input_type -> api.bom.v1.UploadHsManualDatasheetRequest
+	87, // 61: api.bom.v1.HsMetaService.ListHsMeta:input_type -> api.bom.v1.HsMetaListRequest
+	90, // 62: api.bom.v1.HsMetaService.CreateHsMeta:input_type -> api.bom.v1.HsMetaCreateRequest
+	91, // 63: api.bom.v1.HsMetaService.UpdateHsMeta:input_type -> api.bom.v1.HsMetaUpdateRequest
+	92, // 64: api.bom.v1.HsMetaService.DeleteHsMeta:input_type -> api.bom.v1.HsMetaDeleteRequest
+	1,  // 65: api.bom.v1.BomService.UploadBOM:output_type -> api.bom.v1.UploadBOMReply
+	4,  // 66: api.bom.v1.BomService.SearchQuotes:output_type -> api.bom.v1.SearchQuotesReply
+	8,  // 67: api.bom.v1.BomService.AutoMatch:output_type -> api.bom.v1.AutoMatchReply
+	27, // 68: api.bom.v1.BomService.DownloadTemplate:output_type -> api.bom.v1.DownloadTemplateReply
+	11, // 69: api.bom.v1.BomService.GetBOM:output_type -> api.bom.v1.GetBOMReply
+	13, // 70: api.bom.v1.BomService.GetMatchResult:output_type -> api.bom.v1.GetMatchResultReply
+	17, // 71: api.bom.v1.BomService.ListMatchSources:output_type -> api.bom.v1.ListMatchSourcesReply
+	20, // 72: api.bom.v1.BomService.GetMatchSourceDetail:output_type -> api.bom.v1.GetMatchSourceDetailReply
+	23, // 73: api.bom.v1.BomService.ListManufacturerCanonicals:output_type -> api.bom.v1.ListManufacturerCanonicalsReply
+	25, // 74: api.bom.v1.BomService.CreateManufacturerAlias:output_type -> api.bom.v1.CreateManufacturerAliasReply
+	29, // 75: api.bom.v1.BomService.CreateSession:output_type -> api.bom.v1.CreateSessionReply
+	31, // 76: api.bom.v1.BomService.GetSession:output_type -> api.bom.v1.GetSessionReply
+	34, // 77: api.bom.v1.BomService.ListSessions:output_type -> api.bom.v1.ListSessionsReply
+	31, // 78: api.bom.v1.BomService.PatchSession:output_type -> api.bom.v1.GetSessionReply
+	37, // 79: api.bom.v1.BomService.PutPlatforms:output_type -> api.bom.v1.PutPlatformsReply
+	39, // 80: api.bom.v1.BomService.GetReadiness:output_type -> api.bom.v1.GetReadinessReply
+	46, // 81: api.bom.v1.BomService.GetBOMLines:output_type -> api.bom.v1.GetBOMLinesReply
+	45, // 82: api.bom.v1.BomService.GetSessionSearchTaskCoverage:output_type -> api.bom.v1.GetSessionSearchTaskCoverageReply
+	48, // 83: api.bom.v1.BomService.CreateSessionLine:output_type -> api.bom.v1.CreateSessionLineReply
+	50, // 84: api.bom.v1.BomService.PatchSessionLine:output_type -> api.bom.v1.PatchSessionLineReply
+	52, // 85: api.bom.v1.BomService.DeleteSessionLine:output_type -> api.bom.v1.DeleteSessionLineReply
+	55, // 86: api.bom.v1.BomService.RetrySearchTasks:output_type -> api.bom.v1.RetrySearchTasksReply
+	57, // 87: api.bom.v1.BomService.SubmitBomSearchResult:output_type -> api.bom.v1.SubmitBomSearchResultReply
+	60, // 88: api.bom.v1.BomService.ListLineGaps:output_type -> api.bom.v1.ListLineGapsReply
+	62, // 89: api.bom.v1.BomService.ResolveLineGapManualQuote:output_type -> api.bom.v1.ResolveLineGapManualQuoteReply
+	64, // 90: api.bom.v1.BomService.SelectLineGapSubstitute:output_type -> api.bom.v1.SelectLineGapSubstituteReply
+	66, // 91: api.bom.v1.BomService.SaveMatchRun:output_type -> api.bom.v1.SaveMatchRunReply
+	69, // 92: api.bom.v1.BomService.ListMatchRuns:output_type -> api.bom.v1.ListMatchRunsReply
+	72, // 93: api.bom.v1.BomService.GetMatchRun:output_type -> api.bom.v1.GetMatchRunReply
+	74, // 94: api.bom.v1.BomService.ExportSession:output_type -> api.bom.v1.ExportSessionReply
+	79, // 95: api.bom.v1.HsResolveService.ResolveByModel:output_type -> api.bom.v1.HsResolveByModelReply
+	81, // 96: api.bom.v1.HsResolveService.GetResolveTask:output_type -> api.bom.v1.HsResolveTaskReply
+	83, // 97: api.bom.v1.HsResolveService.ConfirmResolve:output_type -> api.bom.v1.HsResolveConfirmReply
+	86, // 98: api.bom.v1.HsResolveService.GetResolveHistory:output_type -> api.bom.v1.HsResolveHistoryReply
+	77, // 99: api.bom.v1.HsResolveService.UploadHsManualDatasheet:output_type -> api.bom.v1.UploadHsManualDatasheetReply
+	89, // 100: api.bom.v1.HsMetaService.ListHsMeta:output_type -> api.bom.v1.HsMetaListReply
+	93, // 101: api.bom.v1.HsMetaService.CreateHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
+	93, // 102: api.bom.v1.HsMetaService.UpdateHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
+	93, // 103: api.bom.v1.HsMetaService.DeleteHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
+	65, // [65:104] is the sub-list for method output_type
+	26, // [26:65] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_bom_v1_bom_proto_init() }
@@ -6225,7 +7504,7 @@ func file_bom_v1_bom_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bom_v1_bom_proto_rawDesc), len(file_bom_v1_bom_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   80,
+			NumMessages:   95,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

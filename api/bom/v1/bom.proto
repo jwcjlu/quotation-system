@@ -512,6 +512,14 @@ message GetReadinessReply {
   string phase = 4;
   bool can_enter_match = 5;
   string block_reason = 6;
+  int32 line_total = 7;
+  int32 ready_line_count = 8;
+  int32 gap_line_count = 9;
+  int32 no_data_line_count = 10;
+  int32 collection_unavailable_line_count = 11;
+  int32 no_match_after_filter_line_count = 12;
+  int32 collecting_line_count = 13;
+  bool has_strict_blocking_gap = 14;
 }
 
 message GetBOMLinesRequest {
@@ -527,6 +535,13 @@ message BOMLineRow {
   double qty = 6;
   string match_status = 7;
   repeated PlatformGap platform_gaps = 8;
+  string availability_status = 9;
+  string availability_reason_code = 10;
+  string availability_reason = 11;
+  bool has_usable_quote = 12;
+  int32 raw_quote_platform_count = 13;
+  int32 usable_quote_platform_count = 14;
+  string resolution_status = 15;
 }
 
 message PlatformGap {

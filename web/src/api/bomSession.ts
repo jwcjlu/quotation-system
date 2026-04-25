@@ -24,6 +24,12 @@ function str(v: unknown): string {
   return typeof v === 'string' ? v : v != null ? String(v) : ''
 }
 
+function bool(v: unknown): boolean {
+  if (typeof v === 'boolean') return v
+  if (typeof v === 'string') return v.trim().toLowerCase() === 'true'
+  return Boolean(v)
+}
+
 export async function createSession(body: {
   title?: string
   platform_ids?: string[]
@@ -170,8 +176,24 @@ export async function getReadiness(sessionId: string): Promise<GetReadinessReply
     biz_date: (json.biz_date ?? json.bizDate) as string,
     selection_revision: num(json.selection_revision ?? json.selectionRevision, 1),
     phase: (json.phase as string) ?? '',
-    can_enter_match: Boolean(json.can_enter_match ?? json.canEnterMatch),
+    can_enter_match: bool(json.can_enter_match ?? json.canEnterMatch),
     block_reason: (json.block_reason ?? json.blockReason) as string,
+    line_total: num(json.line_total ?? json.lineTotal, 0),
+    ready_line_count: num(json.ready_line_count ?? json.readyLineCount, 0),
+    gap_line_count: num(json.gap_line_count ?? json.gapLineCount, 0),
+    no_data_line_count: num(json.no_data_line_count ?? json.noDataLineCount, 0),
+    collection_unavailable_line_count: num(
+      json.collection_unavailable_line_count ?? json.collectionUnavailableLineCount,
+      0
+    ),
+    no_match_after_filter_line_count: num(
+      json.no_match_after_filter_line_count ?? json.noMatchAfterFilterLineCount,
+      0
+    ),
+    collecting_line_count: num(json.collecting_line_count ?? json.collectingLineCount, 0),
+    has_strict_blocking_gap: bool(
+      json.has_strict_blocking_gap ?? json.hasStrictBlockingGap
+    ),
   }
 }
 
@@ -199,6 +221,22 @@ export async function getBOMLines(sessionId: string): Promise<GetBOMLinesReply> 
         manual_attempt: num(g.manual_attempt ?? g.manualAttempt, 0),
         search_ui_state: str(g.search_ui_state ?? g.searchUiState) || undefined,
       })),
+      availability_status:
+        str(row.availability_status ?? row.availabilityStatus) || undefined,
+      availability_reason_code:
+        str(row.availability_reason_code ?? row.availabilityReasonCode) || undefined,
+      availability_reason:
+        str(row.availability_reason ?? row.availabilityReason) || undefined,
+      has_usable_quote: bool(row.has_usable_quote ?? row.hasUsableQuote),
+      raw_quote_platform_count: num(
+        row.raw_quote_platform_count ?? row.rawQuotePlatformCount,
+        0
+      ),
+      usable_quote_platform_count: num(
+        row.usable_quote_platform_count ?? row.usableQuotePlatformCount,
+        0
+      ),
+      resolution_status: str(row.resolution_status ?? row.resolutionStatus) || undefined,
     }
   })
   return { lines }

@@ -791,8 +791,8 @@ func (s *HsResolveService) logResolveEvent(event string, fields map[string]any) 
 	for k, v := range fields {
 		kv = append(kv, k, v)
 	}
-	args := append([]any{"hs_resolve_event"}, kv...)
-	s.log.Info(args...)
+	kv = append(kv, "msg", "hs_resolve_event")
+	s.log.Infow(kv...)
 }
 
 var _ v1.HsResolveServiceHTTPServer = (*HsResolveService)(nil)

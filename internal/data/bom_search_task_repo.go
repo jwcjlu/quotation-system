@@ -33,6 +33,10 @@ func (r *BOMSearchTaskRepo) DBOk() bool {
 	return r != nil && r.db != nil
 }
 
+func (r *BOMSearchTaskRepo) UpsertManualQuote(ctx context.Context, gapID uint64, row biz.AgentQuoteRow) error {
+	return errors.New("manual quote upsert not implemented")
+}
+
 var (
 	// ErrSearchTaskNotFound 会话下无对应搜索任务行。
 	ErrSearchTaskNotFound = errors.New("bom_search_task not found")
@@ -186,18 +190,18 @@ func (r *BOMSearchTaskRepo) upsertQuoteCache(ctx context.Context, x *gorm.DB, mp
 			Model:                   sanitizeForLegacyMySQLUTF8(row.Model),
 			Manufacturer:            mfr,
 			ManufacturerCanonicalID: canonPtr,
-			Stock:         sanitizeForLegacyMySQLUTF8(row.Stock),
-			Package:       sanitizeForLegacyMySQLUTF8(row.Package),
-			Desc:          sanitizeForLegacyMySQLUTF8(row.Desc),
-			MOQ:           sanitizeForLegacyMySQLUTF8(row.MOQ),
-			LeadTime:      sanitizeForLegacyMySQLUTF8(row.LeadTime),
-			PriceTiers:    sanitizeForLegacyMySQLUTF8(row.PriceTiers),
-			HKPrice:       sanitizeForLegacyMySQLUTF8(row.HKPrice),
-			MainlandPrice: sanitizeForLegacyMySQLUTF8(row.MainlandPrice),
-			QueryModel:    sanitizeForLegacyMySQLUTF8(row.QueryModel),
-			DatasheetURL:  sanitizeForLegacyMySQLUTF8(row.DatasheetURL),
-			CreatedAt:     now,
-			UpdatedAt:     now,
+			Stock:                   sanitizeForLegacyMySQLUTF8(row.Stock),
+			Package:                 sanitizeForLegacyMySQLUTF8(row.Package),
+			Desc:                    sanitizeForLegacyMySQLUTF8(row.Desc),
+			MOQ:                     sanitizeForLegacyMySQLUTF8(row.MOQ),
+			LeadTime:                sanitizeForLegacyMySQLUTF8(row.LeadTime),
+			PriceTiers:              sanitizeForLegacyMySQLUTF8(row.PriceTiers),
+			HKPrice:                 sanitizeForLegacyMySQLUTF8(row.HKPrice),
+			MainlandPrice:           sanitizeForLegacyMySQLUTF8(row.MainlandPrice),
+			QueryModel:              sanitizeForLegacyMySQLUTF8(row.QueryModel),
+			DatasheetURL:            sanitizeForLegacyMySQLUTF8(row.DatasheetURL),
+			CreatedAt:               now,
+			UpdatedAt:               now,
 		})
 	}
 	if len(items) > 0 {

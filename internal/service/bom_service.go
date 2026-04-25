@@ -27,6 +27,8 @@ import (
 type BomService struct {
 	session    biz.BOMSessionRepo
 	search     biz.BOMSearchTaskRepo
+	gaps       biz.BOMLineGapRepo
+	matchRuns  biz.BOMMatchRunRepo
 	merge      biz.MergeDispatchExecutor
 	openai     *data.OpenAIChat
 	fx         *data.BomFxRateRepo
@@ -43,6 +45,8 @@ type BomService struct {
 func NewBomService(
 	session biz.BOMSessionRepo,
 	search biz.BOMSearchTaskRepo,
+	gaps biz.BOMLineGapRepo,
+	matchRuns biz.BOMMatchRunRepo,
 	merge biz.MergeDispatchExecutor,
 	openai *data.OpenAIChat,
 	fx *data.BomFxRateRepo,
@@ -61,6 +65,8 @@ func NewBomService(
 	return &BomService{
 		session:    session,
 		search:     search,
+		gaps:       gaps,
+		matchRuns:  matchRuns,
 		merge:      merge,
 		openai:     openai,
 		fx:         fx,

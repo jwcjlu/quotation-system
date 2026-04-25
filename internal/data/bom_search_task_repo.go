@@ -34,7 +34,58 @@ func (r *BOMSearchTaskRepo) DBOk() bool {
 }
 
 func (r *BOMSearchTaskRepo) UpsertManualQuote(ctx context.Context, gapID uint64, row biz.AgentQuoteRow) error {
-	return errors.New("manual quote upsert not implemented")
+	if !r.DBOk() {
+		return ErrSearchTaskNotFound
+	}
+	var gap BomLineGap
+	if err := r.db.WithContext(ctx).Where("id = ?", gapID).First(&gap).Error; err != nil {
+		return err
+	}
+	var session BomSession
+	if err := r.db.WithContext(ctx).Where("id = ?", gap.SessionID).First(&session).Error; err != nil {
+		return err
+	}
+	row.Seq = 1
+	if strings.TrimSpace(row.QueryModel) == "" {
+		row.QueryModel = gap.Mpn
+	}
+	quotesJSON, err := json.Marshal([]biz.AgentQuoteRow{row})
+	if err != nil {
+		return err
+	}
+	mpnNorm := normalizeMPNForSearchTask(gap.Mpn)
+	if mpnNorm == "" || mpnNorm == "-" {
+		mpnNorm = normalizeMPNForSearchTask(row.Model)
+	}
+	bizDate := session.BizDate.Format("2006-01-02")
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := r.upsertQuoteCache(ctx, tx, mpnNorm, "manual", bizDate, "ok", quotesJSON, nil); err != nil {
+			return err
+		}
+		var cacheID uint64
+		if err := tx.Model(&BomQuoteCache{}).
+			Where("mpn_norm = ? AND platform_id = ? AND biz_date = ?", mpnNorm, "manual", session.BizDate).
+			Select("id").
+			Take(&cacheID).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&BomQuoteCache{}).
+			Where("mpn_norm = ? AND platform_id = ? AND biz_date = ?", mpnNorm, "manual", session.BizDate).
+			Updates(map[string]any{
+				"source_type": "manual",
+				"session_id":  gap.SessionID,
+				"line_id":     gap.LineID,
+			}).Error; err != nil {
+			return err
+		}
+		return tx.Model(&BomQuoteItem{}).
+			Where("quote_id = ?", cacheID).
+			Updates(map[string]any{
+				"source_type": "manual",
+				"session_id":  gap.SessionID,
+				"line_id":     gap.LineID,
+			}).Error
+	})
 }
 
 var (

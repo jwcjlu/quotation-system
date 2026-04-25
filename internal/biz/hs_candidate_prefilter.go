@@ -48,7 +48,7 @@ func (p *HsCandidatePrefilter) Prefilter(ctx context.Context, input HsPrefilterI
 	}
 	limit := p.topN
 	if limit <= 0 {
-		limit = HsPrefilterUnboundedCap
+		limit = DefaultHsPrefilterTopN
 	}
 	candidates, err := p.repo.QueryCandidatesByRules(ctx, input, limit)
 	if err != nil {

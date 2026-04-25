@@ -115,6 +115,14 @@ export interface GetReadinessReply {
   phase: string
   can_enter_match: boolean
   block_reason: string
+  line_total: number
+  ready_line_count: number
+  gap_line_count: number
+  no_data_line_count: number
+  collection_unavailable_line_count: number
+  no_match_after_filter_line_count: number
+  collecting_line_count: number
+  has_strict_blocking_gap: boolean
 }
 
 export interface PlatformGap {
@@ -142,6 +150,48 @@ export interface GetSessionSearchTaskCoverageReply {
   }>
 }
 
+export interface SearchTaskStatusSummary {
+  total: number
+  pending: number
+  searching: number
+  succeeded: number
+  no_data: number
+  failed: number
+  skipped: number
+  cancelled: number
+  missing: number
+  retryable: number
+}
+
+export interface SessionSearchTaskRow {
+  line_id: string
+  line_no: number
+  mpn_raw: string
+  mpn_norm: string
+  platform_id: string
+  platform_name: string
+  search_task_id: string
+  search_task_state: string
+  search_ui_state: string
+  retryable: boolean
+  retry_blocked_reason: string
+  dispatch_task_id: string
+  dispatch_task_state: string
+  dispatch_agent_id: string
+  dispatch_result: string
+  lease_deadline_at: string
+  attempt: number
+  retry_max: number
+  updated_at: string
+  last_error: string
+}
+
+export interface ListSessionSearchTasksReply {
+  session_id: string
+  summary: SearchTaskStatusSummary
+  tasks: SessionSearchTaskRow[]
+}
+
 export interface BOMLineRow {
   line_id: string
   line_no: number
@@ -151,8 +201,44 @@ export interface BOMLineRow {
   qty: number
   match_status: string
   platform_gaps: PlatformGap[]
+  availability_status?: string
+  availability_reason_code?: string
+  availability_reason?: string
+  has_usable_quote: boolean
+  raw_quote_platform_count: number
+  usable_quote_platform_count: number
+  resolution_status?: string
 }
 
 export interface GetBOMLinesReply {
   lines: BOMLineRow[]
+}
+
+export interface BOMLineGap {
+  gap_id: string
+  session_id: string
+  line_id: string
+  line_no: number
+  mpn: string
+  gap_type: string
+  reason_code: string
+  reason_detail: string
+  resolution_status: string
+  substitute_mpn: string
+  substitute_reason: string
+  updated_at: string
+}
+
+export interface MatchRunListItem {
+  run_id: string
+  run_no: number
+  session_id: string
+  status: string
+  line_total: number
+  matched_line_count: number
+  unresolved_line_count: number
+  total_amount: number
+  currency: string
+  created_at: string
+  saved_at: string
 }

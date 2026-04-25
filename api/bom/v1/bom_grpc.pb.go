@@ -37,11 +37,18 @@ const (
 	BomService_GetReadiness_FullMethodName                 = "/api.bom.v1.BomService/GetReadiness"
 	BomService_GetBOMLines_FullMethodName                  = "/api.bom.v1.BomService/GetBOMLines"
 	BomService_GetSessionSearchTaskCoverage_FullMethodName = "/api.bom.v1.BomService/GetSessionSearchTaskCoverage"
+	BomService_ListSessionSearchTasks_FullMethodName       = "/api.bom.v1.BomService/ListSessionSearchTasks"
 	BomService_CreateSessionLine_FullMethodName            = "/api.bom.v1.BomService/CreateSessionLine"
 	BomService_PatchSessionLine_FullMethodName             = "/api.bom.v1.BomService/PatchSessionLine"
 	BomService_DeleteSessionLine_FullMethodName            = "/api.bom.v1.BomService/DeleteSessionLine"
 	BomService_RetrySearchTasks_FullMethodName             = "/api.bom.v1.BomService/RetrySearchTasks"
 	BomService_SubmitBomSearchResult_FullMethodName        = "/api.bom.v1.BomService/SubmitBomSearchResult"
+	BomService_ListLineGaps_FullMethodName                 = "/api.bom.v1.BomService/ListLineGaps"
+	BomService_ResolveLineGapManualQuote_FullMethodName    = "/api.bom.v1.BomService/ResolveLineGapManualQuote"
+	BomService_SelectLineGapSubstitute_FullMethodName      = "/api.bom.v1.BomService/SelectLineGapSubstitute"
+	BomService_SaveMatchRun_FullMethodName                 = "/api.bom.v1.BomService/SaveMatchRun"
+	BomService_ListMatchRuns_FullMethodName                = "/api.bom.v1.BomService/ListMatchRuns"
+	BomService_GetMatchRun_FullMethodName                  = "/api.bom.v1.BomService/GetMatchRun"
 	BomService_ExportSession_FullMethodName                = "/api.bom.v1.BomService/ExportSession"
 )
 
@@ -81,6 +88,7 @@ type BomServiceClient interface {
 	GetBOMLines(ctx context.Context, in *GetBOMLinesRequest, opts ...grpc.CallOption) (*GetBOMLinesReply, error)
 	// 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
 	GetSessionSearchTaskCoverage(ctx context.Context, in *GetSessionSearchTaskCoverageRequest, opts ...grpc.CallOption) (*GetSessionSearchTaskCoverageReply, error)
+	ListSessionSearchTasks(ctx context.Context, in *ListSessionSearchTasksRequest, opts ...grpc.CallOption) (*ListSessionSearchTasksReply, error)
 	// 追加一行
 	CreateSessionLine(ctx context.Context, in *CreateSessionLineRequest, opts ...grpc.CallOption) (*CreateSessionLineReply, error)
 	// 更新一行
@@ -91,6 +99,12 @@ type BomServiceClient interface {
 	// Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
 	SubmitBomSearchResult(ctx context.Context, in *SubmitBomSearchResultRequest, opts ...grpc.CallOption) (*SubmitBomSearchResultReply, error)
 	// 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
+	ListLineGaps(ctx context.Context, in *ListLineGapsRequest, opts ...grpc.CallOption) (*ListLineGapsReply, error)
+	ResolveLineGapManualQuote(ctx context.Context, in *ResolveLineGapManualQuoteRequest, opts ...grpc.CallOption) (*ResolveLineGapManualQuoteReply, error)
+	SelectLineGapSubstitute(ctx context.Context, in *SelectLineGapSubstituteRequest, opts ...grpc.CallOption) (*SelectLineGapSubstituteReply, error)
+	SaveMatchRun(ctx context.Context, in *SaveMatchRunRequest, opts ...grpc.CallOption) (*SaveMatchRunReply, error)
+	ListMatchRuns(ctx context.Context, in *ListMatchRunsRequest, opts ...grpc.CallOption) (*ListMatchRunsReply, error)
+	GetMatchRun(ctx context.Context, in *GetMatchRunRequest, opts ...grpc.CallOption) (*GetMatchRunReply, error)
 	ExportSession(ctx context.Context, in *ExportSessionRequest, opts ...grpc.CallOption) (*ExportSessionReply, error)
 }
 
@@ -282,6 +296,16 @@ func (c *bomServiceClient) GetSessionSearchTaskCoverage(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *bomServiceClient) ListSessionSearchTasks(ctx context.Context, in *ListSessionSearchTasksRequest, opts ...grpc.CallOption) (*ListSessionSearchTasksReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListSessionSearchTasksReply)
+	err := c.cc.Invoke(ctx, BomService_ListSessionSearchTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bomServiceClient) CreateSessionLine(ctx context.Context, in *CreateSessionLineRequest, opts ...grpc.CallOption) (*CreateSessionLineReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateSessionLineReply)
@@ -326,6 +350,66 @@ func (c *bomServiceClient) SubmitBomSearchResult(ctx context.Context, in *Submit
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SubmitBomSearchResultReply)
 	err := c.cc.Invoke(ctx, BomService_SubmitBomSearchResult_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) ListLineGaps(ctx context.Context, in *ListLineGapsRequest, opts ...grpc.CallOption) (*ListLineGapsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListLineGapsReply)
+	err := c.cc.Invoke(ctx, BomService_ListLineGaps_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) ResolveLineGapManualQuote(ctx context.Context, in *ResolveLineGapManualQuoteRequest, opts ...grpc.CallOption) (*ResolveLineGapManualQuoteReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResolveLineGapManualQuoteReply)
+	err := c.cc.Invoke(ctx, BomService_ResolveLineGapManualQuote_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) SelectLineGapSubstitute(ctx context.Context, in *SelectLineGapSubstituteRequest, opts ...grpc.CallOption) (*SelectLineGapSubstituteReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SelectLineGapSubstituteReply)
+	err := c.cc.Invoke(ctx, BomService_SelectLineGapSubstitute_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) SaveMatchRun(ctx context.Context, in *SaveMatchRunRequest, opts ...grpc.CallOption) (*SaveMatchRunReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SaveMatchRunReply)
+	err := c.cc.Invoke(ctx, BomService_SaveMatchRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) ListMatchRuns(ctx context.Context, in *ListMatchRunsRequest, opts ...grpc.CallOption) (*ListMatchRunsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMatchRunsReply)
+	err := c.cc.Invoke(ctx, BomService_ListMatchRuns_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) GetMatchRun(ctx context.Context, in *GetMatchRunRequest, opts ...grpc.CallOption) (*GetMatchRunReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMatchRunReply)
+	err := c.cc.Invoke(ctx, BomService_GetMatchRun_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -378,6 +462,7 @@ type BomServiceServer interface {
 	GetBOMLines(context.Context, *GetBOMLinesRequest) (*GetBOMLinesReply, error)
 	// 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
 	GetSessionSearchTaskCoverage(context.Context, *GetSessionSearchTaskCoverageRequest) (*GetSessionSearchTaskCoverageReply, error)
+	ListSessionSearchTasks(context.Context, *ListSessionSearchTasksRequest) (*ListSessionSearchTasksReply, error)
 	// 追加一行
 	CreateSessionLine(context.Context, *CreateSessionLineRequest) (*CreateSessionLineReply, error)
 	// 更新一行
@@ -388,6 +473,12 @@ type BomServiceServer interface {
 	// Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
 	SubmitBomSearchResult(context.Context, *SubmitBomSearchResultRequest) (*SubmitBomSearchResultReply, error)
 	// 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
+	ListLineGaps(context.Context, *ListLineGapsRequest) (*ListLineGapsReply, error)
+	ResolveLineGapManualQuote(context.Context, *ResolveLineGapManualQuoteRequest) (*ResolveLineGapManualQuoteReply, error)
+	SelectLineGapSubstitute(context.Context, *SelectLineGapSubstituteRequest) (*SelectLineGapSubstituteReply, error)
+	SaveMatchRun(context.Context, *SaveMatchRunRequest) (*SaveMatchRunReply, error)
+	ListMatchRuns(context.Context, *ListMatchRunsRequest) (*ListMatchRunsReply, error)
+	GetMatchRun(context.Context, *GetMatchRunRequest) (*GetMatchRunReply, error)
 	ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error)
 	mustEmbedUnimplementedBomServiceServer()
 }
@@ -453,6 +544,9 @@ func (UnimplementedBomServiceServer) GetBOMLines(context.Context, *GetBOMLinesRe
 func (UnimplementedBomServiceServer) GetSessionSearchTaskCoverage(context.Context, *GetSessionSearchTaskCoverageRequest) (*GetSessionSearchTaskCoverageReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSessionSearchTaskCoverage not implemented")
 }
+func (UnimplementedBomServiceServer) ListSessionSearchTasks(context.Context, *ListSessionSearchTasksRequest) (*ListSessionSearchTasksReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSessionSearchTasks not implemented")
+}
 func (UnimplementedBomServiceServer) CreateSessionLine(context.Context, *CreateSessionLineRequest) (*CreateSessionLineReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateSessionLine not implemented")
 }
@@ -467,6 +561,24 @@ func (UnimplementedBomServiceServer) RetrySearchTasks(context.Context, *RetrySea
 }
 func (UnimplementedBomServiceServer) SubmitBomSearchResult(context.Context, *SubmitBomSearchResultRequest) (*SubmitBomSearchResultReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method SubmitBomSearchResult not implemented")
+}
+func (UnimplementedBomServiceServer) ListLineGaps(context.Context, *ListLineGapsRequest) (*ListLineGapsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListLineGaps not implemented")
+}
+func (UnimplementedBomServiceServer) ResolveLineGapManualQuote(context.Context, *ResolveLineGapManualQuoteRequest) (*ResolveLineGapManualQuoteReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ResolveLineGapManualQuote not implemented")
+}
+func (UnimplementedBomServiceServer) SelectLineGapSubstitute(context.Context, *SelectLineGapSubstituteRequest) (*SelectLineGapSubstituteReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method SelectLineGapSubstitute not implemented")
+}
+func (UnimplementedBomServiceServer) SaveMatchRun(context.Context, *SaveMatchRunRequest) (*SaveMatchRunReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method SaveMatchRun not implemented")
+}
+func (UnimplementedBomServiceServer) ListMatchRuns(context.Context, *ListMatchRunsRequest) (*ListMatchRunsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListMatchRuns not implemented")
+}
+func (UnimplementedBomServiceServer) GetMatchRun(context.Context, *GetMatchRunRequest) (*GetMatchRunReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetMatchRun not implemented")
 }
 func (UnimplementedBomServiceServer) ExportSession(context.Context, *ExportSessionRequest) (*ExportSessionReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method ExportSession not implemented")
@@ -816,6 +928,24 @@ func _BomService_GetSessionSearchTaskCoverage_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BomService_ListSessionSearchTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListSessionSearchTasksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ListSessionSearchTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ListSessionSearchTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ListSessionSearchTasks(ctx, req.(*ListSessionSearchTasksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BomService_CreateSessionLine_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateSessionLineRequest)
 	if err := dec(in); err != nil {
@@ -902,6 +1032,114 @@ func _BomService_SubmitBomSearchResult_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BomServiceServer).SubmitBomSearchResult(ctx, req.(*SubmitBomSearchResultRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_ListLineGaps_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListLineGapsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ListLineGaps(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ListLineGaps_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ListLineGaps(ctx, req.(*ListLineGapsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_ResolveLineGapManualQuote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResolveLineGapManualQuoteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ResolveLineGapManualQuote(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ResolveLineGapManualQuote_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ResolveLineGapManualQuote(ctx, req.(*ResolveLineGapManualQuoteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_SelectLineGapSubstitute_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SelectLineGapSubstituteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).SelectLineGapSubstitute(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_SelectLineGapSubstitute_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).SelectLineGapSubstitute(ctx, req.(*SelectLineGapSubstituteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_SaveMatchRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SaveMatchRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).SaveMatchRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_SaveMatchRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).SaveMatchRun(ctx, req.(*SaveMatchRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_ListMatchRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMatchRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ListMatchRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ListMatchRuns_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ListMatchRuns(ctx, req.(*ListMatchRunsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_GetMatchRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMatchRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).GetMatchRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_GetMatchRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).GetMatchRun(ctx, req.(*GetMatchRunRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1004,6 +1242,10 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BomService_GetSessionSearchTaskCoverage_Handler,
 		},
 		{
+			MethodName: "ListSessionSearchTasks",
+			Handler:    _BomService_ListSessionSearchTasks_Handler,
+		},
+		{
 			MethodName: "CreateSessionLine",
 			Handler:    _BomService_CreateSessionLine_Handler,
 		},
@@ -1022,6 +1264,30 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SubmitBomSearchResult",
 			Handler:    _BomService_SubmitBomSearchResult_Handler,
+		},
+		{
+			MethodName: "ListLineGaps",
+			Handler:    _BomService_ListLineGaps_Handler,
+		},
+		{
+			MethodName: "ResolveLineGapManualQuote",
+			Handler:    _BomService_ResolveLineGapManualQuote_Handler,
+		},
+		{
+			MethodName: "SelectLineGapSubstitute",
+			Handler:    _BomService_SelectLineGapSubstitute_Handler,
+		},
+		{
+			MethodName: "SaveMatchRun",
+			Handler:    _BomService_SaveMatchRun_Handler,
+		},
+		{
+			MethodName: "ListMatchRuns",
+			Handler:    _BomService_ListMatchRuns_Handler,
+		},
+		{
+			MethodName: "GetMatchRun",
+			Handler:    _BomService_GetMatchRun_Handler,
 		},
 		{
 			MethodName: "ExportSession",

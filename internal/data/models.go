@@ -7,28 +7,30 @@ import (
 
 // CaichipDispatchTask 对应 t_caichip_dispatch_task。
 type CaichipDispatchTask struct {
-	ID              uint64         `gorm:"column:id;primaryKey;autoIncrement;index:idx_dispatch_claim,priority:3"`
-	TaskID          string         `gorm:"column:task_id;size:128;uniqueIndex:uk_dispatch_task_id"`
-	Queue           string         `gorm:"column:queue;size:128;not null;default:default;index:idx_dispatch_claim,priority:1"`
-	ScriptID        string         `gorm:"column:script_id;size:128;not null"`
-	Version         string         `gorm:"column:version;size:64;not null"`
-	RequiredTags    []byte         `gorm:"column:required_tags;type:json"`
-	EntryFile       sql.NullString `gorm:"column:entry_file;size:512"`
-	TimeoutSec      int            `gorm:"column:timeout_sec;not null;default:300"`
-	ParamsJSON      []byte         `gorm:"column:params_json;type:json"`
-	ArgvJSON        []byte         `gorm:"column:argv_json;type:json"`
-	Attempt         int            `gorm:"column:attempt;not null;default:1"`
-	State           string         `gorm:"column:state;size:32;not null;default:pending;index:idx_dispatch_claim,priority:2;index:idx_dispatch_state_updated,priority:1;index:idx_dispatch_leased_agent,priority:2"`
-	LeaseID         sql.NullString `gorm:"column:lease_id;size:64"`
-	LeasedToAgentID sql.NullString `gorm:"column:leased_to_agent_id;size:64;index:idx_dispatch_leased_agent,priority:1"`
-	LeasedAt        *time.Time     `gorm:"column:leased_at;precision:3"`
-	LeaseDeadlineAt *time.Time     `gorm:"column:lease_deadline_at;precision:3"`
-	NextClaimAt     *time.Time     `gorm:"column:next_claim_at;precision:3"`
-	FinishedAt      *time.Time     `gorm:"column:finished_at;precision:3"`
-	ResultStatus    sql.NullString `gorm:"column:result_status;size:32"`
-	LastError       sql.NullString `gorm:"column:last_error;type:text"`
-	CreatedAt       time.Time      `gorm:"column:created_at;precision:3;autoCreateTime"`
-	UpdatedAt       time.Time      `gorm:"column:updated_at;precision:3;autoUpdateTime;index:idx_dispatch_state_updated,priority:2"`
+	ID               uint64         `gorm:"column:id;primaryKey;autoIncrement;index:idx_dispatch_claim,priority:3"`
+	TaskID           string         `gorm:"column:task_id;size:128;uniqueIndex:uk_dispatch_task_id"`
+	Queue            string         `gorm:"column:queue;size:128;not null;default:default;index:idx_dispatch_claim,priority:1"`
+	ScriptID         string         `gorm:"column:script_id;size:128;not null"`
+	Version          string         `gorm:"column:version;size:64;not null"`
+	RequiredTags     []byte         `gorm:"column:required_tags;type:json"`
+	EntryFile        sql.NullString `gorm:"column:entry_file;size:512"`
+	TimeoutSec       int            `gorm:"column:timeout_sec;not null;default:300"`
+	ParamsJSON       []byte         `gorm:"column:params_json;type:json"`
+	ArgvJSON         []byte         `gorm:"column:argv_json;type:json"`
+	Attempt          int            `gorm:"column:attempt;not null;default:1"`
+	State            string         `gorm:"column:state;size:32;not null;default:pending;index:idx_dispatch_claim,priority:2;index:idx_dispatch_state_updated,priority:1;index:idx_dispatch_leased_agent,priority:2"`
+	LeaseID          sql.NullString `gorm:"column:lease_id;size:64"`
+	LeasedToAgentID  sql.NullString `gorm:"column:leased_to_agent_id;size:64;index:idx_dispatch_leased_agent,priority:1"`
+	LeasedAt         *time.Time     `gorm:"column:leased_at;precision:3"`
+	LeaseDeadlineAt  *time.Time     `gorm:"column:lease_deadline_at;precision:3"`
+	NextClaimAt      *time.Time     `gorm:"column:next_claim_at;precision:3"`
+	FinishedAt       *time.Time     `gorm:"column:finished_at;precision:3"`
+	ResultStatus     sql.NullString `gorm:"column:result_status;size:32"`
+	LastError        sql.NullString `gorm:"column:last_error;type:text"`
+	RetryMax         int            `gorm:"column:retry_max;not null;default:0"`
+	RetryBackoffJSON []byte         `gorm:"column:retry_backoff_json;type:json"`
+	CreatedAt        time.Time      `gorm:"column:created_at;precision:3;autoCreateTime"`
+	UpdatedAt        time.Time      `gorm:"column:updated_at;precision:3;autoUpdateTime;index:idx_dispatch_state_updated,priority:2"`
 }
 
 func (CaichipDispatchTask) TableName() string { return TableCaichipDispatchTask }
@@ -105,6 +107,10 @@ type BomQuoteCache struct {
 	MpnNorm     string    `gorm:"column:mpn_norm;size:256;not null;uniqueIndex:uk_bom_quote_cache_merge,priority:1"`
 	PlatformID  string    `gorm:"column:platform_id;size:32;not null;uniqueIndex:uk_bom_quote_cache_merge,priority:2"`
 	BizDate     time.Time `gorm:"column:biz_date;type:date;not null;uniqueIndex:uk_bom_quote_cache_merge,priority:3"`
+	SourceType  string    `gorm:"column:source_type;size:32;not null;default:platform"`
+	SessionID   *string   `gorm:"column:session_id;size:36"`
+	LineID      *int64    `gorm:"column:line_id"`
+	CreatedBy   *string   `gorm:"column:created_by;size:128"`
 	Outcome     string    `gorm:"column:outcome;size:32;not null"`
 	QuotesJSON  []byte    `gorm:"column:quotes_json;type:json"`
 	NoMpnDetail []byte    `gorm:"column:no_mpn_detail;type:json"`
@@ -118,6 +124,10 @@ func (BomQuoteCache) TableName() string { return TableBomQuoteCache }
 type BomQuoteItem struct {
 	ID                      uint64    `gorm:"column:id;primaryKey;autoIncrement"`
 	QuoteID                 uint64    `gorm:"column:quote_id;not null;index:idx_bom_quote_item_quote_id"`
+	SourceType              string    `gorm:"column:source_type;size:32;not null;default:platform"`
+	SessionID               *string   `gorm:"column:session_id;size:36"`
+	LineID                  *int64    `gorm:"column:line_id"`
+	CreatedBy               *string   `gorm:"column:created_by;size:128"`
 	Model                   string    `gorm:"column:model;size:255;not null;default:''"`
 	Manufacturer            string    `gorm:"column:manufacturer;size:255;not null;default:''"`
 	ManufacturerCanonicalID *string   `gorm:"column:manufacturer_canonical_id;size:128"`

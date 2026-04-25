@@ -27,6 +27,8 @@ import (
 type BomService struct {
 	session    biz.BOMSessionRepo
 	search     biz.BOMSearchTaskRepo
+	gaps       biz.BOMLineGapRepo
+	matchRuns  biz.BOMMatchRunRepo
 	merge      biz.MergeDispatchExecutor
 	openai     *data.OpenAIChat
 	fx         *data.BomFxRateRepo
@@ -43,6 +45,8 @@ type BomService struct {
 func NewBomService(
 	session biz.BOMSessionRepo,
 	search biz.BOMSearchTaskRepo,
+	gaps biz.BOMLineGapRepo,
+	matchRuns biz.BOMMatchRunRepo,
 	merge biz.MergeDispatchExecutor,
 	openai *data.OpenAIChat,
 	fx *data.BomFxRateRepo,
@@ -61,6 +65,8 @@ func NewBomService(
 	return &BomService{
 		session:    session,
 		search:     search,
+		gaps:       gaps,
+		matchRuns:  matchRuns,
 		merge:      merge,
 		openai:     openai,
 		fx:         fx,
@@ -236,6 +242,13 @@ func (s *BomService) loadSessionLinesAndPlatforms(ctx context.Context, sid strin
 // matchReadinessError 在会话尚未满足与 GetReadiness 一致的「可进入配单」条件时拒绝。
 // gRPC FailedPrecondition 常映射为 HTTP 400；此处选用 ServiceUnavailable，表示依赖侧（搜索任务/缓存）未就绪、可稍后重试。
 func (s *BomService) matchReadinessError(ctx context.Context, sid string, view *biz.BOMSessionView, lines []data.BomSessionLine) error {
+	_, availabilitySummary, err := s.computeLineAvailability(ctx, view, lines, view.PlatformIDs)
+	if err != nil {
+		return err
+	}
+	if availabilitySummary.HasStrictBlockingGap() {
+		return kerrors.ServiceUnavailable("BOM_LINE_AVAILABILITY_GAP", "session has BOM lines without usable data; see GetReadiness")
+	}
 	tasks, err := s.search.ListTasksForSession(ctx, sid)
 	if err != nil {
 		return err
@@ -567,7 +580,14 @@ func (s *BomService) GetReadiness(ctx context.Context, req *v1.GetReadinessReque
 		}
 		return nil, err
 	}
-	lines, err := s.session.ListSessionLines(ctx, sid)
+	if view == nil {
+		return nil, kerrors.NotFound("SESSION_NOT_FOUND", "session not found")
+	}
+	lines, err := s.dataListLines(ctx, sid)
+	if err != nil {
+		return nil, err
+	}
+	_, availabilitySummary, err := s.computeLineAvailability(ctx, view, lines, view.PlatformIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -601,12 +621,20 @@ func (s *BomService) GetReadiness(ctx context.Context, req *v1.GetReadinessReque
 		}
 	}
 	return &v1.GetReadinessReply{
-		SessionId:         sid,
-		BizDate:           view.BizDate.Format("2006-01-02"),
-		SelectionRevision: int32(view.SelectionRevision),
-		Phase:             phase,
-		CanEnterMatch:     can,
-		BlockReason:       block,
+		SessionId:                      sid,
+		BizDate:                        view.BizDate.Format("2006-01-02"),
+		SelectionRevision:              int32(view.SelectionRevision),
+		Phase:                          phase,
+		CanEnterMatch:                  can,
+		BlockReason:                    block,
+		LineTotal:                      int32(availabilitySummary.LineTotal),
+		ReadyLineCount:                 int32(availabilitySummary.ReadyLineCount),
+		GapLineCount:                   int32(availabilitySummary.GapLineCount),
+		NoDataLineCount:                int32(availabilitySummary.NoDataLineCount),
+		CollectionUnavailableLineCount: int32(availabilitySummary.CollectionUnavailableLineCount),
+		NoMatchAfterFilterLineCount:    int32(availabilitySummary.NoMatchAfterFilterLineCount),
+		CollectingLineCount:            int32(availabilitySummary.CollectingLineCount),
+		HasStrictBlockingGap:           availabilitySummary.HasStrictBlockingGap(),
 	}, nil
 }
 
@@ -614,19 +642,46 @@ func (s *BomService) GetBOMLines(ctx context.Context, req *v1.GetBOMLinesRequest
 	if !s.dbOK() {
 		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
 	}
-	rows, err := s.dataListLines(ctx, req.GetSessionId())
+	sid := req.GetSessionId()
+	view, err := s.session.GetSession(ctx, sid)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, kerrors.NotFound("SESSION_NOT_FOUND", "session not found")
+		}
+		return nil, err
+	}
+	if view == nil {
+		return nil, kerrors.NotFound("SESSION_NOT_FOUND", "session not found")
+	}
+	rows, err := s.dataListLines(ctx, sid)
 	if err != nil {
 		return nil, err
 	}
+	availability, _, err := s.computeLineAvailability(ctx, view, rows, view.PlatformIDs)
+	if err != nil {
+		return nil, err
+	}
+	availabilityByLineNo := make(map[int]biz.LineAvailability, len(availability))
+	for _, item := range availability {
+		availabilityByLineNo[item.LineNo] = item
+	}
 	out := make([]*v1.BOMLineRow, 0, len(rows))
 	for _, row := range rows {
+		lineAvailability := availabilityByLineNo[row.LineNo]
 		out = append(out, &v1.BOMLineRow{
-			LineId:  strconv.FormatInt(row.ID, 10),
-			LineNo:  int32(row.LineNo),
-			Mpn:     row.Mpn,
-			Mfr:     derefStrPtr(row.Mfr),
-			Package: derefStrPtr(row.Package),
-			Qty:     derefFloat(row.Qty),
+			LineId:                   strconv.FormatInt(row.ID, 10),
+			LineNo:                   int32(row.LineNo),
+			Mpn:                      row.Mpn,
+			Mfr:                      derefStrPtr(row.Mfr),
+			Package:                  derefStrPtr(row.Package),
+			Qty:                      derefFloat(row.Qty),
+			AvailabilityStatus:       lineAvailability.Status,
+			AvailabilityReasonCode:   lineAvailability.ReasonCode,
+			AvailabilityReason:       lineAvailability.Reason,
+			HasUsableQuote:           lineAvailability.HasUsableQuote,
+			RawQuotePlatformCount:    int32(lineAvailability.RawQuotePlatformCount),
+			UsableQuotePlatformCount: int32(lineAvailability.UsableQuotePlatformCount),
+			ResolutionStatus:         lineAvailability.ResolutionStatus,
 		})
 	}
 	return &v1.GetBOMLinesReply{Lines: out}, nil
@@ -711,6 +766,109 @@ func (s *BomService) GetSessionSearchTaskCoverage(ctx context.Context, req *v1.G
 		ExistingTaskCount: int32(len(tasks)),
 		MissingTasks:      missing,
 	}, nil
+}
+
+func (s *BomService) ListSessionSearchTasks(ctx context.Context, req *v1.ListSessionSearchTasksRequest) (*v1.ListSessionSearchTasksReply, error) {
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	sid := strings.TrimSpace(req.GetSessionId())
+	view, err := s.session.GetSession(ctx, sid)
+	if err != nil {
+		return nil, err
+	}
+	lines, err := s.session.ListSessionLines(ctx, sid)
+	if err != nil {
+		return nil, err
+	}
+	existing, err := s.search.ListSearchTaskStatusRows(ctx, sid)
+	if err != nil {
+		return nil, err
+	}
+
+	byKey := make(map[string]biz.SearchTaskStatusRow, len(existing))
+	for _, row := range existing {
+		byKey[searchTaskStatusKey(row.MpnNorm, row.PlatformID)] = row
+	}
+
+	rows := make([]biz.SearchTaskStatusRow, 0, len(lines)*len(view.PlatformIDs))
+	for _, line := range lines {
+		mpnNorm := biz.NormalizeMPNForBOMSearch(line.Mpn)
+		for _, platformRaw := range view.PlatformIDs {
+			platformID := biz.NormalizePlatformID(platformRaw)
+			row, ok := byKey[searchTaskStatusKey(mpnNorm, platformID)]
+			if !ok {
+				row = biz.SearchTaskStatusRow{SearchTaskState: biz.SearchTaskUIStateMissing}
+			}
+			row.LineID = uint64(line.ID)
+			row.LineNo = line.LineNo
+			row.MpnRaw = line.Mpn
+			row.MpnNorm = mpnNorm
+			row.PlatformID = platformID
+			row.SearchTaskState = biz.NormalizeBOMSearchTaskState(row.SearchTaskState)
+			row.SearchUIState = biz.MapBOMSearchTaskUIState(row.SearchTaskState)
+			row.Retryable, row.RetryBlockedReason = biz.CanRetryBOMSearchTask(row.SearchTaskState, biz.SearchTaskRetrySingleManual)
+			rows = append(rows, row)
+		}
+	}
+
+	summary := biz.BuildSearchTaskStatusSummary(rows)
+	out := &v1.ListSessionSearchTasksReply{
+		SessionId: sid,
+		Summary: &v1.SearchTaskStatusSummary{
+			Total:     int32(summary.Total),
+			Pending:   int32(summary.Pending),
+			Searching: int32(summary.Searching),
+			Succeeded: int32(summary.Succeeded),
+			NoData:    int32(summary.NoData),
+			Failed:    int32(summary.Failed),
+			Skipped:   int32(summary.Skipped),
+			Cancelled: int32(summary.Cancelled),
+			Missing:   int32(summary.Missing),
+			Retryable: int32(summary.Retryable),
+		},
+		Tasks: make([]*v1.SessionSearchTaskRow, 0, len(rows)),
+	}
+	for _, row := range rows {
+		out.Tasks = append(out.Tasks, searchTaskStatusRowToProto(row))
+	}
+	return out, nil
+}
+
+func searchTaskStatusKey(mpnNorm, platformID string) string {
+	return biz.NormalizeMPNForBOMSearch(mpnNorm) + "\x00" + biz.NormalizePlatformID(platformID)
+}
+
+func searchTaskStatusRowToProto(row biz.SearchTaskStatusRow) *v1.SessionSearchTaskRow {
+	return &v1.SessionSearchTaskRow{
+		LineId:             strconv.FormatUint(row.LineID, 10),
+		LineNo:             int32(row.LineNo),
+		MpnRaw:             row.MpnRaw,
+		MpnNorm:            row.MpnNorm,
+		PlatformId:         row.PlatformID,
+		PlatformName:       row.PlatformName,
+		SearchTaskId:       strconv.FormatUint(row.SearchTaskID, 10),
+		SearchTaskState:    row.SearchTaskState,
+		SearchUiState:      row.SearchUIState,
+		Retryable:          row.Retryable,
+		RetryBlockedReason: row.RetryBlockedReason,
+		DispatchTaskId:     row.DispatchTaskID,
+		DispatchTaskState:  row.DispatchTaskState,
+		DispatchAgentId:    row.DispatchAgentID,
+		DispatchResult:     row.DispatchResult,
+		LeaseDeadlineAt:    formatOptionalTime(row.LeaseDeadlineAt),
+		Attempt:            int32(row.Attempt),
+		RetryMax:           int32(row.RetryMax),
+		UpdatedAt:          formatOptionalTime(row.UpdatedAt),
+		LastError:          row.LastError,
+	}
+}
+
+func formatOptionalTime(t *time.Time) string {
+	if t == nil || t.IsZero() {
+		return ""
+	}
+	return t.Format(time.RFC3339)
 }
 
 func (s *BomService) CreateSessionLine(ctx context.Context, req *v1.CreateSessionLineRequest) (*v1.CreateSessionLineReply, error) {
@@ -865,7 +1023,14 @@ func (s *BomService) RetrySearchTasks(ctx context.Context, req *v1.RetrySearchTa
 		mn := biz.NormalizeMPNForBOMSearch(it.GetMpn())
 		pid := biz.NormalizePlatformID(it.GetPlatformId())
 		cur, err := s.search.GetTaskStateBySessionKey(ctx, sid, mn, pid, view.BizDate)
-		if err != nil || cur == "" {
+		if err != nil {
+			continue
+		}
+		if cur == "" {
+			if err := s.search.UpsertPendingTasks(ctx, sid, view.BizDate, view.SelectionRevision, []biz.MpnPlatformPair{{MpnNorm: mn, PlatformID: pid}}); err != nil {
+				continue
+			}
+			n++
 			continue
 		}
 		to, terr := biz.BomSearchTaskTransition(cur, "retry_backoff")
@@ -1127,6 +1292,17 @@ func (s *BomService) DownloadTemplate(ctx context.Context, req *v1.DownloadTempl
 func (s *BomService) ExportSession(ctx context.Context, req *v1.ExportSessionRequest) (*v1.ExportSessionReply, error) {
 	if !s.dbOK() {
 		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	if strings.TrimSpace(req.GetRunId()) != "" {
+		runID, err := strconv.ParseUint(req.GetRunId(), 10, 64)
+		if err != nil {
+			return nil, kerrors.BadRequest("BAD_RUN_ID", "invalid run_id")
+		}
+		_, items, err := s.matchRuns.GetMatchRun(ctx, runID)
+		if err != nil {
+			return nil, err
+		}
+		return s.exportMatchRunItems(items, req.GetFormat())
 	}
 	rows, err := s.dataListLines(ctx, req.GetSessionId())
 	if err != nil {

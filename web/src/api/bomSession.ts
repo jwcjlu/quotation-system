@@ -4,12 +4,15 @@
  */
 import { fetchJson } from './http'
 import type {
+  BOMLineGap,
   CreateSessionReply,
   GetBOMLinesReply,
   GetReadinessReply,
   GetSessionReply,
   GetSessionSearchTaskCoverageReply,
+  ListSessionSearchTasksReply,
   ListSessionsReply,
+  MatchRunListItem,
 } from './types'
 
 const BASE = '/api/v1/bom-sessions'
@@ -24,6 +27,12 @@ function str(v: unknown): string {
   return typeof v === 'string' ? v : v != null ? String(v) : ''
 }
 
+function bool(v: unknown): boolean {
+  if (typeof v === 'boolean') return v
+  if (typeof v === 'string') return v.trim().toLowerCase() === 'true'
+  return Boolean(v)
+}
+
 export async function createSession(body: {
   title?: string
   platform_ids?: string[]
@@ -31,7 +40,6 @@ export async function createSession(body: {
   contact_phone?: string
   contact_email?: string
   contact_extra?: string
-  /** lenient | strict；省略时由后端默认 lenient */
   readiness_mode?: string
 }): Promise<CreateSessionReply> {
   const payload: Record<string, unknown> = {
@@ -81,7 +89,9 @@ function parseGetSession(json: Record<string, unknown>): GetSessionReply {
 }
 
 export async function getSession(sessionId: string): Promise<GetSessionReply> {
-  const json = await fetchJson<Record<string, unknown>>(`${BASE}/${encodeURIComponent(sessionId)}`)
+  const json = await fetchJson<Record<string, unknown>>(
+    `${BASE}/${encodeURIComponent(sessionId)}`
+  )
   return parseGetSession(json)
 }
 
@@ -170,8 +180,24 @@ export async function getReadiness(sessionId: string): Promise<GetReadinessReply
     biz_date: (json.biz_date ?? json.bizDate) as string,
     selection_revision: num(json.selection_revision ?? json.selectionRevision, 1),
     phase: (json.phase as string) ?? '',
-    can_enter_match: Boolean(json.can_enter_match ?? json.canEnterMatch),
+    can_enter_match: bool(json.can_enter_match ?? json.canEnterMatch),
     block_reason: (json.block_reason ?? json.blockReason) as string,
+    line_total: num(json.line_total ?? json.lineTotal, 0),
+    ready_line_count: num(json.ready_line_count ?? json.readyLineCount, 0),
+    gap_line_count: num(json.gap_line_count ?? json.gapLineCount, 0),
+    no_data_line_count: num(json.no_data_line_count ?? json.noDataLineCount, 0),
+    collection_unavailable_line_count: num(
+      json.collection_unavailable_line_count ?? json.collectionUnavailableLineCount,
+      0
+    ),
+    no_match_after_filter_line_count: num(
+      json.no_match_after_filter_line_count ?? json.noMatchAfterFilterLineCount,
+      0
+    ),
+    collecting_line_count: num(json.collecting_line_count ?? json.collectingLineCount, 0),
+    has_strict_blocking_gap: bool(
+      json.has_strict_blocking_gap ?? json.hasStrictBlockingGap
+    ),
   }
 }
 
@@ -199,6 +225,22 @@ export async function getBOMLines(sessionId: string): Promise<GetBOMLinesReply> 
         manual_attempt: num(g.manual_attempt ?? g.manualAttempt, 0),
         search_ui_state: str(g.search_ui_state ?? g.searchUiState) || undefined,
       })),
+      availability_status:
+        str(row.availability_status ?? row.availabilityStatus) || undefined,
+      availability_reason_code:
+        str(row.availability_reason_code ?? row.availabilityReasonCode) || undefined,
+      availability_reason:
+        str(row.availability_reason ?? row.availabilityReason) || undefined,
+      has_usable_quote: bool(row.has_usable_quote ?? row.hasUsableQuote),
+      raw_quote_platform_count: num(
+        row.raw_quote_platform_count ?? row.rawQuotePlatformCount,
+        0
+      ),
+      usable_quote_platform_count: num(
+        row.usable_quote_platform_count ?? row.usableQuotePlatformCount,
+        0
+      ),
+      resolution_status: str(row.resolution_status ?? row.resolutionStatus) || undefined,
     }
   })
   return { lines }
@@ -224,6 +266,168 @@ export async function getSessionSearchTaskCoverage(
       reason: str(m.reason),
     })),
   }
+}
+
+function parseSearchTaskSummary(json: Record<string, unknown>) {
+  return {
+    total: num(json.total, 0),
+    pending: num(json.pending, 0),
+    searching: num(json.searching, 0),
+    succeeded: num(json.succeeded, 0),
+    no_data: num(json.no_data ?? json.noData, 0),
+    failed: num(json.failed, 0),
+    skipped: num(json.skipped, 0),
+    cancelled: num(json.cancelled, 0),
+    missing: num(json.missing, 0),
+    retryable: num(json.retryable, 0),
+  }
+}
+
+export async function listSessionSearchTasks(
+  sessionId: string
+): Promise<ListSessionSearchTasksReply> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `${BASE}/${encodeURIComponent(sessionId)}/search-tasks`
+  )
+  const tasksRaw = (json.tasks ?? []) as Record<string, unknown>[]
+  return {
+    session_id: str(json.session_id ?? json.sessionId),
+    summary: parseSearchTaskSummary((json.summary ?? {}) as Record<string, unknown>),
+    tasks: tasksRaw.map((row) => ({
+      line_id: str(row.line_id ?? row.lineId),
+      line_no: num(row.line_no ?? row.lineNo, 0),
+      mpn_raw: str(row.mpn_raw ?? row.mpnRaw),
+      mpn_norm: str(row.mpn_norm ?? row.mpnNorm),
+      platform_id: str(row.platform_id ?? row.platformId),
+      platform_name: str(row.platform_name ?? row.platformName),
+      search_task_id: str(row.search_task_id ?? row.searchTaskId),
+      search_task_state: str(row.search_task_state ?? row.searchTaskState),
+      search_ui_state: str(row.search_ui_state ?? row.searchUiState),
+      retryable: bool(row.retryable),
+      retry_blocked_reason: str(row.retry_blocked_reason ?? row.retryBlockedReason),
+      dispatch_task_id: str(row.dispatch_task_id ?? row.dispatchTaskId),
+      dispatch_task_state: str(row.dispatch_task_state ?? row.dispatchTaskState),
+      dispatch_agent_id: str(row.dispatch_agent_id ?? row.dispatchAgentId),
+      dispatch_result: str(row.dispatch_result ?? row.dispatchResult),
+      lease_deadline_at: str(row.lease_deadline_at ?? row.leaseDeadlineAt),
+      attempt: num(row.attempt, 0),
+      retry_max: num(row.retry_max ?? row.retryMax, 0),
+      updated_at: str(row.updated_at ?? row.updatedAt),
+      last_error: str(row.last_error ?? row.lastError),
+    })),
+  }
+}
+
+function parseLineGap(row: Record<string, unknown>): BOMLineGap {
+  return {
+    gap_id: str(row.gap_id ?? row.gapId),
+    session_id: str(row.session_id ?? row.sessionId),
+    line_id: str(row.line_id ?? row.lineId),
+    line_no: num(row.line_no ?? row.lineNo, 0),
+    mpn: str(row.mpn),
+    gap_type: str(row.gap_type ?? row.gapType),
+    reason_code: str(row.reason_code ?? row.reasonCode),
+    reason_detail: str(row.reason_detail ?? row.reasonDetail),
+    resolution_status: str(row.resolution_status ?? row.resolutionStatus),
+    substitute_mpn: str(row.substitute_mpn ?? row.substituteMpn),
+    substitute_reason: str(row.substitute_reason ?? row.substituteReason),
+    updated_at: str(row.updated_at ?? row.updatedAt),
+  }
+}
+
+function parseMatchRun(row: Record<string, unknown>): MatchRunListItem {
+  return {
+    run_id: str(row.run_id ?? row.runId),
+    run_no: num(row.run_no ?? row.runNo, 0),
+    session_id: str(row.session_id ?? row.sessionId),
+    status: str(row.status),
+    line_total: num(row.line_total ?? row.lineTotal, 0),
+    matched_line_count: num(row.matched_line_count ?? row.matchedLineCount, 0),
+    unresolved_line_count: num(row.unresolved_line_count ?? row.unresolvedLineCount, 0),
+    total_amount: num(row.total_amount ?? row.totalAmount, 0),
+    currency: str(row.currency),
+    created_at: str(row.created_at ?? row.createdAt),
+    saved_at: str(row.saved_at ?? row.savedAt),
+  }
+}
+
+export async function listLineGaps(
+  sessionId: string,
+  statuses: string[] = []
+): Promise<{ gaps: BOMLineGap[] }> {
+  const q = new URLSearchParams()
+  statuses.forEach((status) => {
+    if (status) q.append('statuses', status)
+  })
+  const qs = q.toString()
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/sessions/${encodeURIComponent(sessionId)}/gaps${qs ? `?${qs}` : ''}`
+  )
+  const gapsRaw = (json.gaps ?? []) as Record<string, unknown>[]
+  return { gaps: gapsRaw.map(parseLineGap) }
+}
+
+export async function saveMatchRun(sessionId: string): Promise<{ run_id: string; run_no: number }> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/sessions/${encodeURIComponent(sessionId)}/match-runs`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId }),
+    }
+  )
+  return {
+    run_id: str(json.run_id ?? json.runId),
+    run_no: num(json.run_no ?? json.runNo, 0),
+  }
+}
+
+export async function listMatchRuns(sessionId: string): Promise<{ runs: MatchRunListItem[] }> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/sessions/${encodeURIComponent(sessionId)}/match-runs`
+  )
+  const runsRaw = (json.runs ?? []) as Record<string, unknown>[]
+  return { runs: runsRaw.map(parseMatchRun) }
+}
+
+export async function resolveLineGapManualQuote(
+  gapId: string,
+  body: {
+    model: string
+    manufacturer?: string
+    package?: string
+    stock?: string
+    lead_time?: string
+    price_tiers?: string
+    hk_price?: string
+    mainland_price?: string
+    note?: string
+  }
+): Promise<{ accepted: boolean }> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/gaps/${encodeURIComponent(gapId)}/manual-quote`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gap_id: gapId, ...body }),
+    }
+  )
+  return { accepted: Boolean(json.accepted) }
+}
+
+export async function selectLineGapSubstitute(
+  gapId: string,
+  body: { substitute_mpn: string; reason?: string }
+): Promise<{ accepted: boolean }> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/bom/gaps/${encodeURIComponent(gapId)}/substitute`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gap_id: gapId, ...body }),
+    }
+  )
+  return { accepted: Boolean(json.accepted) }
 }
 
 export async function createSessionLine(
@@ -320,7 +524,6 @@ export async function retrySearchTasks(
   return { accepted: num(json.accepted, 0) }
 }
 
-/** GET /bom-sessions/{id}/export?format=xlsx|csv — 返回与模板相同的 base64 file */
 export async function exportSessionFile(
   sessionId: string,
   format: 'xlsx' | 'csv' = 'xlsx'
@@ -336,7 +539,9 @@ export async function exportSessionFile(
   const bin = atob(b64)
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  const name = ((json.filename ?? json.fileName) as string) || `export.${format === 'csv' ? 'csv' : 'xlsx'}`
+  const name =
+    ((json.filename ?? json.fileName) as string) ||
+    `export.${format === 'csv' ? 'csv' : 'xlsx'}`
   const mime =
     format === 'csv'
       ? 'text/csv;charset=utf-8'

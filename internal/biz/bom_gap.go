@@ -3,10 +3,6 @@ package biz
 import "fmt"
 
 const (
-	LineAvailabilityNoData                = "no_data"
-	LineAvailabilityCollectionUnavailable = "collection_unavailable"
-	LineAvailabilityNoMatchAfterFilter    = "no_match_after_filter"
-
 	LineGapNoData                = "NO_DATA"
 	LineGapCollectionUnavailable = "COLLECTION_UNAVAILABLE"
 	LineGapNoMatchAfterFilter    = "NO_MATCH_AFTER_FILTER"

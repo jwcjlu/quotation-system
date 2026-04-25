@@ -150,6 +150,48 @@ export interface GetSessionSearchTaskCoverageReply {
   }>
 }
 
+export interface SearchTaskStatusSummary {
+  total: number
+  pending: number
+  searching: number
+  succeeded: number
+  no_data: number
+  failed: number
+  skipped: number
+  cancelled: number
+  missing: number
+  retryable: number
+}
+
+export interface SessionSearchTaskRow {
+  line_id: string
+  line_no: number
+  mpn_raw: string
+  mpn_norm: string
+  platform_id: string
+  platform_name: string
+  search_task_id: string
+  search_task_state: string
+  search_ui_state: string
+  retryable: boolean
+  retry_blocked_reason: string
+  dispatch_task_id: string
+  dispatch_task_state: string
+  dispatch_agent_id: string
+  dispatch_result: string
+  lease_deadline_at: string
+  attempt: number
+  retry_max: number
+  updated_at: string
+  last_error: string
+}
+
+export interface ListSessionSearchTasksReply {
+  session_id: string
+  summary: SearchTaskStatusSummary
+  tasks: SessionSearchTaskRow[]
+}
+
 export interface BOMLineRow {
   line_id: string
   line_no: number

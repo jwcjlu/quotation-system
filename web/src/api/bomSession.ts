@@ -10,6 +10,7 @@ import type {
   GetReadinessReply,
   GetSessionReply,
   GetSessionSearchTaskCoverageReply,
+  ListSessionSearchTasksReply,
   ListSessionsReply,
   MatchRunListItem,
 } from './types'
@@ -39,7 +40,6 @@ export async function createSession(body: {
   contact_phone?: string
   contact_email?: string
   contact_extra?: string
-  /** lenient | strict；省略时由后端默认 lenient */
   readiness_mode?: string
 }): Promise<CreateSessionReply> {
   const payload: Record<string, unknown> = {
@@ -89,7 +89,9 @@ function parseGetSession(json: Record<string, unknown>): GetSessionReply {
 }
 
 export async function getSession(sessionId: string): Promise<GetSessionReply> {
-  const json = await fetchJson<Record<string, unknown>>(`${BASE}/${encodeURIComponent(sessionId)}`)
+  const json = await fetchJson<Record<string, unknown>>(
+    `${BASE}/${encodeURIComponent(sessionId)}`
+  )
   return parseGetSession(json)
 }
 
@@ -266,6 +268,56 @@ export async function getSessionSearchTaskCoverage(
   }
 }
 
+function parseSearchTaskSummary(json: Record<string, unknown>) {
+  return {
+    total: num(json.total, 0),
+    pending: num(json.pending, 0),
+    searching: num(json.searching, 0),
+    succeeded: num(json.succeeded, 0),
+    no_data: num(json.no_data ?? json.noData, 0),
+    failed: num(json.failed, 0),
+    skipped: num(json.skipped, 0),
+    cancelled: num(json.cancelled, 0),
+    missing: num(json.missing, 0),
+    retryable: num(json.retryable, 0),
+  }
+}
+
+export async function listSessionSearchTasks(
+  sessionId: string
+): Promise<ListSessionSearchTasksReply> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `${BASE}/${encodeURIComponent(sessionId)}/search-tasks`
+  )
+  const tasksRaw = (json.tasks ?? []) as Record<string, unknown>[]
+  return {
+    session_id: str(json.session_id ?? json.sessionId),
+    summary: parseSearchTaskSummary((json.summary ?? {}) as Record<string, unknown>),
+    tasks: tasksRaw.map((row) => ({
+      line_id: str(row.line_id ?? row.lineId),
+      line_no: num(row.line_no ?? row.lineNo, 0),
+      mpn_raw: str(row.mpn_raw ?? row.mpnRaw),
+      mpn_norm: str(row.mpn_norm ?? row.mpnNorm),
+      platform_id: str(row.platform_id ?? row.platformId),
+      platform_name: str(row.platform_name ?? row.platformName),
+      search_task_id: str(row.search_task_id ?? row.searchTaskId),
+      search_task_state: str(row.search_task_state ?? row.searchTaskState),
+      search_ui_state: str(row.search_ui_state ?? row.searchUiState),
+      retryable: bool(row.retryable),
+      retry_blocked_reason: str(row.retry_blocked_reason ?? row.retryBlockedReason),
+      dispatch_task_id: str(row.dispatch_task_id ?? row.dispatchTaskId),
+      dispatch_task_state: str(row.dispatch_task_state ?? row.dispatchTaskState),
+      dispatch_agent_id: str(row.dispatch_agent_id ?? row.dispatchAgentId),
+      dispatch_result: str(row.dispatch_result ?? row.dispatchResult),
+      lease_deadline_at: str(row.lease_deadline_at ?? row.leaseDeadlineAt),
+      attempt: num(row.attempt, 0),
+      retry_max: num(row.retry_max ?? row.retryMax, 0),
+      updated_at: str(row.updated_at ?? row.updatedAt),
+      last_error: str(row.last_error ?? row.lastError),
+    })),
+  }
+}
+
 function parseLineGap(row: Record<string, unknown>): BOMLineGap {
   return {
     gap_id: str(row.gap_id ?? row.gapId),
@@ -330,9 +382,7 @@ export async function saveMatchRun(sessionId: string): Promise<{ run_id: string;
   }
 }
 
-export async function listMatchRuns(
-  sessionId: string
-): Promise<{ runs: MatchRunListItem[] }> {
+export async function listMatchRuns(sessionId: string): Promise<{ runs: MatchRunListItem[] }> {
   const json = await fetchJson<Record<string, unknown>>(
     `/api/bom/sessions/${encodeURIComponent(sessionId)}/match-runs`
   )
@@ -474,7 +524,6 @@ export async function retrySearchTasks(
   return { accepted: num(json.accepted, 0) }
 }
 
-/** GET /bom-sessions/{id}/export?format=xlsx|csv — 返回与模板相同的 base64 file */
 export async function exportSessionFile(
   sessionId: string,
   format: 'xlsx' | 'csv' = 'xlsx'
@@ -490,7 +539,9 @@ export async function exportSessionFile(
   const bin = atob(b64)
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  const name = ((json.filename ?? json.fileName) as string) || `export.${format === 'csv' ? 'csv' : 'xlsx'}`
+  const name =
+    ((json.filename ?? json.fileName) as string) ||
+    `export.${format === 'csv' ? 'csv' : 'xlsx'}`
   const mime =
     format === 'csv'
       ? 'text/csv;charset=utf-8'

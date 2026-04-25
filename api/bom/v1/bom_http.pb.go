@@ -38,6 +38,7 @@ const OperationBomServiceListLineGaps = "/api.bom.v1.BomService/ListLineGaps"
 const OperationBomServiceListManufacturerCanonicals = "/api.bom.v1.BomService/ListManufacturerCanonicals"
 const OperationBomServiceListMatchRuns = "/api.bom.v1.BomService/ListMatchRuns"
 const OperationBomServiceListMatchSources = "/api.bom.v1.BomService/ListMatchSources"
+const OperationBomServiceListSessionSearchTasks = "/api.bom.v1.BomService/ListSessionSearchTasks"
 const OperationBomServiceListSessions = "/api.bom.v1.BomService/ListSessions"
 const OperationBomServicePatchSession = "/api.bom.v1.BomService/PatchSession"
 const OperationBomServicePatchSessionLine = "/api.bom.v1.BomService/PatchSessionLine"
@@ -81,6 +82,7 @@ type BomServiceHTTPServer interface {
 	ListMatchRuns(context.Context, *ListMatchRunsRequest) (*ListMatchRunsReply, error)
 	// ListMatchSources 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
 	ListMatchSources(context.Context, *ListMatchSourcesRequest) (*ListMatchSourcesReply, error)
+	ListSessionSearchTasks(context.Context, *ListSessionSearchTasksRequest) (*ListSessionSearchTasksReply, error)
 	// ListSessions 会话列表（分页、筛选）
 	ListSessions(context.Context, *ListSessionsRequest) (*ListSessionsReply, error)
 	// PatchSession 更新会话头信息（标题、客户联系方式等）
@@ -120,6 +122,7 @@ func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r.GET("/api/v1/bom-sessions/{session_id}/readiness", _BomService_GetReadiness0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions/{session_id}/lines", _BomService_GetBOMLines0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions/{session_id}/search-tasks/coverage", _BomService_GetSessionSearchTaskCoverage0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom-sessions/{session_id}/search-tasks", _BomService_ListSessionSearchTasks0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom-sessions/{session_id}/lines", _BomService_CreateSessionLine0_HTTP_Handler(srv))
 	r.PATCH("/api/v1/bom-sessions/{session_id}/lines/{line_id}", _BomService_PatchSessionLine0_HTTP_Handler(srv))
 	r.DELETE("/api/v1/bom-sessions/{session_id}/lines/{line_id}", _BomService_DeleteSessionLine0_HTTP_Handler(srv))
@@ -527,6 +530,28 @@ func _BomService_GetSessionSearchTaskCoverage0_HTTP_Handler(srv BomServiceHTTPSe
 	}
 }
 
+func _BomService_ListSessionSearchTasks0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ListSessionSearchTasksRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceListSessionSearchTasks)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListSessionSearchTasks(ctx, req.(*ListSessionSearchTasksRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListSessionSearchTasksReply)
+		return ctx.Result(200, reply)
+	}
+}
+
 func _BomService_CreateSessionLine0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
 	return func(ctx http.Context) error {
 		var in CreateSessionLineRequest
@@ -843,6 +868,7 @@ type BomServiceHTTPClient interface {
 	ListMatchRuns(ctx context.Context, req *ListMatchRunsRequest, opts ...http.CallOption) (rsp *ListMatchRunsReply, err error)
 	// ListMatchSources 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
 	ListMatchSources(ctx context.Context, req *ListMatchSourcesRequest, opts ...http.CallOption) (rsp *ListMatchSourcesReply, err error)
+	ListSessionSearchTasks(ctx context.Context, req *ListSessionSearchTasksRequest, opts ...http.CallOption) (rsp *ListSessionSearchTasksReply, err error)
 	// ListSessions 会话列表（分页、筛选）
 	ListSessions(ctx context.Context, req *ListSessionsRequest, opts ...http.CallOption) (rsp *ListSessionsReply, err error)
 	// PatchSession 更新会话头信息（标题、客户联系方式等）
@@ -1120,6 +1146,19 @@ func (c *BomServiceHTTPClientImpl) ListMatchSources(ctx context.Context, in *Lis
 	pattern := "/api/v1/bom/{bom_id}/match-sources"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationBomServiceListMatchSources))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *BomServiceHTTPClientImpl) ListSessionSearchTasks(ctx context.Context, in *ListSessionSearchTasksRequest, opts ...http.CallOption) (*ListSessionSearchTasksReply, error) {
+	var out ListSessionSearchTasksReply
+	pattern := "/api/v1/bom-sessions/{session_id}/search-tasks"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceListSessionSearchTasks))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {

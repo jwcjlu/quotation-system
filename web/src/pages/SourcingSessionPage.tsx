@@ -9,6 +9,7 @@ import {
   getSessionSearchTaskCoverage,
   listLineGaps,
   listMatchRuns,
+  listSessionSearchTasks,
   patchSession,
   patchSessionLine,
   putPlatforms,
@@ -19,12 +20,19 @@ import {
   type BOMLineGap,
   type BOMLineRow,
   type GetSessionSearchTaskCoverageReply,
+  type ListSessionSearchTasksReply,
   type MatchRunListItem,
+  type SessionSearchTaskRow,
 } from '../api'
 import { SessionImportStatusCard } from './sourcing-session/SessionImportStatusCard'
+import { SearchTaskStatusPanel } from './sourcing-session/SearchTaskStatusPanel'
 
 const SESSION_MATCH_READY = 'data_ready'
-const BLOCKING_AVAILABILITY_STATUSES = new Set(['no_data', 'collection_unavailable', 'no_match_after_filter'])
+const BLOCKING_AVAILABILITY_STATUSES = new Set([
+  'no_data',
+  'collection_unavailable',
+  'no_match_after_filter',
+])
 
 function normalizeAvailabilityStatus(status?: string) {
   return (status || '').trim()
@@ -64,9 +72,7 @@ function availabilityStatusClass(status?: string) {
 
 interface SourcingSessionPageProps {
   sessionId: string
-  /** 嵌入弹框时去掉与外层重复的页面大标题 */
   embedded?: boolean
-  /** 进入配单页；仅应在会话为 data_ready 时由父级传入并由本页启用按钮 */
   onEnterMatch?: () => void
 }
 
@@ -95,6 +101,9 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
   const [lineGaps, setLineGaps] = useState<BOMLineGap[]>([])
   const [matchRuns, setMatchRuns] = useState<MatchRunListItem[]>([])
   const [searchCoverage, setSearchCoverage] = useState<GetSessionSearchTaskCoverageReply | null>(null)
+  const [searchTasks, setSearchTasks] = useState<ListSessionSearchTasksReply | null>(null)
+  const [searchTasksLoading, setSearchTasksLoading] = useState(false)
+  const [retryingSearchTasks, setRetryingSearchTasks] = useState(false)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [platformErr, setPlatformErr] = useState<string | null>(null)
@@ -124,7 +133,10 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     price_tiers: '',
     note: '',
   })
-  const [substitute, setSubstitute] = useState<SubstituteDraft>({ substitute_mpn: '', reason: '' })
+  const [substitute, setSubstitute] = useState<SubstituteDraft>({
+    substitute_mpn: '',
+    reason: '',
+  })
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<LineDraft>({ mpn: '', mfr: '', package: '', qty: '' })
@@ -183,6 +195,18 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     }
   }, [sessionId])
 
+  const loadSearchTasks = useCallback(async () => {
+    setSearchTasksLoading(true)
+    try {
+      const data = await listSessionSearchTasks(sessionId)
+      setSearchTasks(data)
+    } catch {
+      setSearchTasks(null)
+    } finally {
+      setSearchTasksLoading(false)
+    }
+  }, [sessionId])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -190,12 +214,13 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
       await loadSession()
       await loadLines()
       await loadGapAndRuns()
+      await loadSearchTasks()
       if (!cancelled) setLoading(false)
     })()
     return () => {
       cancelled = true
     }
-  }, [loadSession, loadLines, loadGapAndRuns])
+  }, [loadGapAndRuns, loadLines, loadSearchTasks, loadSession])
 
   useEffect(() => {
     if (importStatus !== 'parsing') return
@@ -211,8 +236,9 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     if (previous === 'parsing' && importStatus === 'ready') {
       void loadLines()
       void loadGapAndRuns()
+      void loadSearchTasks()
     }
-  }, [importStatus, loadLines, loadGapAndRuns])
+  }, [importStatus, loadGapAndRuns, loadLines, loadSearchTasks])
 
   const togglePlatform = (id: string) => {
     setSelectedPlatforms((prev) =>
@@ -275,16 +301,31 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     }
   }
 
-  const handleRetryFirstGap = async () => {
-    const row = lines.find((l) => l.platform_gaps?.length)
-    const g = row?.platform_gaps?.[0]
-    if (!row || !g) return
+  const retrySearchTaskItems = async (items: { mpn: string; platform_id: string }[]) => {
+    if (items.length === 0) return
+    setRetryingSearchTasks(true)
     try {
-      await retrySearchTasks(sessionId, [{ mpn: row.mpn, platform_id: g.platform_id }])
+      await retrySearchTasks(sessionId, items)
       await loadLines()
+      await loadSearchTasks()
     } catch (e) {
       setErr(e instanceof Error ? e.message : '重试失败')
+    } finally {
+      setRetryingSearchTasks(false)
     }
+  }
+
+  const handleRetrySearchTask = async (task: SessionSearchTaskRow) => {
+    await retrySearchTaskItems([
+      { mpn: task.mpn_raw || task.mpn_norm, platform_id: task.platform_id },
+    ])
+  }
+
+  const handleRetrySearchTaskBatch = async () => {
+    const items = (searchTasks?.tasks ?? [])
+      .filter((task) => task.retryable && task.search_ui_state !== 'no_data')
+      .map((task) => ({ mpn: task.mpn_raw || task.mpn_norm, platform_id: task.platform_id }))
+    await retrySearchTaskItems(items)
   }
 
   const handleSaveMatchRun = async () => {
@@ -304,7 +345,10 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
   const startGapAction = (gap: BOMLineGap) => {
     setGapActionId(gap.gap_id)
     setManualQuote((draft) => ({ ...draft, model: gap.mpn || draft.model }))
-    setSubstitute({ substitute_mpn: gap.substitute_mpn || '', reason: gap.substitute_reason || '' })
+    setSubstitute({
+      substitute_mpn: gap.substitute_mpn || '',
+      reason: gap.substitute_reason || '',
+    })
     setRunMsg(null)
   }
 
@@ -448,24 +492,23 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
   }
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-20 text-slate-500">加载会话...</div>
-    )
+    return <div className="flex justify-center py-20 text-slate-500">加载会话...</div>
   }
 
   const importParsing = importStatus === 'parsing'
-  const canEnterMatch = !importParsing && sessionStatus === SESSION_MATCH_READY && Boolean(onEnterMatch)
+  const canEnterMatch =
+    !importParsing && sessionStatus === SESSION_MATCH_READY && Boolean(onEnterMatch)
   const blockingAvailabilityLines = lines.filter((line) =>
-    BLOCKING_AVAILABILITY_STATUSES.has(normalizeAvailabilityStatus(line.availability_status)),
+    BLOCKING_AVAILABILITY_STATUSES.has(normalizeAvailabilityStatus(line.availability_status))
   )
   const noDataLineCount = blockingAvailabilityLines.filter(
-    (line) => normalizeAvailabilityStatus(line.availability_status) === 'no_data',
+    (line) => normalizeAvailabilityStatus(line.availability_status) === 'no_data'
   ).length
   const unavailableLineCount = blockingAvailabilityLines.filter(
-    (line) => normalizeAvailabilityStatus(line.availability_status) === 'collection_unavailable',
+    (line) => normalizeAvailabilityStatus(line.availability_status) === 'collection_unavailable'
   ).length
   const noMatchAfterFilterLineCount = blockingAvailabilityLines.filter(
-    (line) => normalizeAvailabilityStatus(line.availability_status) === 'no_match_after_filter',
+    (line) => normalizeAvailabilityStatus(line.availability_status) === 'no_match_after_filter'
   ).length
 
   return (
@@ -478,13 +521,14 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           <span className="font-mono text-sm">{sessionId}</span>
           {' · '}
           <span className="text-slate-500">
-            状态 <code className="text-slate-800 bg-slate-100 px-1 rounded">{sessionStatus || '—'}</code>
+            状态 <code className="rounded bg-slate-100 px-1 text-slate-800">{sessionStatus || '—'}</code>
           </span>
         </p>
         <p className="mt-2 text-sm text-slate-600">
-          会话状态为 <code className="text-slate-800 bg-slate-100 px-1 rounded">data_ready</code> 时可使用下方「配单」或顶部「匹配单」。
+          会话状态为 <code className="rounded bg-slate-100 px-1 text-slate-800">data_ready</code>{' '}
+          时可使用下方“配单”或顶部“匹配单”。
         </p>
-        <div className="mt-3 flex flex-wrap gap-2 items-center">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={!canEnterMatch}
@@ -493,7 +537,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                 ? '进入配单'
                 : !onEnterMatch
                   ? '未配置配单入口'
-                  : `当前状态为「${sessionStatus || '—'}」，需 data_ready 后可配单`
+                  : `当前状态为“${sessionStatus || '—'}”，需 data_ready 后可配单`
             }
             onClick={() => {
               if (canEnterMatch) onEnterMatch?.()
@@ -501,7 +545,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
             className={
               canEnterMatch
                 ? 'rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700'
-                : 'rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-400 cursor-not-allowed'
+                : 'cursor-not-allowed rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-400'
             }
           >
             配单
@@ -532,18 +576,18 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           </button>
           <button
             type="button"
-            onClick={() => void Promise.all([loadSession(), loadLines(), loadGapAndRuns()])}
+            onClick={() => void Promise.all([loadSession(), loadLines(), loadGapAndRuns(), loadSearchTasks()])}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
           >
             刷新行列表
           </button>
-          <span className="text-xs text-slate-500 self-center">GET /bom-sessions/.../export</span>
+          <span className="self-center text-xs text-slate-500">GET /bom-sessions/.../export</span>
         </div>
       </div>
 
       {err && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <strong className="block mb-1">接口提示</strong>
+          <strong className="mb-1 block">接口提示</strong>
           {err}
         </div>
       )}
@@ -560,8 +604,17 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
         />
       )}
 
+      <SearchTaskStatusPanel
+        data={searchTasks}
+        loading={searchTasksLoading}
+        retrying={retryingSearchTasks}
+        onRefresh={() => void loadSearchTasks()}
+        onRetryBatch={() => void handleRetrySearchTaskBatch()}
+        onRetryTask={(task) => void handleRetrySearchTask(task)}
+      />
+
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold text-slate-800">缺口与配单方案</h3>
             <p className="mt-1 text-sm text-slate-600">
@@ -637,7 +690,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                           placeholder="型号 *"
                           value={manualQuote.model}
                           onChange={(e) => setManualQuote((d) => ({ ...d, model: e.target.value }))}
-                          className="border border-slate-300 rounded px-2 py-1.5 text-sm font-mono"
+                          className="rounded border border-slate-300 px-2 py-1.5 text-sm font-mono"
                         />
                         <input
                           placeholder="厂牌"
@@ -645,19 +698,19 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                           onChange={(e) =>
                             setManualQuote((d) => ({ ...d, manufacturer: e.target.value }))
                           }
-                          className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
                         />
                         <input
                           placeholder="封装"
                           value={manualQuote.package}
                           onChange={(e) => setManualQuote((d) => ({ ...d, package: e.target.value }))}
-                          className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
                         />
                         <input
                           placeholder="库存"
                           value={manualQuote.stock}
                           onChange={(e) => setManualQuote((d) => ({ ...d, stock: e.target.value }))}
-                          className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
                         />
                         <input
                           placeholder="阶梯价"
@@ -665,7 +718,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                           onChange={(e) =>
                             setManualQuote((d) => ({ ...d, price_tiers: e.target.value }))
                           }
-                          className="border border-slate-300 rounded px-2 py-1.5 text-sm sm:col-span-2"
+                          className="rounded border border-slate-300 px-2 py-1.5 text-sm sm:col-span-2"
                         />
                       </div>
                       <button
@@ -686,13 +739,13 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                           onChange={(e) =>
                             setSubstitute((d) => ({ ...d, substitute_mpn: e.target.value }))
                           }
-                          className="border border-slate-300 rounded px-2 py-1.5 text-sm font-mono"
+                          className="rounded border border-slate-300 px-2 py-1.5 text-sm font-mono"
                         />
                         <input
                           placeholder="原因"
                           value={substitute.reason}
                           onChange={(e) => setSubstitute((d) => ({ ...d, reason: e.target.value }))}
-                          className="border border-slate-300 rounded px-2 py-1.5 text-sm"
+                          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
                         />
                       </div>
                       <button
@@ -712,51 +765,51 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="font-semibold text-slate-800 mb-3">单据信息（PATCH /bom-sessions）</h3>
+        <h3 className="mb-3 font-semibold text-slate-800">单据信息（PATCH /bom-sessions）</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className="block text-xs text-slate-500 mb-1">标题</label>
+            <label className="mb-1 block text-xs text-slate-500">标题</label>
             <input
               type="text"
               value={sessionTitle}
               onChange={(e) => setSessionTitle(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">客户名称</label>
+            <label className="mb-1 block text-xs text-slate-500">客户名称</label>
             <input
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">联系电话</label>
+            <label className="mb-1 block text-xs text-slate-500">联系电话</label>
             <input
               type="text"
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">邮箱</label>
+            <label className="mb-1 block text-xs text-slate-500">邮箱</label>
             <input
               type="email"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-500 mb-1">备注</label>
+            <label className="mb-1 block text-xs text-slate-500">备注</label>
             <input
               type="text"
               value={contactExtra}
               onChange={(e) => setContactExtra(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
         </div>
@@ -774,11 +827,11 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="font-semibold text-slate-800 mb-3">勾选平台（PUT /platforms）</h3>
-        <p className="text-sm text-slate-600 mb-3">与接口清单 platform_id 枚举一致，全量替换。</p>
-        <div className="flex flex-wrap gap-3 mb-4">
+        <h3 className="mb-3 font-semibold text-slate-800">勾选平台（PUT /platforms）</h3>
+        <p className="mb-3 text-sm text-slate-600">与接口清单 platform_id 枚举一致，全量替换。</p>
+        <div className="mb-4 flex flex-wrap gap-3">
           {PLATFORM_IDS.map((id) => (
-            <label key={id} className="flex items-center gap-2 cursor-pointer text-sm">
+            <label key={id} className="flex cursor-pointer items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={selectedPlatforms.includes(id)}
@@ -788,7 +841,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
             </label>
           ))}
         </div>
-        {platformErr && <p className="text-red-600 text-sm mb-2">{platformErr}</p>}
+        {platformErr && <p className="mb-2 text-sm text-red-600">{platformErr}</p>}
         <button
           type="button"
           disabled={savingPlatforms}
@@ -800,50 +853,42 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-semibold text-slate-800">BOM 行（GET /lines · 增删改）</h3>
-          <button
-            type="button"
-            disabled={importParsing}
-            onClick={() => void handleRetryFirstGap()}
-            className="text-sm text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline"
-          >
-            重试第一条缺口（示例）
-          </button>
         </div>
 
-        <div className="mb-6 rounded-lg border border-dashed border-slate-300 p-4 bg-slate-50/80">
-          <p className="text-sm font-medium text-slate-700 mb-2">添加一行（POST /lines）</p>
-          <div className="flex flex-wrap gap-2 items-end">
+        <div className="mb-6 rounded-lg border border-dashed border-slate-300 bg-slate-50/80 p-4">
+          <p className="mb-2 text-sm font-medium text-slate-700">添加一行（POST /lines）</p>
+          <div className="flex flex-wrap items-end gap-2">
             <input
               placeholder="MPN *"
               value={newLine.mpn}
               onChange={(e) => setNewLine((n) => ({ ...n, mpn: e.target.value }))}
-              className="border border-slate-300 rounded px-2 py-1.5 text-sm w-40 font-mono"
+              className="w-40 rounded border border-slate-300 px-2 py-1.5 text-sm font-mono"
             />
             <input
               placeholder="厂牌"
               value={newLine.mfr}
               onChange={(e) => setNewLine((n) => ({ ...n, mfr: e.target.value }))}
-              className="border border-slate-300 rounded px-2 py-1.5 text-sm w-28"
+              className="w-28 rounded border border-slate-300 px-2 py-1.5 text-sm"
             />
             <input
               placeholder="封装"
               value={newLine.package}
               onChange={(e) => setNewLine((n) => ({ ...n, package: e.target.value }))}
-              className="border border-slate-300 rounded px-2 py-1.5 text-sm w-24"
+              className="w-24 rounded border border-slate-300 px-2 py-1.5 text-sm"
             />
             <input
               placeholder="数量"
               value={newLine.qty}
               onChange={(e) => setNewLine((n) => ({ ...n, qty: e.target.value }))}
-              className="border border-slate-300 rounded px-2 py-1.5 text-sm w-20"
+              className="w-20 rounded border border-slate-300 px-2 py-1.5 text-sm"
             />
             <button
               type="button"
               disabled={addingLine}
               onClick={() => void handleAddLine()}
-              className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm hover:bg-emerald-700 disabled:opacity-50"
+              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               {addingLine ? '添加中…' : '添加'}
             </button>
@@ -852,10 +897,10 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
 
         {searchCoverage && !searchCoverage.consistent && (
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            搜索任务未完全对齐：缺 {searchCoverage.missing_tasks.length} 条应有任务（期望 {searchCoverage.expected_task_count} / 库内{' '}
-            {searchCoverage.existing_task_count}）。
+            搜索任务未完全对齐：缺 {searchCoverage.missing_tasks.length} 条应有任务（期望{' '}
+            {searchCoverage.expected_task_count} / 库内 {searchCoverage.existing_task_count}）。
             {searchCoverage.orphan_task_count > 0 && (
-              <span> 另有 {searchCoverage.orphan_task_count} 条历史任务与当前行/平台不一致（仅统计，不自动删除）。</span>
+              <span> 另有 {searchCoverage.orphan_task_count} 条历史任务与当前行/平台不一致。</span>
             )}
           </div>
         )}
@@ -871,15 +916,15 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left">
-                <th className="py-2 px-2">行</th>
-                <th className="py-2 px-2">MPN</th>
-                <th className="py-2 px-2">厂牌</th>
-                <th className="py-2 px-2">封装</th>
-                <th className="py-2 px-2">数量</th>
-                <th className="py-2 px-2">数据可用性</th>
-                <th className="py-2 px-2">match_status</th>
-                <th className="py-2 px-2">platform（四态 / phase）</th>
-                <th className="py-2 px-2 w-40">操作</th>
+                <th className="px-2 py-2">行</th>
+                <th className="px-2 py-2">MPN</th>
+                <th className="px-2 py-2">厂牌</th>
+                <th className="px-2 py-2">封装</th>
+                <th className="px-2 py-2">数量</th>
+                <th className="px-2 py-2">数据可用性</th>
+                <th className="px-2 py-2">match_status</th>
+                <th className="px-2 py-2">platform（四态 / phase）</th>
+                <th className="w-40 px-2 py-2">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -892,89 +937,99 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
               ) : (
                 lines.map((row) => (
                   <tr key={row.line_id || String(row.line_no)} className="border-b border-slate-100 align-top">
-                    <td className="py-2 px-2">{row.line_no}</td>
+                    <td className="px-2 py-2">{row.line_no}</td>
                     {editingId === row.line_id ? (
                       <>
-                        <td className="py-2 px-2">
+                        <td className="px-2 py-2">
                           <input
                             value={editDraft.mpn}
                             onChange={(e) => setEditDraft((d) => ({ ...d, mpn: e.target.value }))}
-                            className="w-full border border-slate-300 rounded px-1 py-0.5 font-mono text-xs"
+                            className="w-full rounded border border-slate-300 px-1 py-0.5 text-xs font-mono"
                           />
                         </td>
-                        <td className="py-2 px-2">
+                        <td className="px-2 py-2">
                           <input
                             value={editDraft.mfr}
                             onChange={(e) => setEditDraft((d) => ({ ...d, mfr: e.target.value }))}
-                            className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs"
+                            className="w-full rounded border border-slate-300 px-1 py-0.5 text-xs"
                           />
                         </td>
-                        <td className="py-2 px-2">
+                        <td className="px-2 py-2">
                           <input
                             value={editDraft.package}
                             onChange={(e) => setEditDraft((d) => ({ ...d, package: e.target.value }))}
-                            className="w-full border border-slate-300 rounded px-1 py-0.5 text-xs"
+                            className="w-full rounded border border-slate-300 px-1 py-0.5 text-xs"
                           />
                         </td>
-                        <td className="py-2 px-2">
+                        <td className="px-2 py-2">
                           <input
                             value={editDraft.qty}
                             onChange={(e) => setEditDraft((d) => ({ ...d, qty: e.target.value }))}
-                            className="w-20 border border-slate-300 rounded px-1 py-0.5 text-xs"
+                            className="w-20 rounded border border-slate-300 px-1 py-0.5 text-xs"
                           />
                         </td>
                       </>
                     ) : (
                       <>
-                        <td className="py-2 px-2 font-mono">{row.mpn}</td>
-                        <td className="py-2 px-2">{row.mfr || '—'}</td>
-                        <td className="py-2 px-2">{row.package || '—'}</td>
-                        <td className="py-2 px-2">{row.qty}</td>
+                        <td className="px-2 py-2 font-mono">{row.mpn}</td>
+                        <td className="px-2 py-2">{row.mfr || '—'}</td>
+                        <td className="px-2 py-2">{row.package || '—'}</td>
+                        <td className="px-2 py-2">{row.qty}</td>
                       </>
                     )}
-                    <td className="py-2 px-2">
+                    <td className="px-2 py-2">
                       <span
                         className={`inline-flex whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium ${availabilityStatusClass(
-                          row.availability_status,
+                          row.availability_status
                         )}`}
                       >
                         {availabilityStatusLabel(row.availability_status)}
                       </span>
                       {row.availability_reason && (
-                        <div className="mt-1 max-w-48 text-xs text-slate-500">{row.availability_reason}</div>
+                        <div className="mt-1 max-w-48 text-xs text-slate-500">
+                          {row.availability_reason}
+                        </div>
                       )}
                     </td>
-                    <td className="py-2 px-2">{row.match_status || '—'}</td>
-                    <td className="py-2 px-2 max-w-xs">
+                    <td className="px-2 py-2">{row.match_status || '—'}</td>
+                    <td className="max-w-xs px-2 py-2">
                       {(row.platform_gaps || []).length === 0 ? (
                         '—'
                       ) : (
-                        <ul className="list-disc pl-4 space-y-1 text-xs">
+                        <ul className="list-disc space-y-1 pl-4 text-xs">
                           {row.platform_gaps.map((g, i) => (
                             <li key={i}>
                               <span className="font-mono">{g.platform_id}</span>
                               {g.search_ui_state && (
-                                <span className="ml-1 text-violet-700 font-medium">[{g.search_ui_state}]</span>
+                                <span className="ml-1 font-medium text-violet-700">
+                                  [{g.search_ui_state}]
+                                </span>
                               )}{' '}
                               {g.phase}{' '}
-                              {g.reason_code && <span className="text-slate-500">({g.reason_code})</span>}{' '}
+                              {g.reason_code && (
+                                <span className="text-slate-500">({g.reason_code})</span>
+                              )}{' '}
                               {g.message}
                             </li>
                           ))}
                         </ul>
                       )}
                     </td>
-                    <td className="py-2 px-2 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-2 py-2">
                       {editingId === row.line_id ? (
                         <span className="flex flex-wrap gap-1">
                           <button
                             type="button"
                             onClick={() => void saveEdit()}
-                            className="text-emerald-600 text-xs hover:underline"
+                            className="text-xs text-emerald-600 hover:underline"
                           >
                             保存
                           </button>
-                          <button type="button" onClick={cancelEdit} className="text-slate-500 text-xs hover:underline">
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            className="text-xs text-slate-500 hover:underline"
+                          >
                             取消
                           </button>
                         </span>
@@ -983,14 +1038,14 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                           <button
                             type="button"
                             onClick={() => startEdit(row)}
-                            className="text-blue-600 text-xs hover:underline"
+                            className="text-xs text-blue-600 hover:underline"
                           >
                             编辑
                           </button>
                           <button
                             type="button"
                             onClick={() => void handleDeleteLine(row.line_id)}
-                            className="text-red-600 text-xs hover:underline"
+                            className="text-xs text-red-600 hover:underline"
                           >
                             删除
                           </button>

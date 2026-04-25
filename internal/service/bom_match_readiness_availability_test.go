@@ -45,8 +45,6 @@ func TestMatchReadinessError_AllowsCollectingWithoutStrictGap(t *testing.T) {
 		Status:         "data_ready",
 		ReadinessMode:  biz.ReadinessStrict,
 		PlatformIDs:    []string{"find_chips"},
-		ImportStatus:   biz.BOMImportStatusReady,
-		ImportProgress: 100,
 	}
 	lines := []data.BomSessionLine{{LineNo: 1, Mpn: "PENDING"}}
 	search := &bomSearchTaskRepoStub{

@@ -9,6 +9,7 @@ const {
   getSessionSearchTaskCoverage,
   listLineGaps,
   listMatchRuns,
+  listSessionSearchTasks,
   createSessionLine,
   deleteSessionLine,
   exportSessionFile,
@@ -25,6 +26,7 @@ const {
   getSessionSearchTaskCoverage: vi.fn(),
   listLineGaps: vi.fn(),
   listMatchRuns: vi.fn(),
+  listSessionSearchTasks: vi.fn(),
   createSessionLine: vi.fn(),
   deleteSessionLine: vi.fn(),
   exportSessionFile: vi.fn(),
@@ -47,6 +49,7 @@ vi.mock('../api', async () => {
     getSessionSearchTaskCoverage,
     listLineGaps,
     listMatchRuns,
+    listSessionSearchTasks,
     createSessionLine,
     deleteSessionLine,
     exportSessionFile,
@@ -88,6 +91,23 @@ const emptyCoverage = {
   missing_tasks: [],
 }
 
+const emptySearchTasks = {
+  session_id: 'session-1',
+  summary: {
+    total: 0,
+    pending: 0,
+    searching: 0,
+    succeeded: 0,
+    no_data: 0,
+    failed: 0,
+    skipped: 0,
+    cancelled: 0,
+    missing: 0,
+    retryable: 0,
+  },
+  tasks: [],
+}
+
 async function flushAsyncWork() {
   await Promise.resolve()
   await Promise.resolve()
@@ -100,6 +120,7 @@ describe('SourcingSessionPage', () => {
     getSessionSearchTaskCoverage.mockResolvedValue(emptyCoverage)
     listLineGaps.mockResolvedValue({ gaps: [] })
     listMatchRuns.mockResolvedValue({ runs: [] })
+    listSessionSearchTasks.mockResolvedValue(emptySearchTasks)
     createSessionLine.mockResolvedValue(undefined)
     deleteSessionLine.mockResolvedValue(undefined)
     exportSessionFile.mockResolvedValue({ blob: new Blob(), filename: 'session.xlsx' })
@@ -222,6 +243,94 @@ describe('SourcingSessionPage', () => {
     expect(screen.getByText(/当前 BOM 有/)).toHaveTextContent('1')
     expect(screen.getByText('无数据')).toBeInTheDocument()
     expect(screen.getByText('NO_DATA_REASON')).toBeInTheDocument()
+  })
+
+  it('shows search task status and retries retryable tasks', async () => {
+    getSession.mockResolvedValue({
+      ...baseSession,
+      status: 'data_ready',
+      import_status: 'ready',
+      import_progress: 100,
+    })
+    listSessionSearchTasks.mockResolvedValue({
+      session_id: 'session-1',
+      summary: {
+        total: 2,
+        pending: 0,
+        searching: 1,
+        succeeded: 0,
+        no_data: 0,
+        failed: 1,
+        skipped: 0,
+        cancelled: 0,
+        missing: 0,
+        retryable: 1,
+      },
+      tasks: [
+        {
+          line_id: 'line-1',
+          line_no: 1,
+          mpn_raw: 'TPS5430DDA',
+          mpn_norm: 'TPS5430DDA',
+          platform_id: 'hqchip',
+          platform_name: 'HQChip',
+          search_task_id: 'task-1',
+          search_task_state: 'failed_terminal',
+          search_ui_state: 'failed',
+          retryable: true,
+          retry_blocked_reason: '',
+          dispatch_task_id: 'dispatch-1',
+          dispatch_task_state: 'failed',
+          dispatch_agent_id: '',
+          dispatch_result: '',
+          lease_deadline_at: '',
+          attempt: 3,
+          retry_max: 4,
+          updated_at: '',
+          last_error: 'timeout',
+        },
+        {
+          line_id: 'line-2',
+          line_no: 2,
+          mpn_raw: 'VDRS10P300BSE',
+          mpn_norm: 'VDRS10P300BSE',
+          platform_id: 'hqchip',
+          platform_name: 'HQChip',
+          search_task_id: 'task-2',
+          search_task_state: 'running',
+          search_ui_state: 'searching',
+          retryable: false,
+          retry_blocked_reason: '',
+          dispatch_task_id: 'dispatch-2',
+          dispatch_task_state: 'running',
+          dispatch_agent_id: '',
+          dispatch_result: '',
+          lease_deadline_at: '',
+          attempt: 1,
+          retry_max: 4,
+          updated_at: '',
+          last_error: '',
+        },
+      ],
+    })
+
+    render(<SourcingSessionPage sessionId="session-1" onEnterMatch={vi.fn()} />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    expect(screen.getByText('搜索任务状态')).toBeInTheDocument()
+    expect(screen.getByText('TPS5430DDA')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: '重试异常任务 (1)' }))
+      await flushAsyncWork()
+    })
+
+    expect(retrySearchTasks).toHaveBeenCalledWith('session-1', [
+      { mpn: 'TPS5430DDA', platform_id: 'hqchip' },
+    ])
   })
 
   it('shows failed state and stops polling when import fails', async () => {

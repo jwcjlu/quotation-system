@@ -768,6 +768,109 @@ func (s *BomService) GetSessionSearchTaskCoverage(ctx context.Context, req *v1.G
 	}, nil
 }
 
+func (s *BomService) ListSessionSearchTasks(ctx context.Context, req *v1.ListSessionSearchTasksRequest) (*v1.ListSessionSearchTasksReply, error) {
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	sid := strings.TrimSpace(req.GetSessionId())
+	view, err := s.session.GetSession(ctx, sid)
+	if err != nil {
+		return nil, err
+	}
+	lines, err := s.session.ListSessionLines(ctx, sid)
+	if err != nil {
+		return nil, err
+	}
+	existing, err := s.search.ListSearchTaskStatusRows(ctx, sid)
+	if err != nil {
+		return nil, err
+	}
+
+	byKey := make(map[string]biz.SearchTaskStatusRow, len(existing))
+	for _, row := range existing {
+		byKey[searchTaskStatusKey(row.MpnNorm, row.PlatformID)] = row
+	}
+
+	rows := make([]biz.SearchTaskStatusRow, 0, len(lines)*len(view.PlatformIDs))
+	for _, line := range lines {
+		mpnNorm := biz.NormalizeMPNForBOMSearch(line.Mpn)
+		for _, platformRaw := range view.PlatformIDs {
+			platformID := biz.NormalizePlatformID(platformRaw)
+			row, ok := byKey[searchTaskStatusKey(mpnNorm, platformID)]
+			if !ok {
+				row = biz.SearchTaskStatusRow{SearchTaskState: biz.SearchTaskUIStateMissing}
+			}
+			row.LineID = uint64(line.ID)
+			row.LineNo = line.LineNo
+			row.MpnRaw = line.Mpn
+			row.MpnNorm = mpnNorm
+			row.PlatformID = platformID
+			row.SearchTaskState = biz.NormalizeBOMSearchTaskState(row.SearchTaskState)
+			row.SearchUIState = biz.MapBOMSearchTaskUIState(row.SearchTaskState)
+			row.Retryable, row.RetryBlockedReason = biz.CanRetryBOMSearchTask(row.SearchTaskState, biz.SearchTaskRetrySingleManual)
+			rows = append(rows, row)
+		}
+	}
+
+	summary := biz.BuildSearchTaskStatusSummary(rows)
+	out := &v1.ListSessionSearchTasksReply{
+		SessionId: sid,
+		Summary: &v1.SearchTaskStatusSummary{
+			Total:     int32(summary.Total),
+			Pending:   int32(summary.Pending),
+			Searching: int32(summary.Searching),
+			Succeeded: int32(summary.Succeeded),
+			NoData:    int32(summary.NoData),
+			Failed:    int32(summary.Failed),
+			Skipped:   int32(summary.Skipped),
+			Cancelled: int32(summary.Cancelled),
+			Missing:   int32(summary.Missing),
+			Retryable: int32(summary.Retryable),
+		},
+		Tasks: make([]*v1.SessionSearchTaskRow, 0, len(rows)),
+	}
+	for _, row := range rows {
+		out.Tasks = append(out.Tasks, searchTaskStatusRowToProto(row))
+	}
+	return out, nil
+}
+
+func searchTaskStatusKey(mpnNorm, platformID string) string {
+	return biz.NormalizeMPNForBOMSearch(mpnNorm) + "\x00" + biz.NormalizePlatformID(platformID)
+}
+
+func searchTaskStatusRowToProto(row biz.SearchTaskStatusRow) *v1.SessionSearchTaskRow {
+	return &v1.SessionSearchTaskRow{
+		LineId:             strconv.FormatUint(row.LineID, 10),
+		LineNo:             int32(row.LineNo),
+		MpnRaw:             row.MpnRaw,
+		MpnNorm:            row.MpnNorm,
+		PlatformId:         row.PlatformID,
+		PlatformName:       row.PlatformName,
+		SearchTaskId:       strconv.FormatUint(row.SearchTaskID, 10),
+		SearchTaskState:    row.SearchTaskState,
+		SearchUiState:      row.SearchUIState,
+		Retryable:          row.Retryable,
+		RetryBlockedReason: row.RetryBlockedReason,
+		DispatchTaskId:     row.DispatchTaskID,
+		DispatchTaskState:  row.DispatchTaskState,
+		DispatchAgentId:    row.DispatchAgentID,
+		DispatchResult:     row.DispatchResult,
+		LeaseDeadlineAt:    formatOptionalTime(row.LeaseDeadlineAt),
+		Attempt:            int32(row.Attempt),
+		RetryMax:           int32(row.RetryMax),
+		UpdatedAt:          formatOptionalTime(row.UpdatedAt),
+		LastError:          row.LastError,
+	}
+}
+
+func formatOptionalTime(t *time.Time) string {
+	if t == nil || t.IsZero() {
+		return ""
+	}
+	return t.Format(time.RFC3339)
+}
+
 func (s *BomService) CreateSessionLine(ctx context.Context, req *v1.CreateSessionLineRequest) (*v1.CreateSessionLineReply, error) {
 	if !s.dbOK() {
 		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
@@ -920,7 +1023,14 @@ func (s *BomService) RetrySearchTasks(ctx context.Context, req *v1.RetrySearchTa
 		mn := biz.NormalizeMPNForBOMSearch(it.GetMpn())
 		pid := biz.NormalizePlatformID(it.GetPlatformId())
 		cur, err := s.search.GetTaskStateBySessionKey(ctx, sid, mn, pid, view.BizDate)
-		if err != nil || cur == "" {
+		if err != nil {
+			continue
+		}
+		if cur == "" {
+			if err := s.search.UpsertPendingTasks(ctx, sid, view.BizDate, view.SelectionRevision, []biz.MpnPlatformPair{{MpnNorm: mn, PlatformID: pid}}); err != nil {
+				continue
+			}
+			n++
 			continue
 		}
 		to, terr := biz.BomSearchTaskTransition(cur, "retry_backoff")

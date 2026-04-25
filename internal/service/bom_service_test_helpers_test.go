@@ -83,14 +83,6 @@ func (s *bomSessionRepoStub) UpdateSessionLine(ctx context.Context, sessionID st
 	return 0, nil
 }
 
-func (s *bomSessionRepoStub) TryStartImport(ctx context.Context, sessionID, startedMessage string) (bool, error) {
-	return false, nil
-}
-
-func (s *bomSessionRepoStub) UpdateImportState(ctx context.Context, sessionID string, patch biz.BOMImportStatePatch) error {
-	return nil
-}
-
 type bomSearchTaskRepoStub struct {
 	mu             sync.Mutex
 	tasks          []biz.TaskReadinessSnapshot
@@ -107,6 +99,10 @@ func (s *bomSearchTaskRepoStub) LoadSearchTaskByCaichipTaskID(ctx context.Contex
 
 func (s *bomSearchTaskRepoStub) FinalizeSearchTask(ctx context.Context, sessionID, mpnNorm, platformID string, bizDate time.Time, caichipTaskID, state string, lastErr *string, quoteOutcome string, quotesJSON, noMpnDetail []byte) error {
 	return nil
+}
+
+func (s *bomSearchTaskRepoStub) ListSearchTaskStatusRows(ctx context.Context, sessionID string) ([]biz.SearchTaskStatusRow, error) {
+	return nil, nil
 }
 
 func (s *bomSearchTaskRepoStub) ListTasksForSession(ctx context.Context, sessionID string) ([]biz.TaskReadinessSnapshot, error) {
@@ -281,7 +277,6 @@ func cloneBOMSessionView(in *biz.BOMSessionView) *biz.BOMSessionView {
 	}
 	out := *in
 	out.PlatformIDs = append([]string(nil), in.PlatformIDs...)
-	out.ImportUpdatedAt = cloneTimePtr(in.ImportUpdatedAt)
 	return &out
 }
 

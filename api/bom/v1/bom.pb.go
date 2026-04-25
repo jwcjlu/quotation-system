@@ -5086,6 +5086,7 @@ type ExportSessionRequest struct {
 	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
 	// xlsx | csv，缺省 xlsx
 	Format        string `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`
+	RunId         string `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5130,6 +5131,13 @@ func (x *ExportSessionRequest) GetSessionId() string {
 func (x *ExportSessionRequest) GetFormat() string {
 	if x != nil {
 		return x.Format
+	}
+	return ""
+}
+
+func (x *ExportSessionRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
 	}
 	return ""
 }
@@ -7071,11 +7079,12 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\"x\n" +
 	"\x10GetMatchRunReply\x12.\n" +
 	"\x03run\x18\x01 \x01(\v2\x1c.api.bom.v1.MatchRunListItemR\x03run\x124\n" +
-	"\x05items\x18\x02 \x03(\v2\x1e.api.bom.v1.MatchRunResultItemR\x05items\"M\n" +
+	"\x05items\x18\x02 \x03(\v2\x1e.api.bom.v1.MatchRunResultItemR\x05items\"d\n" +
 	"\x14ExportSessionRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x16\n" +
-	"\x06format\x18\x02 \x01(\tR\x06format\"D\n" +
+	"\x06format\x18\x02 \x01(\tR\x06format\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\tR\x05runId\"D\n" +
 	"\x12ExportSessionReply\x12\x12\n" +
 	"\x04file\x18\x01 \x01(\fR\x04file\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\"\x8e\x02\n" +

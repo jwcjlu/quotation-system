@@ -795,6 +795,7 @@ message ExportSessionRequest {
   string session_id = 1;
   // xlsx | csv，缺省 xlsx
   string format = 2;
+  string run_id = 3;
 }
 
 message ExportSessionReply {

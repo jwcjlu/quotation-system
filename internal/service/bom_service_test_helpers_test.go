@@ -154,3 +154,28 @@ func (s *bomLineGapRepoStub) SelectLineGapSubstitute(ctx context.Context, gapID 
 func testQuoteCacheKey(mpnNorm, platformID string) string {
 	return biz.NormalizeMPNForBOMSearch(mpnNorm) + "\x00" + biz.NormalizePlatformID(platformID)
 }
+
+type bomMatchRunRepoStub struct {
+	items []biz.BOMMatchResultItemDraft
+	runs  []biz.BOMMatchRunView
+}
+
+func (s *bomMatchRunRepoStub) DBOk() bool { return true }
+func (s *bomMatchRunRepoStub) CreateMatchRun(ctx context.Context, sessionID string, selectionRevision int, currency string, createdBy string, items []biz.BOMMatchResultItemDraft) (uint64, int, error) {
+	s.items = append([]biz.BOMMatchResultItemDraft(nil), items...)
+	run := biz.BOMMatchRunView{ID: 7, RunNo: len(s.runs) + 1, SessionID: sessionID, Status: biz.MatchRunSaved, LineTotal: len(items), Currency: currency}
+	s.runs = append(s.runs, run)
+	return run.ID, run.RunNo, nil
+}
+func (s *bomMatchRunRepoStub) ListMatchRuns(ctx context.Context, sessionID string) ([]biz.BOMMatchRunView, error) {
+	return append([]biz.BOMMatchRunView(nil), s.runs...), nil
+}
+func (s *bomMatchRunRepoStub) GetMatchRun(ctx context.Context, runID uint64) (*biz.BOMMatchRunView, []biz.BOMMatchResultItemDraft, error) {
+	if len(s.runs) == 0 {
+		s.runs = append(s.runs, biz.BOMMatchRunView{ID: runID, RunNo: 1, SessionID: "sid", Status: biz.MatchRunSaved})
+	}
+	return &s.runs[0], append([]biz.BOMMatchResultItemDraft(nil), s.items...), nil
+}
+func (s *bomMatchRunRepoStub) SupersedePreviousRuns(ctx context.Context, sessionID string, keepRunID uint64) error {
+	return nil
+}

@@ -236,6 +236,13 @@ func (s *BomService) loadSessionLinesAndPlatforms(ctx context.Context, sid strin
 // matchReadinessError 在会话尚未满足与 GetReadiness 一致的「可进入配单」条件时拒绝。
 // gRPC FailedPrecondition 常映射为 HTTP 400；此处选用 ServiceUnavailable，表示依赖侧（搜索任务/缓存）未就绪、可稍后重试。
 func (s *BomService) matchReadinessError(ctx context.Context, sid string, view *biz.BOMSessionView, lines []data.BomSessionLine) error {
+	_, availabilitySummary, err := s.computeLineAvailability(ctx, view, lines, view.PlatformIDs)
+	if err != nil {
+		return err
+	}
+	if availabilitySummary.HasStrictBlockingGap() {
+		return kerrors.ServiceUnavailable("BOM_LINE_AVAILABILITY_GAP", "session has BOM lines without usable data; see GetReadiness")
+	}
 	tasks, err := s.search.ListTasksForSession(ctx, sid)
 	if err != nil {
 		return err

@@ -229,6 +229,13 @@ func (r *DispatchTaskRepo) FinishLeased(ctx context.Context, taskID, leaseID, re
 	return biz.ErrDispatchLeaseMismatch
 }
 
+func (r *DispatchTaskRepo) SubmitLeasedResult(ctx context.Context, in *biz.TaskResultIn) error {
+	if in == nil {
+		return errors.New("dispatch submit result: nil input")
+	}
+	return r.FinishLeased(ctx, in.TaskID, in.LeaseID, in.Status)
+}
+
 // PullAndLeaseForAgent 短事务内 SKIP LOCKED + match + 租约。
 func (r *DispatchTaskRepo) PullAndLeaseForAgent(ctx context.Context, queue, agentID string, meta *biz.AgentSchedulingMeta, running []biz.RunningTaskReport, max int, leaseExtraSec int32) ([]biz.TaskMessage, error) {
 	if !r.DBOk() {

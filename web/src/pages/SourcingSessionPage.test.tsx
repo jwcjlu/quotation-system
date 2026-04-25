@@ -7,6 +7,7 @@ const {
   getSession,
   getBOMLines,
   getSessionSearchTaskCoverage,
+  listSessionSearchTasks,
   createSessionLine,
   deleteSessionLine,
   exportSessionFile,
@@ -18,6 +19,7 @@ const {
   getSession: vi.fn(),
   getBOMLines: vi.fn(),
   getSessionSearchTaskCoverage: vi.fn(),
+  listSessionSearchTasks: vi.fn(),
   createSessionLine: vi.fn(),
   deleteSessionLine: vi.fn(),
   exportSessionFile: vi.fn(),
@@ -27,14 +29,13 @@ const {
   retrySearchTasks: vi.fn(),
 }))
 
-vi.mock('../api', async () => {
-  const actual = await vi.importActual<Record<string, unknown>>('../api')
+vi.mock('../api', () => {
   return {
-    ...actual,
     PLATFORM_IDS: ['digikey'],
     getSession,
     getBOMLines,
     getSessionSearchTaskCoverage,
+    listSessionSearchTasks,
     createSessionLine,
     deleteSessionLine,
     exportSessionFile,
@@ -83,6 +84,22 @@ describe('SourcingSessionPage', () => {
     vi.useFakeTimers()
     getBOMLines.mockResolvedValue({ lines: [] })
     getSessionSearchTaskCoverage.mockResolvedValue(emptyCoverage)
+    listSessionSearchTasks.mockResolvedValue({
+      session_id: 'session-1',
+      summary: {
+        total: 0,
+        pending: 0,
+        searching: 0,
+        succeeded: 0,
+        no_data: 0,
+        failed: 0,
+        skipped: 0,
+        cancelled: 0,
+        missing: 0,
+        retryable: 0,
+      },
+      tasks: [],
+    })
     createSessionLine.mockResolvedValue(undefined)
     deleteSessionLine.mockResolvedValue(undefined)
     exportSessionFile.mockResolvedValue({ blob: new Blob(), filename: 'session.xlsx' })

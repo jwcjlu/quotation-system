@@ -137,6 +137,12 @@ service BomService {
     };
   }
 
+  rpc ListSessionSearchTasks(ListSessionSearchTasksRequest) returns (ListSessionSearchTasksReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-sessions/{session_id}/search-tasks"
+    };
+  }
+
   // 追加一行
   rpc CreateSessionLine(CreateSessionLineRequest) returns (CreateSessionLineReply) {
     option (google.api.http) = {
@@ -558,6 +564,52 @@ message GetSessionSearchTaskCoverageReply {
   int32 expected_task_count = 3;
   int32 existing_task_count = 4;
   repeated SearchTaskMissingItem missing_tasks = 5;
+}
+
+message ListSessionSearchTasksRequest {
+  string session_id = 1;
+}
+
+message SearchTaskStatusSummary {
+  int32 total = 1;
+  int32 pending = 2;
+  int32 searching = 3;
+  int32 succeeded = 4;
+  int32 no_data = 5;
+  int32 failed = 6;
+  int32 skipped = 7;
+  int32 cancelled = 8;
+  int32 missing = 9;
+  int32 retryable = 10;
+}
+
+message SessionSearchTaskRow {
+  string line_id = 1;
+  int32 line_no = 2;
+  string mpn_raw = 3;
+  string mpn_norm = 4;
+  string platform_id = 5;
+  string platform_name = 6;
+  string search_task_id = 7;
+  string search_task_state = 8;
+  string search_ui_state = 9;
+  bool retryable = 10;
+  string retry_blocked_reason = 11;
+  string dispatch_task_id = 12;
+  string dispatch_task_state = 13;
+  string dispatch_agent_id = 14;
+  string dispatch_result = 15;
+  string lease_deadline_at = 16;
+  int32 attempt = 17;
+  int32 retry_max = 18;
+  string updated_at = 19;
+  string last_error = 20;
+}
+
+message ListSessionSearchTasksReply {
+  string session_id = 1;
+  SearchTaskStatusSummary summary = 2;
+  repeated SessionSearchTaskRow tasks = 3;
 }
 
 message GetBOMLinesReply {

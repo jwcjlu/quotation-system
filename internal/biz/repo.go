@@ -78,6 +78,7 @@ type BOMSearchTaskRepo interface {
 	DBOk() bool
 	LoadSearchTaskByCaichipTaskID(ctx context.Context, caichipTaskID string) (*BOMSearchTaskLookup, error)
 	FinalizeSearchTask(ctx context.Context, sessionID, mpnNorm, platformID string, bizDate time.Time, caichipTaskID, state string, lastErr *string, quoteOutcome string, quotesJSON, noMpnDetail []byte) error
+	ListSearchTaskStatusRows(ctx context.Context, sessionID string) ([]SearchTaskStatusRow, error)
 	ListTasksForSession(ctx context.Context, sessionID string) ([]TaskReadinessSnapshot, error)
 	ListActiveBySession(ctx context.Context, sessionID string) ([]TaskReadinessSnapshot, error)
 	CancelBySessionPlatform(ctx context.Context, sessionID, platformID string) (int64, error)

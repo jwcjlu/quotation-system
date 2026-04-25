@@ -7,14 +7,18 @@ import {
   getBOMLines,
   getSession,
   getSessionSearchTaskCoverage,
+  listSessionSearchTasks,
   patchSession,
   patchSessionLine,
   putPlatforms,
   retrySearchTasks,
   type BOMLineRow,
   type GetSessionSearchTaskCoverageReply,
+  type ListSessionSearchTasksReply,
+  type SessionSearchTaskRow,
 } from '../api'
 import { SessionImportStatusCard } from './sourcing-session/SessionImportStatusCard'
+import { SearchTaskStatusPanel } from './sourcing-session/SearchTaskStatusPanel'
 
 const SESSION_MATCH_READY = 'data_ready'
 
@@ -38,6 +42,9 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([...PLATFORM_IDS])
   const [lines, setLines] = useState<BOMLineRow[]>([])
   const [searchCoverage, setSearchCoverage] = useState<GetSessionSearchTaskCoverageReply | null>(null)
+  const [searchTasks, setSearchTasks] = useState<ListSessionSearchTasksReply | null>(null)
+  const [searchTasksLoading, setSearchTasksLoading] = useState(false)
+  const [retryingSearchTasks, setRetryingSearchTasks] = useState(false)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string | null>(null)
   const [platformErr, setPlatformErr] = useState<string | null>(null)
@@ -100,18 +107,31 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     }
   }, [sessionId])
 
+  const loadSearchTasks = useCallback(async () => {
+    setSearchTasksLoading(true)
+    try {
+      const data = await listSessionSearchTasks(sessionId)
+      setSearchTasks(data)
+    } catch {
+      setSearchTasks(null)
+    } finally {
+      setSearchTasksLoading(false)
+    }
+  }, [sessionId])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     ;(async () => {
       await loadSession()
       await loadLines()
+      await loadSearchTasks()
       if (!cancelled) setLoading(false)
     })()
     return () => {
       cancelled = true
     }
-  }, [loadSession, loadLines])
+  }, [loadSession, loadLines, loadSearchTasks])
 
   useEffect(() => {
     if (importStatus !== 'parsing') return
@@ -126,8 +146,9 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     previousImportStatusRef.current = importStatus
     if (previous === 'parsing' && importStatus === 'ready') {
       void loadLines()
+      void loadSearchTasks()
     }
-  }, [importStatus, loadLines])
+  }, [importStatus, loadLines, loadSearchTasks])
 
   const togglePlatform = (id: string) => {
     setSelectedPlatforms((prev) =>
@@ -190,16 +211,31 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
     }
   }
 
-  const handleRetryFirstGap = async () => {
-    const row = lines.find((l) => l.platform_gaps?.length)
-    const g = row?.platform_gaps?.[0]
-    if (!row || !g) return
+  const retrySearchTaskItems = async (items: { mpn: string; platform_id: string }[]) => {
+    if (items.length === 0) return
+    setRetryingSearchTasks(true)
     try {
-      await retrySearchTasks(sessionId, [{ mpn: row.mpn, platform_id: g.platform_id }])
+      await retrySearchTasks(sessionId, items)
       await loadLines()
+      await loadSearchTasks()
     } catch (e) {
       setErr(e instanceof Error ? e.message : '重试失败')
+    } finally {
+      setRetryingSearchTasks(false)
     }
+  }
+
+  const handleRetrySearchTask = async (task: SessionSearchTaskRow) => {
+    await retrySearchTaskItems([
+      { mpn: task.mpn_raw || task.mpn_norm, platform_id: task.platform_id },
+    ])
+  }
+
+  const handleRetrySearchTaskBatch = async () => {
+    const items = (searchTasks?.tasks ?? [])
+      .filter((task) => task.retryable && task.search_ui_state !== 'no_data')
+      .map((task) => ({ mpn: task.mpn_raw || task.mpn_norm, platform_id: task.platform_id }))
+    await retrySearchTaskItems(items)
   }
 
   const handleAddLine = async () => {
@@ -452,6 +488,15 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
         </div>
       </section>
 
+      <SearchTaskStatusPanel
+        data={searchTasks}
+        loading={searchTasksLoading}
+        retrying={retryingSearchTasks}
+        onRefresh={() => void loadSearchTasks()}
+        onRetryBatch={() => void handleRetrySearchTaskBatch()}
+        onRetryTask={(task) => void handleRetrySearchTask(task)}
+      />
+
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="font-semibold text-slate-800 mb-3">勾选平台（PUT /platforms）</h3>
         <p className="text-sm text-slate-600 mb-3">与接口清单 platform_id 枚举一致，全量替换。</p>
@@ -484,8 +529,8 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           <button
             type="button"
             disabled={importParsing}
-            onClick={() => void handleRetryFirstGap()}
-            className="text-sm text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline"
+            onClick={() => void handleRetrySearchTaskBatch()}
+            className="hidden"
           >
             重试第一条缺口（示例）
           </button>

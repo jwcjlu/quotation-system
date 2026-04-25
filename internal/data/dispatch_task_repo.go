@@ -106,18 +106,32 @@ func caichipDispatchRowFromQueuedTask(t *biz.QueuedTask) (*CaichipDispatchTask, 
 		}
 		argvJSON = b
 	}
+	retryMax := 0
+	if t.RetryMax != nil {
+		retryMax = *t.RetryMax
+	}
+	var retryBackoffJSON []byte
+	if len(t.RetryBackoffSec) > 0 {
+		b, err := json.Marshal(t.RetryBackoffSec)
+		if err != nil {
+			return nil, err
+		}
+		retryBackoffJSON = b
+	}
 	row := &CaichipDispatchTask{
-		TaskID:       taskID,
-		Queue:        q,
-		ScriptID:     strings.TrimSpace(t.ScriptID),
-		Version:      strings.TrimSpace(t.Version),
-		RequiredTags: tagsJSON,
-		EntryFile:    entry,
-		TimeoutSec:   timeout,
-		ParamsJSON:   paramsJSON,
-		ArgvJSON:     argvJSON,
-		Attempt:      att,
-		State:        dispatchStatePending,
+		TaskID:           taskID,
+		Queue:            q,
+		ScriptID:         strings.TrimSpace(t.ScriptID),
+		Version:          strings.TrimSpace(t.Version),
+		RequiredTags:     tagsJSON,
+		EntryFile:        entry,
+		TimeoutSec:       timeout,
+		ParamsJSON:       paramsJSON,
+		ArgvJSON:         argvJSON,
+		Attempt:          att,
+		State:            dispatchStatePending,
+		RetryMax:         retryMax,
+		RetryBackoffJSON: retryBackoffJSON,
 	}
 	if t.NextClaimAt != nil && !t.NextClaimAt.IsZero() {
 		ts := *t.NextClaimAt
@@ -423,6 +437,12 @@ func dispatchModelToQueued(d *CaichipDispatchTask) *biz.QueuedTask {
 	}
 	if len(d.RequiredTags) > 0 && string(d.RequiredTags) != "null" {
 		_ = json.Unmarshal(d.RequiredTags, &t.RequiredTags)
+	}
+	if d.RetryMax > 0 {
+		t.RetryMax = &d.RetryMax
+	}
+	if len(d.RetryBackoffJSON) > 0 && string(d.RetryBackoffJSON) != "null" {
+		_ = json.Unmarshal(d.RetryBackoffJSON, &t.RetryBackoffSec)
 	}
 	return t
 }

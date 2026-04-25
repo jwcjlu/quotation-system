@@ -37,6 +37,7 @@ const (
 	BomService_GetReadiness_FullMethodName                 = "/api.bom.v1.BomService/GetReadiness"
 	BomService_GetBOMLines_FullMethodName                  = "/api.bom.v1.BomService/GetBOMLines"
 	BomService_GetSessionSearchTaskCoverage_FullMethodName = "/api.bom.v1.BomService/GetSessionSearchTaskCoverage"
+	BomService_ListSessionSearchTasks_FullMethodName       = "/api.bom.v1.BomService/ListSessionSearchTasks"
 	BomService_CreateSessionLine_FullMethodName            = "/api.bom.v1.BomService/CreateSessionLine"
 	BomService_PatchSessionLine_FullMethodName             = "/api.bom.v1.BomService/PatchSessionLine"
 	BomService_DeleteSessionLine_FullMethodName            = "/api.bom.v1.BomService/DeleteSessionLine"
@@ -81,6 +82,7 @@ type BomServiceClient interface {
 	GetBOMLines(ctx context.Context, in *GetBOMLinesRequest, opts ...grpc.CallOption) (*GetBOMLinesReply, error)
 	// 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
 	GetSessionSearchTaskCoverage(ctx context.Context, in *GetSessionSearchTaskCoverageRequest, opts ...grpc.CallOption) (*GetSessionSearchTaskCoverageReply, error)
+	ListSessionSearchTasks(ctx context.Context, in *ListSessionSearchTasksRequest, opts ...grpc.CallOption) (*ListSessionSearchTasksReply, error)
 	// 追加一行
 	CreateSessionLine(ctx context.Context, in *CreateSessionLineRequest, opts ...grpc.CallOption) (*CreateSessionLineReply, error)
 	// 更新一行
@@ -282,6 +284,16 @@ func (c *bomServiceClient) GetSessionSearchTaskCoverage(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *bomServiceClient) ListSessionSearchTasks(ctx context.Context, in *ListSessionSearchTasksRequest, opts ...grpc.CallOption) (*ListSessionSearchTasksReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListSessionSearchTasksReply)
+	err := c.cc.Invoke(ctx, BomService_ListSessionSearchTasks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *bomServiceClient) CreateSessionLine(ctx context.Context, in *CreateSessionLineRequest, opts ...grpc.CallOption) (*CreateSessionLineReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateSessionLineReply)
@@ -378,6 +390,7 @@ type BomServiceServer interface {
 	GetBOMLines(context.Context, *GetBOMLinesRequest) (*GetBOMLinesReply, error)
 	// 只读：检查当前行×勾选平台 与 bom_search_task 是否对齐（不写入）
 	GetSessionSearchTaskCoverage(context.Context, *GetSessionSearchTaskCoverageRequest) (*GetSessionSearchTaskCoverageReply, error)
+	ListSessionSearchTasks(context.Context, *ListSessionSearchTasksRequest) (*ListSessionSearchTasksReply, error)
 	// 追加一行
 	CreateSessionLine(context.Context, *CreateSessionLineRequest) (*CreateSessionLineReply, error)
 	// 更新一行
@@ -452,6 +465,9 @@ func (UnimplementedBomServiceServer) GetBOMLines(context.Context, *GetBOMLinesRe
 }
 func (UnimplementedBomServiceServer) GetSessionSearchTaskCoverage(context.Context, *GetSessionSearchTaskCoverageRequest) (*GetSessionSearchTaskCoverageReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSessionSearchTaskCoverage not implemented")
+}
+func (UnimplementedBomServiceServer) ListSessionSearchTasks(context.Context, *ListSessionSearchTasksRequest) (*ListSessionSearchTasksReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSessionSearchTasks not implemented")
 }
 func (UnimplementedBomServiceServer) CreateSessionLine(context.Context, *CreateSessionLineRequest) (*CreateSessionLineReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateSessionLine not implemented")
@@ -816,6 +832,24 @@ func _BomService_GetSessionSearchTaskCoverage_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BomService_ListSessionSearchTasks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListSessionSearchTasksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ListSessionSearchTasks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ListSessionSearchTasks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ListSessionSearchTasks(ctx, req.(*ListSessionSearchTasksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _BomService_CreateSessionLine_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateSessionLineRequest)
 	if err := dec(in); err != nil {
@@ -1002,6 +1036,10 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSessionSearchTaskCoverage",
 			Handler:    _BomService_GetSessionSearchTaskCoverage_Handler,
+		},
+		{
+			MethodName: "ListSessionSearchTasks",
+			Handler:    _BomService_ListSessionSearchTasks_Handler,
 		},
 		{
 			MethodName: "CreateSessionLine",

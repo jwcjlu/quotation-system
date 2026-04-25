@@ -9,6 +9,7 @@ import type {
   GetReadinessReply,
   GetSessionReply,
   GetSessionSearchTaskCoverageReply,
+  ListSessionSearchTasksReply,
   ListSessionsReply,
 } from './types'
 
@@ -222,6 +223,56 @@ export async function getSessionSearchTaskCoverage(
       mpn_norm: str(m.mpn_norm ?? m.mpnNorm),
       platform_id: str(m.platform_id ?? m.platformId),
       reason: str(m.reason),
+    })),
+  }
+}
+
+function parseSearchTaskSummary(json: Record<string, unknown>) {
+  return {
+    total: num(json.total, 0),
+    pending: num(json.pending, 0),
+    searching: num(json.searching, 0),
+    succeeded: num(json.succeeded, 0),
+    no_data: num(json.no_data ?? json.noData, 0),
+    failed: num(json.failed, 0),
+    skipped: num(json.skipped, 0),
+    cancelled: num(json.cancelled, 0),
+    missing: num(json.missing, 0),
+    retryable: num(json.retryable, 0),
+  }
+}
+
+export async function listSessionSearchTasks(
+  sessionId: string
+): Promise<ListSessionSearchTasksReply> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `${BASE}/${encodeURIComponent(sessionId)}/search-tasks`
+  )
+  const tasksRaw = (json.tasks ?? []) as Record<string, unknown>[]
+  return {
+    session_id: str(json.session_id ?? json.sessionId),
+    summary: parseSearchTaskSummary((json.summary ?? {}) as Record<string, unknown>),
+    tasks: tasksRaw.map((row) => ({
+      line_id: str(row.line_id ?? row.lineId),
+      line_no: num(row.line_no ?? row.lineNo, 0),
+      mpn_raw: str(row.mpn_raw ?? row.mpnRaw),
+      mpn_norm: str(row.mpn_norm ?? row.mpnNorm),
+      platform_id: str(row.platform_id ?? row.platformId),
+      platform_name: str(row.platform_name ?? row.platformName),
+      search_task_id: str(row.search_task_id ?? row.searchTaskId),
+      search_task_state: str(row.search_task_state ?? row.searchTaskState),
+      search_ui_state: str(row.search_ui_state ?? row.searchUiState),
+      retryable: Boolean(row.retryable),
+      retry_blocked_reason: str(row.retry_blocked_reason ?? row.retryBlockedReason),
+      dispatch_task_id: str(row.dispatch_task_id ?? row.dispatchTaskId),
+      dispatch_task_state: str(row.dispatch_task_state ?? row.dispatchTaskState),
+      dispatch_agent_id: str(row.dispatch_agent_id ?? row.dispatchAgentId),
+      dispatch_result: str(row.dispatch_result ?? row.dispatchResult),
+      lease_deadline_at: str(row.lease_deadline_at ?? row.leaseDeadlineAt),
+      attempt: num(row.attempt, 0),
+      retry_max: num(row.retry_max ?? row.retryMax, 0),
+      updated_at: str(row.updated_at ?? row.updatedAt),
+      last_error: str(row.last_error ?? row.lastError),
     })),
   }
 }

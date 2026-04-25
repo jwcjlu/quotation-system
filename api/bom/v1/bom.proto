@@ -176,6 +176,45 @@ service BomService {
   }
 
   // 导出会话 BOM 行（Excel/CSV），见 docs/BOM货源搜索-接口清单.md §7
+  rpc ListLineGaps(ListLineGapsRequest) returns (ListLineGapsReply) {
+    option (google.api.http) = {
+      get: "/api/bom/sessions/{session_id}/gaps"
+    };
+  }
+
+  rpc ResolveLineGapManualQuote(ResolveLineGapManualQuoteRequest) returns (ResolveLineGapManualQuoteReply) {
+    option (google.api.http) = {
+      post: "/api/bom/gaps/{gap_id}/manual-quote"
+      body: "*"
+    };
+  }
+
+  rpc SelectLineGapSubstitute(SelectLineGapSubstituteRequest) returns (SelectLineGapSubstituteReply) {
+    option (google.api.http) = {
+      post: "/api/bom/gaps/{gap_id}/substitute"
+      body: "*"
+    };
+  }
+
+  rpc SaveMatchRun(SaveMatchRunRequest) returns (SaveMatchRunReply) {
+    option (google.api.http) = {
+      post: "/api/bom/sessions/{session_id}/match-runs"
+      body: "*"
+    };
+  }
+
+  rpc ListMatchRuns(ListMatchRunsRequest) returns (ListMatchRunsReply) {
+    option (google.api.http) = {
+      get: "/api/bom/sessions/{session_id}/match-runs"
+    };
+  }
+
+  rpc GetMatchRun(GetMatchRunRequest) returns (GetMatchRunReply) {
+    option (google.api.http) = {
+      get: "/api/bom/match-runs/{run_id}"
+    };
+  }
+
   rpc ExportSession(ExportSessionRequest) returns (ExportSessionReply) {
     option (google.api.http) = {
       get: "/api/v1/bom-sessions/{session_id}/export"
@@ -634,6 +673,124 @@ message SubmitBomSearchResultReply {
 }
 
 // ---------- Export（接口清单 §7）----------
+message BOMLineGap {
+  string gap_id = 1;
+  string session_id = 2;
+  string line_id = 3;
+  int32 line_no = 4;
+  string mpn = 5;
+  string gap_type = 6;
+  string reason_code = 7;
+  string reason_detail = 8;
+  string resolution_status = 9;
+  string substitute_mpn = 10;
+  string substitute_reason = 11;
+  string updated_at = 12;
+}
+
+message ListLineGapsRequest {
+  string session_id = 1;
+  repeated string statuses = 2;
+}
+
+message ListLineGapsReply {
+  repeated BOMLineGap gaps = 1;
+}
+
+message ResolveLineGapManualQuoteRequest {
+  string gap_id = 1;
+  string model = 2;
+  string manufacturer = 3;
+  string package = 4;
+  string stock = 5;
+  string lead_time = 6;
+  string price_tiers = 7;
+  string hk_price = 8;
+  string mainland_price = 9;
+  string note = 10;
+}
+
+message ResolveLineGapManualQuoteReply {
+  bool accepted = 1;
+}
+
+message SelectLineGapSubstituteRequest {
+  string gap_id = 1;
+  string substitute_mpn = 2;
+  string reason = 3;
+}
+
+message SelectLineGapSubstituteReply {
+  bool accepted = 1;
+}
+
+message SaveMatchRunRequest {
+  string session_id = 1;
+  string strategy = 2;
+}
+
+message SaveMatchRunReply {
+  string run_id = 1;
+  int32 run_no = 2;
+}
+
+message MatchRunListItem {
+  string run_id = 1;
+  int32 run_no = 2;
+  string session_id = 3;
+  string status = 4;
+  int32 line_total = 5;
+  int32 matched_line_count = 6;
+  int32 unresolved_line_count = 7;
+  double total_amount = 8;
+  string currency = 9;
+  string created_at = 10;
+  string saved_at = 11;
+}
+
+message ListMatchRunsRequest {
+  string session_id = 1;
+}
+
+message ListMatchRunsReply {
+  repeated MatchRunListItem runs = 1;
+}
+
+message MatchRunResultItem {
+  string line_id = 1;
+  int32 line_no = 2;
+  string source_type = 3;
+  string match_status = 4;
+  string gap_id = 5;
+  string quote_item_id = 6;
+  string platform_id = 7;
+  string demand_mpn = 8;
+  string matched_mpn = 9;
+  string matched_mfr = 10;
+  string matched_package = 11;
+  int64 stock = 12;
+  string lead_time = 13;
+  double unit_price = 14;
+  double subtotal = 15;
+  string currency = 16;
+  string substitute_mpn = 17;
+  string substitute_reason = 18;
+  string code_ts = 19;
+  string control_mark = 20;
+  string import_tax_imp_ordinary_rate = 21;
+  string import_tax_imp_discount_rate = 22;
+  string import_tax_imp_temp_rate = 23;
+}
+
+message GetMatchRunRequest {
+  string run_id = 1;
+}
+
+message GetMatchRunReply {
+  MatchRunListItem run = 1;
+  repeated MatchRunResultItem items = 2;
+}
+
 message ExportSessionRequest {
   string session_id = 1;
   // xlsx | csv，缺省 xlsx

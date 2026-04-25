@@ -47,6 +47,7 @@ var ProviderSet = wire.NewSet(
 	NewHsModelTaskRepo,
 	NewHsMetaRepo,
 	NewHsItemReadRepo,
+	NewHsItemQueryRepo,
 	NewHsTaxRateDailyRepo,
 	NewHsTaxRateAPIRepo,
 	NewTaxRateAPIBizAdapter,

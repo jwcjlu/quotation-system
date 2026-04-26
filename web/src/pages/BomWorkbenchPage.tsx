@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { UploadPage } from './UploadPage'
 import { SessionListPanel } from './bom-workbench/SessionListPanel'
+import { SessionWorkspace } from './bom-workbench/SessionWorkspace'
 
 const LAST_BOM_KEY = 'bom_last_bom_id'
 const LAST_SESSION_KEY = 'bom_last_session_id'
@@ -45,12 +46,7 @@ export function BomWorkbenchPage({
         />
         <section className="min-h-[32rem] p-4">
           {selectedSessionId ? (
-            <div
-              className="rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600"
-              data-testid="session-workspace-placeholder"
-            >
-              {selectedSessionId}
-            </div>
+            <SessionWorkspace sessionId={selectedSessionId} />
           ) : (
             <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
               {'\u4ece\u5de6\u4fa7\u9009\u62e9 BOM \u4f1a\u8bdd'}

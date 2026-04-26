@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getSession } from '../../api'
-import { SourcingSessionPage } from '../SourcingSessionPage'
-import { MatchResultWorkspace } from './MatchResultWorkspace'
+import { SessionGapsPanel } from './SessionGapsPanel'
+import { SessionLinesPanel } from './SessionLinesPanel'
+import { SessionMaintenancePanel } from './SessionMaintenancePanel'
+import { SessionMatchResultPanel } from './SessionMatchResultPanel'
+import { SessionOverviewPanel } from './SessionOverviewPanel'
 import { SessionSearchCleanPanel } from './SessionSearchCleanPanel'
 import { SESSION_WORKBENCH_TABS, type SessionWorkbenchTab } from './sessionTabs'
 
@@ -29,9 +32,9 @@ export function SessionWorkspace({
 }: SessionWorkspaceProps) {
   const [currentTab, setCurrentTab] = useState<SessionWorkbenchTab>('overview')
   const [sessionStatus, setSessionStatus] = useState('')
+  const [sessionName, setSessionName] = useState('')
   const currentLabel =
     SESSION_WORKBENCH_TABS.find((tab) => tab.id === currentTab)?.label || '\u6982\u89c8'
-  const canUseSessionDetail = currentTab === 'lines' || currentTab === 'gaps' || currentTab === 'maintenance'
   const canEnterMatch = sessionStatus === SESSION_MATCH_READY
 
   useEffect(() => {
@@ -40,9 +43,15 @@ export function SessionWorkspace({
     ;(async () => {
       try {
         const session = await getSession(sessionId)
-        if (!cancelled) setSessionStatus((session.status || '').trim())
+        if (!cancelled) {
+          setSessionStatus((session.status || '').trim())
+          setSessionName(session.title || '')
+        }
       } catch {
-        if (!cancelled) setSessionStatus('')
+        if (!cancelled) {
+          setSessionStatus('')
+          setSessionName('')
+        }
       }
     })()
     return () => {
@@ -109,11 +118,21 @@ export function SessionWorkspace({
       )}
 
       {currentTab === 'match' && canEnterMatch ? (
-        <MatchResultWorkspace bomId={sessionId} onNavigateToHsResolve={onNavigateToHsResolve} />
+        <SessionMatchResultPanel bomId={sessionId} onNavigateToHsResolve={onNavigateToHsResolve} />
       ) : currentTab === 'search-clean' ? (
         <SessionSearchCleanPanel sessionId={sessionId} />
-      ) : canUseSessionDetail ? (
-        <SourcingSessionPage embedded sessionId={sessionId} />
+      ) : currentTab === 'lines' ? (
+        <SessionLinesPanel sessionId={sessionId} />
+      ) : currentTab === 'gaps' ? (
+        <SessionGapsPanel sessionId={sessionId} />
+      ) : currentTab === 'maintenance' ? (
+        <SessionMaintenancePanel sessionId={sessionId} />
+      ) : currentTab === 'overview' ? (
+        <SessionOverviewPanel
+          sessionId={sessionId}
+          sessionName={sessionName}
+          sessionStatus={sessionStatus}
+        />
       ) : (
         <PlaceholderPanel label={currentLabel} sessionId={sessionId} />
       )}

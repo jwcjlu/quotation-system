@@ -10,6 +10,10 @@ const {
   autoMatch,
   listManufacturerCanonicals,
   getSession,
+  getBOMLines,
+  getSessionSearchTaskCoverage,
+  listLineGaps,
+  listMatchRuns,
 } = vi.hoisted(() => ({
   listSessions: vi.fn(),
   listSessionSearchTasks: vi.fn(),
@@ -17,6 +21,10 @@ const {
   autoMatch: vi.fn(),
   listManufacturerCanonicals: vi.fn(),
   getSession: vi.fn(),
+  getBOMLines: vi.fn(),
+  getSessionSearchTaskCoverage: vi.fn(),
+  listLineGaps: vi.fn(),
+  listMatchRuns: vi.fn(),
 }))
 
 vi.mock('../api', async () => {
@@ -29,6 +37,10 @@ vi.mock('../api', async () => {
     autoMatch,
     listManufacturerCanonicals,
     getSession,
+    getBOMLines,
+    getSessionSearchTaskCoverage,
+    listLineGaps,
+    listMatchRuns,
   }
 })
 
@@ -86,6 +98,66 @@ describe('BomWorkbenchPage', () => {
     retrySearchTasks.mockResolvedValue({ accepted: 0 })
     autoMatch.mockResolvedValue({ items: [], total_amount: 0 })
     listManufacturerCanonicals.mockResolvedValue([])
+    getBOMLines.mockResolvedValue({
+      lines: [
+        {
+          line_id: 'line-1',
+          line_no: 1,
+          mpn: 'STM32F103C8T6',
+          mfr: 'ST',
+          package: 'LQFP48',
+          qty: 100,
+          match_status: 'ready',
+          platform_gaps: [],
+          availability_status: 'ready',
+          has_usable_quote: true,
+          raw_quote_platform_count: 2,
+          usable_quote_platform_count: 1,
+        },
+      ],
+    })
+    getSessionSearchTaskCoverage.mockResolvedValue({
+      consistent: true,
+      orphan_task_count: 0,
+      expected_task_count: 1,
+      existing_task_count: 1,
+      missing_tasks: [],
+    })
+    listLineGaps.mockResolvedValue({
+      gaps: [
+        {
+          gap_id: 'gap-1',
+          session_id: 'session-1',
+          line_id: 'line-1',
+          line_no: 1,
+          mpn: 'STM32F103C8T6',
+          gap_type: 'no_quote',
+          reason_code: 'no_data',
+          reason_detail: 'missing quote',
+          resolution_status: 'open',
+          substitute_mpn: '',
+          substitute_reason: '',
+          updated_at: '2026-04-21T13:55:00+08:00',
+        },
+      ],
+    })
+    listMatchRuns.mockResolvedValue({
+      runs: [
+        {
+          run_id: 'run-1',
+          run_no: 1,
+          session_id: 'session-1',
+          status: 'saved',
+          line_total: 1,
+          matched_line_count: 0,
+          unresolved_line_count: 1,
+          total_amount: 0,
+          currency: 'CNY',
+          created_at: '2026-04-21T13:55:00+08:00',
+          saved_at: '2026-04-21T13:55:00+08:00',
+        },
+      ],
+    })
     getSession.mockResolvedValue({
       session_id: 'session-1',
       title: 'Alpha BOM',
@@ -137,7 +209,10 @@ describe('BomWorkbenchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
     fireEvent.click(await screen.findByRole('tab', { name: 'BOM\u884c' }))
 
-    expect(screen.getByText('session detail: session-1')).toBeInTheDocument()
+    expect(await screen.findByTestId('session-lines-panel')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('MPN / \u884c\u53f7 / \u63cf\u8ff0')).toBeInTheDocument()
+    expect(screen.queryByText('session detail: session-1')).not.toBeInTheDocument()
+    expect(getBOMLines).toHaveBeenCalledWith('session-1')
   })
 
   it('opens search clean tools inside the selected session', async () => {
@@ -150,9 +225,42 @@ describe('BomWorkbenchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
     fireEvent.click(await screen.findByRole('tab', { name: '\u641c\u7d22\u6e05\u6d17' }))
 
-    expect(await screen.findByTestId('search-clean-panel')).toBeInTheDocument()
+    expect(await screen.findByTestId('session-search-clean-panel')).toBeInTheDocument()
     expect(screen.getByTestId('manufacturer-alias-review-panel')).toBeInTheDocument()
     expect(listSessionSearchTasks).toHaveBeenCalledWith('session-1')
+  })
+
+  it('opens the gap handling workspace without rendering the full session detail page', async () => {
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+    fireEvent.click(await screen.findByRole('tab', { name: '\u7f3a\u53e3\u5904\u7406' }))
+
+    expect(await screen.findByTestId('session-gaps-panel')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('MPN / \u539f\u56e0')).toBeInTheDocument()
+    expect(screen.queryByText('session detail: session-1')).not.toBeInTheDocument()
+    expect(listLineGaps).toHaveBeenCalledWith('session-1')
+    expect(listMatchRuns).toHaveBeenCalledWith('session-1')
+  })
+
+  it('opens the maintenance workspace without rendering the full session detail page', async () => {
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+    fireEvent.click(await screen.findByRole('tab', { name: '\u7ef4\u62a4' }))
+
+    expect(await screen.findByTestId('session-maintenance-panel')).toBeInTheDocument()
+    expect(screen.getByText('\u4f1a\u8bdd\u7ef4\u62a4')).toBeInTheDocument()
+    expect(screen.queryByText('session detail: session-1')).not.toBeInTheDocument()
+    expect(getSession).toHaveBeenCalledWith('session-1')
   })
 
   it('disables match result tab until the selected session is data_ready', async () => {
@@ -167,6 +275,30 @@ describe('BomWorkbenchPage', () => {
     const matchTab = await screen.findByRole('tab', { name: '\u5339\u914d\u7ed3\u679c' })
     expect(matchTab).toBeDisabled()
     expect(screen.getByText(/\u4f1a\u8bdd\u72b6\u6001/)).toBeInTheDocument()
+  })
+
+  it('opens the match result workspace once the selected session is data_ready', async () => {
+    getSession.mockResolvedValue({
+      session_id: 'session-1',
+      title: 'Alpha BOM',
+      status: 'data_ready',
+      biz_date: '2026-04-21',
+      selection_revision: 1,
+      platform_ids: [],
+    })
+
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+    const matchTab = await screen.findByRole('tab', { name: '\u5339\u914d\u7ed3\u679c' })
+    fireEvent.click(matchTab)
+
+    expect(await screen.findByTestId('session-match-result-panel')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('MPN / \u4f9b\u5e94\u5546 / \u5382\u5bb6')).toBeInTheDocument()
   })
 
   it('offers a back-to-list action for mobile detail flow', async () => {

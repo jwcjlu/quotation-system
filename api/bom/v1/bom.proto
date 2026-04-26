@@ -39,6 +39,20 @@ service BomService {
     };
   }
 
+  // 厂牌别名：规范 ID 下拉数据 + 写入 t_bom_manufacturer_alias（配单页「厂牌别名审核」）
+  rpc ListManufacturerCanonicals(ListManufacturerCanonicalsRequest) returns (ListManufacturerCanonicalsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/manufacturer-canonicals"
+    };
+  }
+
+  rpc CreateManufacturerAlias(CreateManufacturerAliasRequest) returns (CreateManufacturerAliasReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom/manufacturer-aliases"
+      body: "*"
+    };
+  }
+
   // 获取 BOM 详情（含解析结果）
   rpc GetBOM(GetBOMRequest) returns (GetBOMReply) {
     option (google.api.http) = {
@@ -66,21 +80,6 @@ service BomService {
       get: "/api/v1/bom/{bom_id}/match-sources/{line_no}/{platform}"
     };
   }
-
-  // 厂牌别名：规范 ID 下拉数据 + 写入 t_bom_manufacturer_alias（配单页「厂牌别名审核」）
-  rpc ListManufacturerCanonicals(ListManufacturerCanonicalsRequest) returns (ListManufacturerCanonicalsReply) {
-    option (google.api.http) = {
-      get: "/api/v1/bom/manufacturer-canonicals"
-    };
-  }
-
-  rpc CreateManufacturerAlias(CreateManufacturerAliasRequest) returns (CreateManufacturerAliasReply) {
-    option (google.api.http) = {
-      post: "/api/v1/bom/manufacturer-aliases"
-      body: "*"
-    };
-  }
-
   // ---------- BOM 会话（货源搜索 / 轮询就绪，见 docs/BOM货源搜索-接口清单.md）----------
 
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply) {

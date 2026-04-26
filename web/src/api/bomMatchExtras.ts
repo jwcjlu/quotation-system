@@ -127,7 +127,7 @@ export async function createManufacturerAlias(
   canonicalId: string,
   displayName: string
 ): Promise<void> {
-  await fetchJson('/api/bom/manufacturers/aliases', {
+  await fetchJson('/api/v1/bom/manufacturer-aliases', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ alias, canonical_id: canonicalId, display_name: displayName }),
@@ -138,7 +138,7 @@ export async function listManufacturerCanonicals(
   limit = 500
 ): Promise<ManufacturerCanonicalRow[]> {
   const q = new URLSearchParams({ limit: String(limit) })
-  const json = await fetchJson<Record<string, unknown>>(`/api/bom/manufacturers/canonicals?${q}`)
+  const json = await fetchJson<Record<string, unknown>>(`/api/v1/bom/manufacturer-canonicals?${q}`)
   const rows = (json.items ?? json.rows ?? []) as Record<string, unknown>[]
   return rows.map((r) => ({
     canonical_id: str(r.canonical_id ?? r.canonicalId),

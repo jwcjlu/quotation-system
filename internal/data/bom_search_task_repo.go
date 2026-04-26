@@ -662,12 +662,22 @@ func (r *BOMSearchTaskRepo) LoadQuoteCachesForKeys(ctx context.Context, bizDate 
 	if err := q.Find(&rows).Error; err != nil {
 		return nil, err
 	}
+	quoteIDs := make([]uint64, 0, len(rows))
+	for i := range rows {
+		if rows[i].ID != 0 {
+			quoteIDs = append(quoteIDs, rows[i].ID)
+		}
+	}
+	quoteJSONByID, err := r.loadQuoteRowsJSONByCacheIDs(ctx, quoteIDs)
+	if err != nil {
+		return nil, err
+	}
 	for i := range rows {
 		row := &rows[i]
 		key := row.MpnNorm + "\x00" + row.PlatformID
-		qj, err := r.loadQuoteRowsJSONByCacheID(ctx, row.ID)
-		if err != nil {
-			return nil, err
+		qj := quoteJSONByID[row.ID]
+		if len(qj) == 0 {
+			qj = []byte("[]")
 		}
 		nd := row.NoMpnDetail
 		out[key] = &biz.QuoteCacheSnapshot{
@@ -679,38 +689,79 @@ func (r *BOMSearchTaskRepo) LoadQuoteCachesForKeys(ctx context.Context, bizDate 
 	return out, nil
 }
 
+type quoteItemRow struct {
+	QuoteID       uint64 `gorm:"column:quote_id"`
+	Model         string `gorm:"column:model"`
+	Manufacturer  string `gorm:"column:manufacturer"`
+	Package       string `gorm:"column:package"`
+	Desc          string `gorm:"column:desc"`
+	Stock         string `gorm:"column:stock"`
+	MOQ           string `gorm:"column:moq"`
+	PriceTiers    string `gorm:"column:price_tiers"`
+	HKPrice       string `gorm:"column:hk_price"`
+	MainlandPrice string `gorm:"column:mainland_price"`
+	LeadTime      string `gorm:"column:lead_time"`
+	QueryModel    string `gorm:"column:query_model"`
+	DatasheetURL  string `gorm:"column:datasheet_url"`
+}
+
 func (r *BOMSearchTaskRepo) loadQuoteRowsJSONByCacheID(ctx context.Context, quoteID uint64) ([]byte, error) {
 	if quoteID == 0 {
 		return []byte("[]"), nil
 	}
-	type itemRow struct {
-		Model         string `gorm:"column:model"`
-		Manufacturer  string `gorm:"column:manufacturer"`
-		Package       string `gorm:"column:package"`
-		Desc          string `gorm:"column:desc"`
-		Stock         string `gorm:"column:stock"`
-		MOQ           string `gorm:"column:moq"`
-		PriceTiers    string `gorm:"column:price_tiers"`
-		HKPrice       string `gorm:"column:hk_price"`
-		MainlandPrice string `gorm:"column:mainland_price"`
-		LeadTime      string `gorm:"column:lead_time"`
-		QueryModel    string `gorm:"column:query_model"`
-		DatasheetURL  string `gorm:"column:datasheet_url"`
+	rowsByID, err := r.loadQuoteRowsJSONByCacheIDs(ctx, []uint64{quoteID})
+	if err != nil {
+		return nil, err
 	}
-	var items []itemRow
+	if raw := rowsByID[quoteID]; len(raw) > 0 {
+		return raw, nil
+	}
+	return []byte("[]"), nil
+}
+
+func (r *BOMSearchTaskRepo) loadQuoteRowsJSONByCacheIDs(ctx context.Context, quoteIDs []uint64) (map[uint64][]byte, error) {
+	out := make(map[uint64][]byte, len(quoteIDs))
+	if len(quoteIDs) == 0 {
+		return out, nil
+	}
+	seen := make(map[uint64]struct{}, len(quoteIDs))
+	uniq := make([]uint64, 0, len(quoteIDs))
+	for _, id := range quoteIDs {
+		if id == 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniq = append(uniq, id)
+	}
+	if len(uniq) == 0 {
+		return out, nil
+	}
+	var items []quoteItemRow
 	if err := r.db.WithContext(ctx).
 		Model(&BomQuoteItem{}).
-		Select("model, manufacturer, package, `desc`, stock, moq, price_tiers, hk_price, mainland_price, lead_time, query_model, datasheet_url").
-		Where("quote_id = ?", quoteID).
-		Order("id ASC").
+		Select("quote_id, model, manufacturer, package, `desc`, stock, moq, price_tiers, hk_price, mainland_price, lead_time, query_model, datasheet_url").
+		Where("quote_id IN ?", uniq).
+		Order("quote_id ASC, id ASC").
 		Find(&items).Error; err != nil {
 		return nil, err
 	}
-	rows := make([]biz.AgentQuoteRow, 0, len(items))
-	for i := range items {
-		it := items[i]
+	return quoteItemRowsJSONByCacheID(uniq, items)
+}
+
+func quoteItemRowsJSONByCacheID(quoteIDs []uint64, items []quoteItemRow) (map[uint64][]byte, error) {
+	grouped := make(map[uint64][]biz.AgentQuoteRow, len(quoteIDs))
+	for _, id := range quoteIDs {
+		if id != 0 {
+			grouped[id] = nil
+		}
+	}
+	for _, it := range items {
+		rows := grouped[it.QuoteID]
 		rows = append(rows, biz.AgentQuoteRow{
-			Seq:           i + 1,
+			Seq:           len(rows) + 1,
 			Model:         it.Model,
 			Manufacturer:  it.Manufacturer,
 			Package:       it.Package,
@@ -724,11 +775,21 @@ func (r *BOMSearchTaskRepo) loadQuoteRowsJSONByCacheID(ctx context.Context, quot
 			QueryModel:    it.QueryModel,
 			DatasheetURL:  it.DatasheetURL,
 		})
+		grouped[it.QuoteID] = rows
 	}
-	if len(rows) == 0 {
-		return []byte("[]"), nil
+	out := make(map[uint64][]byte, len(grouped))
+	for quoteID, rows := range grouped {
+		if len(rows) == 0 {
+			out[quoteID] = []byte("[]")
+			continue
+		}
+		raw, err := json.Marshal(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[quoteID] = raw
 	}
-	return json.Marshal(rows)
+	return out, nil
 }
 
 // DistinctPendingMergeKeysForSession 会话内 pending 任务涉及的合并键去重。

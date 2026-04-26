@@ -104,6 +104,50 @@ func TestComputeLineAvailability_NilDepsAndEmptyInput(t *testing.T) {
 	}
 }
 
+func TestComputeLineAvailability_CachesManufacturerAliasWithinRequest(t *testing.T) {
+	view := &biz.BOMSessionView{
+		SessionID:   "session-1",
+		BizDate:     time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC),
+		PlatformIDs: []string{"find_chips", "hqchip"},
+	}
+	lines := []data.BomSessionLine{
+		{LineNo: 1, Mpn: "PART-A", Mfr: strPtr("TI"), Qty: floatPtr(1)},
+		{LineNo: 2, Mpn: "PART-B", Mfr: strPtr("TI"), Qty: floatPtr(1)},
+	}
+	cacheMap := map[string]*biz.QuoteCacheSnapshot{}
+	var tasks []biz.TaskReadinessSnapshot
+	for _, line := range lines {
+		mpnNorm := biz.NormalizeMPNForBOMSearch(line.Mpn)
+		for _, platformID := range view.PlatformIDs {
+			tasks = append(tasks, biz.TaskReadinessSnapshot{MpnNorm: mpnNorm, PlatformID: platformID, State: "succeeded"})
+			cacheMap[quoteCachePairKey(mpnNorm, platformID)] = &biz.QuoteCacheSnapshot{
+				Outcome:    "ok",
+				QuotesJSON: quoteRowsJSON(t, line.Mpn, "TI"),
+			}
+		}
+	}
+	alias := newCountingManufacturerAliasRepo(map[string]string{"TI": "MFR_TI"})
+	svc := &BomService{
+		search:   &bomSearchTaskRepoStub{tasks: tasks, cacheMap: cacheMap},
+		fx:       data.NewBomFxRateRepo(nil),
+		alias:    alias,
+		bomMatch: &conf.BomMatch{BaseCcy: "USD", ParsePriceTierStrings: true},
+	}
+
+	availability, _, err := svc.computeLineAvailability(context.Background(), view, lines, view.PlatformIDs)
+	if err != nil {
+		t.Fatalf("computeLineAvailability() error = %v", err)
+	}
+	for _, item := range availability {
+		if item.Status != biz.LineAvailabilityReady {
+			t.Fatalf("availability status = %q, want %q", item.Status, biz.LineAvailabilityReady)
+		}
+	}
+	if got := alias.CallCount("TI"); got != 1 {
+		t.Fatalf("alias lookup count for TI = %d, want 1", got)
+	}
+}
+
 func quoteRowsJSON(t *testing.T, model, mfr string) []byte {
 	t.Helper()
 	rows := []biz.AgentQuoteRow{{
@@ -123,3 +167,35 @@ func quoteRowsJSON(t *testing.T, model, mfr string) []byte {
 func strPtr(v string) *string { return &v }
 
 func floatPtr(v float64) *float64 { return &v }
+
+type countingManufacturerAliasRepo struct {
+	values map[string]string
+	calls  map[string]int
+}
+
+func newCountingManufacturerAliasRepo(values map[string]string) *countingManufacturerAliasRepo {
+	return &countingManufacturerAliasRepo{
+		values: values,
+		calls:  make(map[string]int),
+	}
+}
+
+func (m *countingManufacturerAliasRepo) CanonicalID(ctx context.Context, aliasNorm string) (string, bool, error) {
+	m.calls[aliasNorm]++
+	v, ok := m.values[aliasNorm]
+	return v, ok, nil
+}
+
+func (m *countingManufacturerAliasRepo) DBOk() bool { return true }
+
+func (m *countingManufacturerAliasRepo) ListDistinctCanonicals(ctx context.Context, limit int) ([]biz.ManufacturerCanonicalDisplay, error) {
+	return nil, nil
+}
+
+func (m *countingManufacturerAliasRepo) CreateRow(ctx context.Context, canonicalID, displayName, alias, aliasNorm string) error {
+	return nil
+}
+
+func (m *countingManufacturerAliasRepo) CallCount(alias string) int {
+	return m.calls[biz.NormalizeMfrString(alias)]
+}

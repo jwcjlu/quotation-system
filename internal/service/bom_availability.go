@@ -16,6 +16,8 @@ func (s *BomService) computeLineAvailability(ctx context.Context, view *biz.BOMS
 		sessionID = view.SessionID
 		bizDate = view.BizDate
 	}
+	aliasCache := newSessionAliasCache(s.alias)
+	fxCache := newSessionFXCache(s.fx)
 
 	var tasks []biz.TaskReadinessSnapshot
 	cacheMap := map[string]*biz.QuoteCacheSnapshot{}
@@ -51,7 +53,7 @@ func (s *BomService) computeLineAvailability(ctx context.Context, view *biz.BOMS
 				continue
 			}
 			key := quoteCachePairKey(mpnNorm, pid)
-			fact, err := s.platformAvailabilityFact(ctx, line, pid, taskState[key], cacheMap[key], bizDate)
+			fact, err := s.platformAvailabilityFact(ctx, line, pid, taskState[key], cacheMap[key], bizDate, aliasCache, fxCache)
 			if err != nil {
 				return nil, biz.LineAvailabilitySummary{}, err
 			}
@@ -66,7 +68,7 @@ func (s *BomService) computeLineAvailability(ctx context.Context, view *biz.BOMS
 	return out, biz.SummarizeLineAvailability(out), nil
 }
 
-func (s *BomService) platformAvailabilityFact(ctx context.Context, line data.BomSessionLine, pid, state string, snap *biz.QuoteCacheSnapshot, bizDate time.Time) (biz.PlatformAvailabilityFact, error) {
+func (s *BomService) platformAvailabilityFact(ctx context.Context, line data.BomSessionLine, pid, state string, snap *biz.QuoteCacheSnapshot, bizDate time.Time, aliasCache biz.AliasLookup, fxCache biz.FXRateLookup) (biz.PlatformAvailabilityFact, error) {
 	state = strings.ToLower(strings.TrimSpace(state))
 	fact := biz.PlatformAvailabilityFact{
 		PlatformID: pid,
@@ -98,7 +100,7 @@ func (s *BomService) platformAvailabilityFact(ctx context.Context, line data.Bom
 
 	if quoteCacheUsable(snap) {
 		fact.HasRawQuote = true
-		ok, err := s.platformHasUsableQuote(ctx, line, pid, snap, bizDate)
+		ok, err := s.platformHasUsableQuote(ctx, line, pid, snap, bizDate, aliasCache, fxCache)
 		if err != nil {
 			return fact, err
 		}
@@ -112,8 +114,8 @@ func (s *BomService) platformAvailabilityFact(ctx context.Context, line data.Bom
 	return fact, nil
 }
 
-func (s *BomService) platformHasUsableQuote(ctx context.Context, line data.BomSessionLine, pid string, snap *biz.QuoteCacheSnapshot, bizDate time.Time) (bool, error) {
-	if s.fx == nil || s.alias == nil {
+func (s *BomService) platformHasUsableQuote(ctx context.Context, line data.BomSessionLine, pid string, snap *biz.QuoteCacheSnapshot, bizDate time.Time, aliasCache biz.AliasLookup, fxCache biz.FXRateLookup) (bool, error) {
+	if fxCache == nil || aliasCache == nil {
 		return false, nil
 	}
 	rows, ok := parseQuoteRowsForMatch(snap.QuotesJSON)
@@ -122,7 +124,7 @@ func (s *BomService) platformHasUsableQuote(ctx context.Context, line data.BomSe
 	}
 	var mfrHint *biz.BomManufacturerResolveHint
 	if mfr := strings.TrimSpace(derefStrPtr(line.Mfr)); mfr != "" {
-		id, hit, err := biz.ResolveManufacturerCanonical(ctx, mfr, s.alias)
+		id, hit, err := biz.ResolveManufacturerCanonical(ctx, mfr, aliasCache)
 		if err != nil {
 			return false, err
 		}
@@ -141,7 +143,7 @@ func (s *BomService) platformHasUsableQuote(ctx context.Context, line data.BomSe
 		RoundingMode:     s.bomMatchRoundingMode(),
 		ParseTierStrings: s.bomMatchParseTiers(),
 		BomMfrHint:       mfrHint,
-	}, s.fx, s.alias)
+	}, fxCache, aliasCache)
 	if err != nil {
 		return false, err
 	}

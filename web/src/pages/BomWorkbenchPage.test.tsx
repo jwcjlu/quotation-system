@@ -168,4 +168,16 @@ describe('BomWorkbenchPage', () => {
     expect(matchTab).toBeDisabled()
     expect(screen.getByText(/\u4f1a\u8bdd\u72b6\u6001/)).toBeInTheDocument()
   })
+
+  it('offers a back-to-list action for mobile detail flow', async () => {
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+
+    expect(await screen.findByRole('button', { name: '\u8fd4\u56de\u4f1a\u8bdd\u5217\u8868' })).toBeInTheDocument()
+  })
 })

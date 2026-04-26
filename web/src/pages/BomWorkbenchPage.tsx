@@ -17,11 +17,13 @@ export function BomWorkbenchPage({
     localStorage.getItem(LAST_SESSION_KEY)
   )
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
 
   const selectSession = (sessionId: string) => {
     localStorage.setItem(LAST_SESSION_KEY, sessionId)
     localStorage.setItem(LAST_BOM_KEY, sessionId)
     setSelectedSessionId(sessionId)
+    setMobileDetailOpen(true)
   }
 
   const handleUploadSuccess = (sessionId: string) => {
@@ -39,15 +41,18 @@ export function BomWorkbenchPage({
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm lg:grid lg:grid-cols-[22rem_minmax(0,1fr)]">
-        <SessionListPanel
-          selectedSessionId={selectedSessionId}
-          onSelectSession={selectSession}
-          onCreateSession={() => setUploadOpen(true)}
-        />
-        <section className="min-h-[32rem] p-4">
+        <div className={mobileDetailOpen ? 'hidden lg:block' : 'block'}>
+          <SessionListPanel
+            selectedSessionId={selectedSessionId}
+            onSelectSession={selectSession}
+            onCreateSession={() => setUploadOpen(true)}
+          />
+        </div>
+        <section className={mobileDetailOpen ? 'block min-h-[32rem] p-4' : 'hidden min-h-[32rem] p-4 lg:block'}>
           {selectedSessionId ? (
             <SessionWorkspace
               sessionId={selectedSessionId}
+              onBackToList={() => setMobileDetailOpen(false)}
               onNavigateToHsResolve={_onNavigateToHsResolve}
             />
           ) : (

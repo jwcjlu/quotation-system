@@ -24,7 +24,7 @@ function PlaceholderPanel({ label, sessionId }: { label: string; sessionId: stri
 
 export function SessionWorkspace({
   sessionId,
-  onBackToList: _onBackToList,
+  onBackToList,
   onNavigateToHsResolve,
 }: SessionWorkspaceProps) {
   const [currentTab, setCurrentTab] = useState<SessionWorkbenchTab>('overview')
@@ -57,6 +57,15 @@ export function SessionWorkspace({
           <h3 className="text-lg font-semibold text-slate-800">{'\u4f1a\u8bdd\u5de5\u4f5c\u533a'}</h3>
           <p className="mt-1 text-xs text-slate-500">{sessionId}</p>
         </div>
+        {onBackToList && (
+          <button
+            type="button"
+            onClick={onBackToList}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 lg:hidden"
+          >
+            {'\u8fd4\u56de\u4f1a\u8bdd\u5217\u8868'}
+          </button>
+        )}
       </div>
 
       <div

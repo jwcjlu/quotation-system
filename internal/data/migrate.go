@@ -53,6 +53,8 @@ func AutoMigrateSchema(db *gorm.DB) error {
 		&CaichipAgentScriptAuth{},
 		&CaichipDispatchTask{},
 		&AgentScriptPackage{},
+		&UserAccount{},
+		&UserSession{},
 	); err != nil {
 		return fmt.Errorf("gorm automigrate: %w", err)
 	}

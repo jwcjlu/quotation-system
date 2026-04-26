@@ -46,7 +46,10 @@ export function BomWorkbenchPage({
         />
         <section className="min-h-[32rem] p-4">
           {selectedSessionId ? (
-            <SessionWorkspace sessionId={selectedSessionId} />
+            <SessionWorkspace
+              sessionId={selectedSessionId}
+              onNavigateToHsResolve={_onNavigateToHsResolve}
+            />
           ) : (
             <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
               {'\u4ece\u5de6\u4fa7\u9009\u62e9 BOM \u4f1a\u8bdd'}

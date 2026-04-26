@@ -9,12 +9,14 @@ const {
   retrySearchTasks,
   autoMatch,
   listManufacturerCanonicals,
+  getSession,
 } = vi.hoisted(() => ({
   listSessions: vi.fn(),
   listSessionSearchTasks: vi.fn(),
   retrySearchTasks: vi.fn(),
   autoMatch: vi.fn(),
   listManufacturerCanonicals: vi.fn(),
+  getSession: vi.fn(),
 }))
 
 vi.mock('../api', async () => {
@@ -26,6 +28,7 @@ vi.mock('../api', async () => {
     retrySearchTasks,
     autoMatch,
     listManufacturerCanonicals,
+    getSession,
   }
 })
 
@@ -83,6 +86,14 @@ describe('BomWorkbenchPage', () => {
     retrySearchTasks.mockResolvedValue({ accepted: 0 })
     autoMatch.mockResolvedValue({ items: [], total_amount: 0 })
     listManufacturerCanonicals.mockResolvedValue([])
+    getSession.mockResolvedValue({
+      session_id: 'session-1',
+      title: 'Alpha BOM',
+      status: 'searching',
+      biz_date: '2026-04-21',
+      selection_revision: 1,
+      platform_ids: [],
+    })
   })
 
   it('selects a session from the left list and opens the workspace on the right', async () => {
@@ -142,5 +153,19 @@ describe('BomWorkbenchPage', () => {
     expect(await screen.findByTestId('search-clean-panel')).toBeInTheDocument()
     expect(screen.getByTestId('manufacturer-alias-review-panel')).toBeInTheDocument()
     expect(listSessionSearchTasks).toHaveBeenCalledWith('session-1')
+  })
+
+  it('disables match result tab until the selected session is data_ready', async () => {
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+
+    const matchTab = await screen.findByRole('tab', { name: '\u5339\u914d\u7ed3\u679c' })
+    expect(matchTab).toBeDisabled()
+    expect(screen.getByText(/\u4f1a\u8bdd\u72b6\u6001/)).toBeInTheDocument()
   })
 })

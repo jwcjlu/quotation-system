@@ -157,6 +157,11 @@ func quoteRowsJSON(t *testing.T, model, mfr string) []byte {
 		MOQ:          "1",
 		PriceTiers:   "1+ $1.0000",
 	}}
+	return quoteRowsJSONFromRows(t, rows)
+}
+
+func quoteRowsJSONFromRows(t *testing.T, rows []biz.AgentQuoteRow) []byte {
+	t.Helper()
 	raw, err := json.Marshal(rows)
 	if err != nil {
 		t.Fatal(err)

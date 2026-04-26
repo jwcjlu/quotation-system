@@ -1,10 +1,11 @@
-import { type ChangeEvent, useEffect, useState } from 'react'
+import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import { login, logout, register, type AuthUser } from '../api/auth'
 import { clearSessionToken, setSessionToken } from '../auth/session'
 
 interface AuthPanelProps {
   currentUser: AuthUser | null
   busy?: boolean
+  navIsDark?: boolean
   message?: string | null
   onAuthenticated: (user: AuthUser) => void
   onLoggedOut: () => void
@@ -20,19 +21,16 @@ function avatarKey(user: AuthUser): string {
   return `${AVATAR_KEY_PREFIX}${user.username}`
 }
 
-function DefaultAvatarIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
-      <path
-        fill="currentColor"
-        d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5Z"
-      />
-    </svg>
-  )
+function displayUserName(user: AuthUser): string {
+  return user.displayName || user.username
+}
+
+function avatarInitial(user: AuthUser): string {
+  return displayUserName(user).trim().slice(0, 1).toUpperCase() || 'U'
 }
 
 export function AuthPanel(props: AuthPanelProps) {
-  const { currentUser, busy = false, message, onAuthenticated, onLoggedOut } = props
+  const { currentUser, busy = false, navIsDark = false, message, onAuthenticated, onLoggedOut } = props
   const [mode, setMode] = useState<Mode>('login')
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -40,14 +38,38 @@ export function AuthPanel(props: AuthPanelProps) {
   const [submitting, setSubmitting] = useState(false)
   const [localMessage, setLocalMessage] = useState<string | null>(null)
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (!currentUser) {
       setAvatarDataUrl(null)
+      setMenuOpen(false)
       return
     }
     setAvatarDataUrl(window.localStorage.getItem(avatarKey(currentUser)))
   }, [currentUser])
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [menuOpen])
 
   const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -64,6 +86,7 @@ export function AuthPanel(props: AuthPanelProps) {
       window.localStorage.setItem(avatarKey(currentUser), value)
       setAvatarDataUrl(value)
       setLocalMessage(null)
+      setMenuOpen(false)
     }
     reader.onerror = () => setLocalMessage('头像读取失败')
     reader.readAsDataURL(file)
@@ -102,55 +125,97 @@ export function AuthPanel(props: AuthPanelProps) {
     }
   }
 
+  const handleLogout = async () => {
+    setSubmitting(true)
+    setLocalMessage(null)
+    try {
+      await logout()
+    } catch (error) {
+      setLocalMessage(error instanceof Error ? error.message : 'logout failed')
+    } finally {
+      clearSessionToken()
+      onLoggedOut()
+      setSubmitting(false)
+      setMenuOpen(false)
+    }
+  }
+
   if (currentUser) {
+    const name = displayUserName(currentUser)
+
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-800/90 px-4 py-3 text-sm text-slate-100 shadow-lg shadow-black/10">
-        <div className="flex items-center gap-3">
-          <label className="group relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-emerald-400/40 bg-emerald-400/10 text-emerald-200">
-            {avatarDataUrl ? (
-              <img src={avatarDataUrl} alt="用户头像" className="h-full w-full object-cover" />
-            ) : (
-              <DefaultAvatarIcon />
-            )}
-            <span className="absolute inset-0 flex items-center justify-center bg-slate-950/65 text-[10px] font-medium text-white opacity-0 transition group-hover:opacity-100">
-              更换
-            </span>
-            <input type="file" accept="image/*" className="sr-only" aria-label="更换头像" onChange={handleAvatarChange} />
-          </label>
-
-          <div className="min-w-0 flex-1">
-            <div className="truncate font-semibold text-white">{currentUser.displayName || currentUser.username}</div>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-300">
-              <span className="truncate">{currentUser.username}</span>
-              <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 font-medium text-emerald-200">
-                {currentUser.role === 'admin' ? '管理员' : '用户'}
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            disabled={busy || submitting}
-            onClick={async () => {
-              setSubmitting(true)
-              setLocalMessage(null)
-              try {
-                await logout()
-              } catch (error) {
-                setLocalMessage(error instanceof Error ? error.message : 'logout failed')
-              } finally {
-                clearSessionToken()
-                onLoggedOut()
-                setSubmitting(false)
-              }
-            }}
-            className="shrink-0 rounded-md border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:border-slate-500 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+      <div ref={menuRef} className="relative flex justify-end">
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          aria-label={`${name} 用户菜单`}
+          onClick={() => setMenuOpen((open) => !open)}
+          className={`flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-sm shadow-sm transition ${
+            navIsDark
+              ? 'border-white/15 bg-white/10 text-slate-100 hover:bg-white/15'
+              : 'border-[#d7e0ed] bg-white text-slate-700 hover:bg-slate-50'
+          }`}
+        >
+          <span
+            className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border text-sm font-bold ${
+              navIsDark
+                ? 'border-blue-200/40 bg-slate-100 text-[#244a86]'
+                : 'border-slate-200 bg-slate-100 text-[#244a86]'
+            }`}
           >
-            {submitting ? '退出中...' : '退出'}
-          </button>
-        </div>
-        {(localMessage || message) && (
-          <div className="mt-3 rounded-md border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs text-slate-300">
+            {avatarDataUrl ? (
+              <img src={avatarDataUrl} alt={`${name} 头像`} className="h-full w-full object-cover" />
+            ) : (
+              <span aria-hidden="true">{avatarInitial(currentUser)}</span>
+            )}
+          </span>
+          <span className={`max-w-[9rem] truncate font-semibold ${navIsDark ? 'text-white' : 'text-slate-950'}`}>{name}</span>
+          <span aria-hidden="true" className={`transition ${navIsDark ? 'text-slate-200' : 'text-slate-500'} ${menuOpen ? 'rotate-180' : ''}`}>
+            ▾
+          </span>
+        </button>
+
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          aria-label="更换头像"
+          onChange={handleAvatarChange}
+        />
+
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-lg border border-[#d7e0ed] bg-white text-sm text-slate-700 shadow-xl shadow-slate-900/10"
+          >
+            <div className="border-b border-[#edf2f7] px-4 py-3">
+              <div className="text-xs text-slate-500">Signed in as</div>
+              <div className="mt-1 truncate font-semibold text-slate-950">{name}</div>
+            </div>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => avatarInputRef.current?.click()}
+              className="block w-full px-4 py-2.5 text-left hover:bg-slate-50"
+            >
+              更换头像
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={busy || submitting}
+              onClick={() => void handleLogout()}
+              className="block w-full border-t border-[#edf2f7] px-4 py-2.5 text-left text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {submitting ? '退出中...' : '退出登录'}
+            </button>
+          </div>
+        )}
+
+        {(localMessage || message) && !menuOpen && (
+          <div className="absolute right-0 top-[calc(100%+0.5rem)] z-10 w-64 rounded-md border border-[#d7e0ed] bg-white px-3 py-2 text-xs text-slate-600 shadow-lg">
             {localMessage || message}
           </div>
         )}
@@ -203,8 +268,8 @@ export function AuthPanel(props: AuthPanelProps) {
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-slate-600">密码</span>
           <input
-            type="password"
             className={INPUT_CLS}
+            type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
@@ -218,9 +283,9 @@ export function AuthPanel(props: AuthPanelProps) {
         type="button"
         disabled={busy || submitting}
         onClick={() => void submit()}
-        className="mt-4 w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-4 w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {mode === 'login' ? '登录' : '创建账号'}
+        {submitting ? '处理中...' : mode === 'login' ? '登录' : '创建账号'}
       </button>
     </div>
   )

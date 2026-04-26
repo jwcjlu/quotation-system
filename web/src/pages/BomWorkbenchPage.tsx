@@ -16,13 +16,15 @@ export function BomWorkbenchPage({
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() =>
     localStorage.getItem(LAST_SESSION_KEY)
   )
+  const [selectedSessionLineCount, setSelectedSessionLineCount] = useState<number | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
 
-  const selectSession = (sessionId: string) => {
+  const selectSession = (sessionId: string, lineCount?: number) => {
     localStorage.setItem(LAST_SESSION_KEY, sessionId)
     localStorage.setItem(LAST_BOM_KEY, sessionId)
     setSelectedSessionId(sessionId)
+    setSelectedSessionLineCount(typeof lineCount === 'number' ? lineCount : null)
     setMobileDetailOpen(true)
   }
 
@@ -32,35 +34,41 @@ export function BomWorkbenchPage({
   }
 
   return (
-    <div className="space-y-6" data-testid="bom-workbench-page">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-800">{'BOM\u5de5\u4f5c\u53f0'}</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          {'\u96c6\u4e2d\u7ba1\u7406 BOM \u4f1a\u8bdd\u3001\u641c\u7d22\u6e05\u6d17\u3001\u7f3a\u53e3\u5904\u7406\u548c\u5339\u914d\u7ed3\u679c\u3002'}
-        </p>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm lg:grid lg:grid-cols-[22rem_minmax(0,1fr)]">
-        <div className={mobileDetailOpen ? 'hidden lg:block' : 'block'}>
-          <SessionListPanel
-            selectedSessionId={selectedSessionId}
-            onSelectSession={selectSession}
-            onCreateSession={() => setUploadOpen(true)}
-          />
-        </div>
-        <section className={mobileDetailOpen ? 'block min-h-[32rem] p-4' : 'hidden min-h-[32rem] p-4 lg:block'}>
-          {selectedSessionId ? (
-            <SessionWorkspace
-              sessionId={selectedSessionId}
-              onBackToList={() => setMobileDetailOpen(false)}
-              onNavigateToHsResolve={_onNavigateToHsResolve}
+    <div className="bg-[#f4f6fa] text-slate-950" data-testid="bom-workbench-page">
+      <div
+        className="overflow-hidden rounded-lg border border-[#cbd6e5] bg-white"
+        data-testid="bom-workbench-shell"
+      >
+        <div className="min-h-[642px] lg:grid lg:grid-cols-[310px_minmax(0,1fr)]">
+          <div className={mobileDetailOpen ? 'hidden lg:block' : 'block'}>
+            <SessionListPanel
+              selectedSessionId={selectedSessionId}
+              onSelectSession={selectSession}
+              onSelectedSessionLineCount={setSelectedSessionLineCount}
+              onCreateSession={() => setUploadOpen(true)}
             />
-          ) : (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
-              {'\u4ece\u5de6\u4fa7\u9009\u62e9 BOM \u4f1a\u8bdd'}
-            </div>
-          )}
-        </section>
+          </div>
+          <section
+            className={
+              mobileDetailOpen
+                ? 'block min-h-[642px] bg-[#f8fafc] p-4 lg:p-7'
+                : 'hidden min-h-[642px] bg-[#f8fafc] p-4 lg:block lg:p-7'
+            }
+          >
+            {selectedSessionId ? (
+              <SessionWorkspace
+                sessionId={selectedSessionId}
+                lineCount={selectedSessionLineCount}
+                onBackToList={() => setMobileDetailOpen(false)}
+                onNavigateToHsResolve={_onNavigateToHsResolve}
+              />
+            ) : (
+              <div className="rounded-lg border border-dashed border-[#d7e0ed] bg-white p-6 text-sm text-slate-500">
+                {'\u4ece\u5de6\u4fa7\u9009\u62e9 BOM \u4f1a\u8bdd'}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
 
       {uploadOpen && (

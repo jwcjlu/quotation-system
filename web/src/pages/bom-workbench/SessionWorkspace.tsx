@@ -12,6 +12,7 @@ const SESSION_MATCH_READY = 'data_ready'
 
 interface SessionWorkspaceProps {
   sessionId: string
+  lineCount?: number | null
   onBackToList?: () => void
   onNavigateToHsResolve?: (model: string, manufacturer: string) => void
 }
@@ -27,10 +28,11 @@ function PlaceholderPanel({ label, sessionId }: { label: string; sessionId: stri
 
 export function SessionWorkspace({
   sessionId,
+  lineCount,
   onBackToList,
   onNavigateToHsResolve,
 }: SessionWorkspaceProps) {
-  const [currentTab, setCurrentTab] = useState<SessionWorkbenchTab>('overview')
+  const [currentTab, setCurrentTab] = useState<SessionWorkbenchTab>('lines')
   const [sessionStatus, setSessionStatus] = useState('')
   const [sessionName, setSessionName] = useState('')
   const currentLabel =
@@ -63,14 +65,16 @@ export function SessionWorkspace({
     <div className="space-y-4" data-testid="session-workspace-placeholder">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-slate-800">{'\u4f1a\u8bdd\u5de5\u4f5c\u533a'}</h3>
-          <p className="mt-1 text-xs text-slate-500">{sessionId}</p>
+          <h3 className="text-2xl font-bold leading-tight text-slate-950">{'\u4f1a\u8bdd\u5de5\u4f5c\u533a'}</h3>
+          <p className="mt-3 text-sm text-slate-700">
+            {sessionName ? `${sessionName} / ${sessionId}` : sessionId}
+          </p>
         </div>
         {onBackToList && (
           <button
             type="button"
             onClick={onBackToList}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 lg:hidden"
+            className="rounded-md border border-[#d7e0ed] bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 lg:hidden"
           >
             {'\u8fd4\u56de\u4f1a\u8bdd\u5217\u8868'}
           </button>
@@ -80,7 +84,7 @@ export function SessionWorkspace({
       <div
         role="tablist"
         aria-label="\u4f1a\u8bdd\u5de5\u4f5c\u533a"
-        className="flex gap-2 overflow-x-auto rounded-lg border border-slate-200 bg-white p-2"
+        className="flex gap-3 overflow-x-auto rounded-lg border border-[#d7e0ed] bg-white px-4 py-2"
       >
         {SESSION_WORKBENCH_TABS.map((tab) => {
           const active = tab.id === currentTab
@@ -95,12 +99,12 @@ export function SessionWorkspace({
               onClick={() => {
                 if (!disabled) setCurrentTab(tab.id)
               }}
-              className={`shrink-0 rounded-md px-3 py-2 text-sm font-medium ${
+              className={`h-9 shrink-0 rounded-md px-4 text-sm font-bold transition ${
                 active
-                  ? 'bg-slate-900 text-white'
+                  ? 'bg-[#111827] text-white'
                   : disabled
                     ? 'cursor-not-allowed text-slate-400'
-                    : 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-950 hover:bg-slate-100'
               }`}
             >
               {tab.label}
@@ -110,7 +114,7 @@ export function SessionWorkspace({
       </div>
 
       {!canEnterMatch && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        <div className="sr-only rounded-lg border border-[#f0c77d] bg-[#fff7e8] px-4 py-3 text-sm text-amber-950">
           {'\u4f1a\u8bdd\u72b6\u6001 '}
           <span className="font-mono">{sessionStatus || 'unknown'}</span>
           {' \u5c1a\u4e0d\u662f data_ready\uff0c\u6682\u4e0d\u80fd\u8fdb\u5165\u5339\u914d\u7ed3\u679c\u3002'}
@@ -130,8 +134,8 @@ export function SessionWorkspace({
       ) : currentTab === 'overview' ? (
         <SessionOverviewPanel
           sessionId={sessionId}
-          sessionName={sessionName}
           sessionStatus={sessionStatus}
+          lineCount={lineCount}
         />
       ) : (
         <PlaceholderPanel label={currentLabel} sessionId={sessionId} />

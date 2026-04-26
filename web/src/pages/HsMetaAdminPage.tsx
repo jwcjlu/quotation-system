@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { HsItemsSearchPanel } from './hs-meta/HsItemsSearchPanel'
 import { MetaCrudPanel } from './hs-meta/MetaCrudPanel'
 import { SyncJobsPanel } from './hs-meta/SyncJobsPanel'
+import { ToolPageShell } from './ToolPageShell'
 
 type TabKey = 'meta' | 'sync' | 'items'
 
@@ -15,20 +16,21 @@ export function HsMetaAdminPage() {
   const [tab, setTab] = useState<TabKey>('meta')
 
   return (
-    <section className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div>
-        <h2 className="text-xl font-semibold text-slate-800">HS元数据</h2>
-        <p className="mt-2 text-sm text-slate-600">维护 HS 元数据、执行同步任务，并查询落库条目。</p>
-      </div>
+    <ToolPageShell
+      testId="hs-meta-page"
+      eyebrow="HS META"
+      title="HS元数据"
+      description="维护 HS 分类元数据、同步任务和海关条目查询。"
+    >
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-3 overflow-x-auto rounded-lg border border-[#d7e0ed] bg-white px-4 py-2">
         {tabs.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => setTab(item.key)}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-              tab === item.key ? 'bg-slate-900 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+              tab === item.key ? 'bg-[#e8eef7] text-[#244a86]' : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
             {item.label}
@@ -39,6 +41,6 @@ export function HsMetaAdminPage() {
       {tab === 'meta' && <MetaCrudPanel />}
       {tab === 'sync' && <SyncJobsPanel />}
       {tab === 'items' && <HsItemsSearchPanel />}
-    </section>
+    </ToolPageShell>
   )
 }

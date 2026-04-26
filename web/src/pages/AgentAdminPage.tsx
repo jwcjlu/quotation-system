@@ -12,6 +12,7 @@ import {
   type LeasedTaskRow,
 } from '../api/agentAdmin'
 import { BomPlatformsAdminSection } from './BomPlatformsAdminSection'
+import { ToolPageShell } from './ToolPageShell'
 
 const STORAGE_KEY = 'caichip_web_agent_admin_api_key'
 
@@ -191,7 +192,7 @@ export function AgentAdminPage() {
   }
 
   const inputCls =
-    'w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400'
+    'w-full rounded-md border border-[#d7e0ed] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#244a86]/30'
 
   /** 凭据 script_id 下拉：优先已安装脚本；合并已有凭据行，避免仅库里有记录时下拉为空 */
   const credentialScriptIdOptions = useMemo(() => {
@@ -210,38 +211,51 @@ export function AgentAdminPage() {
   }, [scripts, scriptAuths, formScriptId])
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-800">Agent 运维</h2>
-        <p className="text-sm text-slate-600 mt-1">
-          对应后端 <code className="bg-slate-100 px-1 rounded">/api/v1/admin/agents/*</code>（含{' '}
-          <code className="bg-slate-100 px-1 rounded">…/script-auths</code>
-          ）与 <code className="bg-slate-100 px-1 rounded">/api/v1/admin/bom-platforms</code>，需配置{' '}
-          <code className="bg-slate-100 px-1 rounded">agent_admin.api_keys</code>（与脚本包管理的{' '}
-          <code className="bg-slate-100 px-1 rounded">script_admin</code> 密钥独立）。开发时 Vite 代理{' '}
-          <code className="bg-slate-100 px-1 rounded">/api</code> → 后端。
-        </p>
-      </div>
+    <ToolPageShell
+      testId="agent-admin-page"
+      eyebrow="AGENT OPS"
+      title="Agent 运维"
+      description="查看 Agent 在线状态、租约任务、已安装脚本与平台凭据，集中处理采集链路运维配置。"
+    >
+      <div className="min-h-[460px] overflow-hidden rounded-lg border border-[#cbd6e5] bg-white shadow-sm lg:grid lg:grid-cols-[286px_minmax(0,1fr)]">
+        <aside className="border-b border-[#d7e0ed] bg-white p-5 lg:border-b-0 lg:border-r">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold text-slate-900">鉴权</h3>
+              <span className="rounded bg-[#eef3fb] px-2 py-0.5 text-xs font-medium text-[#244a86]">agent_admin</span>
+            </div>
+            <label className="block text-sm text-slate-600 mb-1">运维 API Key</label>
+            <input
+              type="password"
+              autoComplete="off"
+              className={inputCls}
+              placeholder="与 configs 中 agent_admin.api_keys 某项一致"
+              value={apiKey}
+              onChange={(e) => persistKey(e.target.value)}
+            />
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            平台配置和 Agent 列表共用本 Key。
+          </p>
+        </div>
 
-      <section className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-        <h3 className="font-medium text-slate-800 mb-3">鉴权</h3>
-        <label className="block text-sm text-slate-600 mb-1">运维 API Key（agent_admin）</label>
-        <input
-          type="password"
-          autoComplete="off"
-          className={inputCls}
-          placeholder="与 configs 中 agent_admin.api_keys 某项一致"
-          value={apiKey}
-          onChange={(e) => persistKey(e.target.value)}
-        />
-        <p className="mt-3 text-xs text-slate-500">
-          列表与平台配置在下方 Tab 中分别刷新；两页共用本 Key。
-        </p>
-      </section>
+          <div className="mt-6 rounded-lg border border-[#d7e0ed] bg-[#f8fafc] p-3 text-xs leading-5 text-slate-600">
+            <div className="font-medium text-slate-900">运行概况</div>
+            <div className="mt-2 flex items-center justify-between">
+              <span>已加载 Agent</span>
+              <strong className="text-slate-950">{agents.length}</strong>
+            </div>
+            <div className="mt-1 flex items-center justify-between">
+              <span>离线窗口</span>
+              <strong className="text-slate-950">{offlineWindowSec != null ? `${offlineWindowSec}s` : '-'}</strong>
+            </div>
+          </div>
+        </aside>
+
+        <section className="min-w-0 bg-[#f8fafc]">
 
       {(error || info) && (
         <div
-          className={`rounded-lg px-4 py-3 text-sm ${
+          className={`m-5 mb-0 rounded-lg px-4 py-3 text-sm ${
             error ? 'bg-red-50 text-red-800 border border-red-200' : 'bg-emerald-50 text-emerald-900 border border-emerald-200'
           }`}
         >
@@ -249,9 +263,9 @@ export function AgentAdminPage() {
         </div>
       )}
 
-      <section className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+      <section className="overflow-hidden bg-white">
         <div
-          className="flex flex-wrap items-end gap-1 px-2 pt-2 border-b border-slate-200 bg-slate-50/90"
+          className="flex flex-wrap gap-3 overflow-x-auto border-b border-[#d7e0ed] bg-white px-5 py-3"
           role="tablist"
           aria-label="运维数据分类"
         >
@@ -261,10 +275,10 @@ export function AgentAdminPage() {
             aria-selected={adminTab === 'bom-platforms'}
             id="admin-tab-bom-platforms"
             onClick={() => setAdminTab('bom-platforms')}
-            className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border transition-colors ${
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
               adminTab === 'bom-platforms'
-                ? 'bg-white border-slate-200 border-b-white text-slate-900 -mb-px relative z-[1]'
-                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                ? 'bg-[#e8eef7] text-[#244a86] shadow-sm'
+                : 'border border-[#d7e0ed] text-slate-700 hover:bg-slate-100'
             }`}
           >
             BOM 采集平台
@@ -275,10 +289,10 @@ export function AgentAdminPage() {
             aria-selected={adminTab === 'agents'}
             id="admin-tab-agents"
             onClick={() => setAdminTab('agents')}
-            className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border transition-colors ${
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
               adminTab === 'agents'
-                ? 'bg-white border-slate-200 border-b-white text-slate-900 -mb-px relative z-[1]'
-                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/70'
+                ? 'bg-[#e8eef7] text-[#244a86] shadow-sm'
+                : 'border border-[#d7e0ed] text-slate-700 hover:bg-slate-100'
             }`}
           >
             Agent 列表
@@ -322,7 +336,7 @@ export function AgentAdminPage() {
                   type="button"
                   disabled={loading}
                   onClick={loadAgents}
-                  className="shrink-0 px-4 py-2 bg-slate-800 text-white text-sm rounded hover:bg-slate-700 disabled:opacity-50"
+                  className="shrink-0 rounded-md bg-[#e8eef7] px-4 py-2 text-sm font-semibold text-[#244a86] hover:bg-[#dce7f5] disabled:opacity-50"
                 >
                   {loading ? '加载中…' : '刷新 Agent 列表'}
                 </button>
@@ -566,7 +580,7 @@ export function AgentAdminPage() {
                   type="button"
                   disabled={authSaving || detailLoading}
                   onClick={saveScriptAuth}
-                  className="px-4 py-2 bg-slate-800 text-white text-sm rounded hover:bg-slate-700 disabled:opacity-50"
+                  className="rounded-md bg-[#e8eef7] px-4 py-2 text-sm font-semibold text-[#244a86] hover:bg-[#dce7f5] disabled:opacity-50"
                 >
                   {authSaving ? '保存中…' : '保存凭据'}
                 </button>
@@ -592,6 +606,8 @@ export function AgentAdminPage() {
           )}
         </div>
       </section>
-    </div>
+        </section>
+      </div>
+    </ToolPageShell>
   )
 }

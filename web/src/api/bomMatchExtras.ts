@@ -6,6 +6,12 @@ export interface ManufacturerCanonicalRow {
   alias_count?: number
 }
 
+export interface ManufacturerAliasCandidate {
+  alias: string
+  line_nos: number[]
+  demand_hint: string
+}
+
 export interface AgentQuoteRow {
   model: string
   manufacturer: string
@@ -144,6 +150,20 @@ export async function listManufacturerCanonicals(
     canonical_id: str(r.canonical_id ?? r.canonicalId),
     display_name: str(r.display_name ?? r.displayName),
     alias_count: num(r.alias_count ?? r.aliasCount),
+  }))
+}
+
+export async function listManufacturerAliasCandidates(
+  sessionId: string
+): Promise<ManufacturerAliasCandidate[]> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/manufacturer-alias-candidates`
+  )
+  const rows = (json.items ?? []) as Record<string, unknown>[]
+  return rows.map((r) => ({
+    alias: str(r.alias),
+    line_nos: ((r.line_nos ?? r.lineNos ?? []) as unknown[]).map(num).filter((v) => v > 0),
+    demand_hint: str(r.demand_hint ?? r.demandHint),
   }))
 }
 

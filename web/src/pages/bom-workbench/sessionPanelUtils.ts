@@ -1,6 +1,10 @@
-export type PageSize = 20 | 50 | 100
+import { DEFAULT_PAGE_SIZE } from '../pagination'
 
-export const PAGE_SIZE_OPTIONS: PageSize[] = [20, 50, 100]
+export type PageSize = 10 | 20 | 50 | 100
+
+export { DEFAULT_PAGE_SIZE }
+
+export const PAGE_SIZE_OPTIONS: PageSize[] = [10, 20, 50, 100]
 
 export function normalizeKeyword(value: string): string {
   return value.trim().toLowerCase()

@@ -43,6 +43,7 @@ func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.Agent
 	RegisterAuthHTTPRoutes(srv, authSvc)
 	if bomSvc != nil {
 		v1bom.RegisterBomServiceHTTPServer(srv, bomSvc)
+		RegisterBomAliasCandidateRoutes(srv, bomSvc)
 	}
 	if agentAdmin != nil && agentAdmin.Enabled() {
 		v1admin.RegisterAgentAdminServiceHTTPServer(srv, agentAdmin)

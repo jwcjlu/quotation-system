@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { HsMetaRow } from '../../api/hsMeta'
 import { hsMetaCreate, hsMetaDelete, hsMetaList, hsMetaUpdate } from '../../api/hsMeta'
+import { DEFAULT_PAGE_SIZE } from '../pagination'
 
 const emptyForm = {
   id: 0,
@@ -30,7 +31,7 @@ export function MetaCrudPanel() {
       try {
         const result = await hsMetaList({
           page: targetPage,
-          page_size: 20,
+          page_size: DEFAULT_PAGE_SIZE,
           category: filterCat.trim() || undefined,
           component_name: filterName.trim() || undefined,
           core_hs6: filterHs6.trim() || undefined,

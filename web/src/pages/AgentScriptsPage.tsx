@@ -8,6 +8,8 @@ import {
   type CurrentPackageReply,
   type PackageListItem,
 } from '../api/agentScripts'
+import { DEFAULT_PAGE_SIZE } from './pagination'
+import { ToolPageShell } from './ToolPageShell'
 
 const STORAGE_KEY = 'caichip_web_admin_script_api_key'
 
@@ -133,7 +135,7 @@ export function AgentScriptsPage() {
     setLoading(true)
     resetFlash()
     try {
-      const r = await listAgentScriptPackages(k, offset, 20)
+      const r = await listAgentScriptPackages(k, offset, DEFAULT_PAGE_SIZE)
       setPackages(r.packages ?? [])
       setListOffset(offset)
       setInfo(`已加载 ${r.packages?.length ?? 0} 条（offset=${offset}）`)
@@ -145,31 +147,34 @@ export function AgentScriptsPage() {
   }
 
   const inputCls =
-    'w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400'
+    'w-full rounded-md border border-[#d7e0ed] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#244a86]/30'
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-800">Agent 脚本包管理</h2>
-        <p className="text-sm text-slate-600 mt-1">
-          对应后端 <code className="bg-slate-100 px-1 rounded">/api/v1/admin/agent-scripts/*</code>，需配置{' '}
-          <code className="bg-slate-100 px-1 rounded">script_admin.api_keys</code>。开发时 Vite 已将{' '}
-          <code className="bg-slate-100 px-1 rounded">/api</code> 代理到{' '}
-          <code className="bg-slate-100 px-1 rounded">127.0.0.1:18080</code>。
-        </p>
-      </div>
+    <ToolPageShell
+      testId="agent-scripts-page"
+      eyebrow="AGENT SCRIPT"
+      title="脚本包"
+      description="上传、发布和审计 Agent 采集脚本包，保持平台脚本版本与运维状态可追踪。"
+    >
 
-      <section className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
-        <h3 className="font-medium text-slate-800 mb-3">鉴权</h3>
-        <label className="block text-sm text-slate-600 mb-1">管理端 API Key</label>
-        <input
-          type="password"
-          autoComplete="off"
-          className={inputCls}
-          placeholder="与 configs 中 script_admin.api_keys 某项一致"
-          value={apiKey}
-          onChange={(e) => persistKey(e.target.value)}
-        />
+      <section className="rounded-lg border border-[#d7e0ed] bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-[18rem] flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold text-slate-900">鉴权</h3>
+              <span className="rounded bg-[#eef3fb] px-2 py-0.5 text-xs font-medium text-[#244a86]">script_admin</span>
+            </div>
+            <label className="block text-sm text-slate-600 mb-1">管理端 API Key</label>
+            <input
+              type="password"
+              autoComplete="off"
+              className={inputCls}
+              placeholder="与 configs 中 script_admin.api_keys 某项一致"
+              value={apiKey}
+              onChange={(e) => persistKey(e.target.value)}
+            />
+          </div>
+        </div>
       </section>
 
       {(error || info) && (
@@ -182,7 +187,7 @@ export function AgentScriptsPage() {
         </div>
       )}
 
-      <section className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <section className="rounded-lg border border-[#d7e0ed] bg-white p-4 shadow-sm">
         <h3 className="font-medium text-slate-800 mb-3">上传包</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -248,7 +253,7 @@ export function AgentScriptsPage() {
           type="button"
           disabled={loading}
           onClick={handleUpload}
-          className="mt-4 px-4 py-2 bg-slate-800 text-white text-sm rounded hover:bg-slate-700 disabled:opacity-50"
+          className="mt-4 rounded-md bg-[#e8eef7] px-4 py-2 text-sm font-semibold text-[#244a86] hover:bg-[#dce7f5] disabled:opacity-50"
         >
           上传
         </button>
@@ -257,7 +262,7 @@ export function AgentScriptsPage() {
         )}
       </section>
 
-      <section className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <section className="rounded-lg border border-[#d7e0ed] bg-white p-4 shadow-sm">
         <h3 className="font-medium text-slate-800 mb-3">发布为当前版本</h3>
         <div className="flex flex-wrap gap-2 items-end">
           <div className="flex-1 min-w-[12rem]">
@@ -273,14 +278,14 @@ export function AgentScriptsPage() {
             type="button"
             disabled={loading}
             onClick={handlePublish}
-            className="px-4 py-2 bg-amber-600 text-white text-sm rounded hover:bg-amber-500 disabled:opacity-50"
+            className="rounded-md bg-[#fff7ed] px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
           >
             发布
           </button>
         </div>
       </section>
 
-      <section className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <section className="rounded-lg border border-[#d7e0ed] bg-white p-4 shadow-sm">
         <h3 className="font-medium text-slate-800 mb-3">查询当前发布</h3>
         <div className="flex flex-wrap gap-2 items-end">
           <div className="flex-1 min-w-[12rem]">
@@ -304,7 +309,7 @@ export function AgentScriptsPage() {
             type="button"
             disabled={loading}
             onClick={handleQueryCurrent}
-            className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600 disabled:opacity-50"
+            className="rounded-md bg-[#e8eef7] px-4 py-2 text-sm font-semibold text-[#244a86] hover:bg-[#dce7f5] disabled:opacity-50"
           >
             查询
           </button>
@@ -327,7 +332,7 @@ export function AgentScriptsPage() {
         )}
       </section>
 
-      <section className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <section className="rounded-lg border border-[#d7e0ed] bg-white p-4 shadow-sm">
         <h3 className="font-medium text-slate-800 mb-3">最近包列表（审计）</h3>
         <div className="flex gap-2 mb-3">
           <button
@@ -341,15 +346,15 @@ export function AgentScriptsPage() {
           <button
             type="button"
             disabled={loading || listOffset === 0}
-            onClick={() => loadList(Math.max(0, listOffset - 20))}
+            onClick={() => loadList(Math.max(0, listOffset - DEFAULT_PAGE_SIZE))}
             className="px-3 py-1.5 text-sm border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50"
           >
             上一页
           </button>
           <button
             type="button"
-            disabled={loading || packages.length < 20}
-            onClick={() => loadList(listOffset + 20)}
+            disabled={loading || packages.length < DEFAULT_PAGE_SIZE}
+            onClick={() => loadList(listOffset + DEFAULT_PAGE_SIZE)}
             className="px-3 py-1.5 text-sm border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50"
           >
             下一页
@@ -391,6 +396,6 @@ export function AgentScriptsPage() {
           </table>
         </div>
       </section>
-    </div>
+    </ToolPageShell>
   )
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { hsSyncJobDetail, hsSyncJobs, hsSyncRun } from '../../api/hsMeta'
+import { DEFAULT_PAGE_SIZE } from '../pagination'
 
 export function SyncJobsPanel() {
   const [mode, setMode] = useState<'all_enabled' | 'selected'>('all_enabled')
@@ -35,7 +36,7 @@ export function SyncJobsPanel() {
 
   const loadJobs = () =>
     runWithBusy(async () => {
-      const result = await hsSyncJobs({ page: 1, page_size: 50 })
+      const result = await hsSyncJobs({ page: 1, page_size: DEFAULT_PAGE_SIZE })
       setJobsJson(JSON.stringify(result, null, 2))
     })
 

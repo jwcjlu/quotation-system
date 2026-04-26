@@ -8,6 +8,7 @@ const {
   listSessionSearchTasks,
   retrySearchTasks,
   autoMatch,
+  listManufacturerAliasCandidates,
   listManufacturerCanonicals,
   getSession,
   getBOMLines,
@@ -19,6 +20,7 @@ const {
   listSessionSearchTasks: vi.fn(),
   retrySearchTasks: vi.fn(),
   autoMatch: vi.fn(),
+  listManufacturerAliasCandidates: vi.fn(),
   listManufacturerCanonicals: vi.fn(),
   getSession: vi.fn(),
   getBOMLines: vi.fn(),
@@ -35,6 +37,7 @@ vi.mock('../api', async () => {
     listSessionSearchTasks,
     retrySearchTasks,
     autoMatch,
+    listManufacturerAliasCandidates,
     listManufacturerCanonicals,
     getSession,
     getBOMLines,
@@ -97,6 +100,7 @@ describe('BomWorkbenchPage', () => {
     })
     retrySearchTasks.mockResolvedValue({ accepted: 0 })
     autoMatch.mockResolvedValue({ items: [], total_amount: 0 })
+    listManufacturerAliasCandidates.mockResolvedValue([])
     listManufacturerCanonicals.mockResolvedValue([])
     getBOMLines.mockResolvedValue({
       lines: [
@@ -228,6 +232,8 @@ describe('BomWorkbenchPage', () => {
     expect(await screen.findByTestId('session-search-clean-panel')).toBeInTheDocument()
     expect(screen.getByTestId('manufacturer-alias-review-panel')).toBeInTheDocument()
     expect(listSessionSearchTasks).toHaveBeenCalledWith('session-1')
+    expect(listManufacturerAliasCandidates).toHaveBeenCalledWith('session-1')
+    expect(autoMatch).not.toHaveBeenCalled()
   })
 
   it('opens the gap handling workspace without rendering the full session detail page', async () => {

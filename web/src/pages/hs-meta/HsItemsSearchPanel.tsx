@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { hsItemDetail, hsItemsList } from '../../api/hsMeta'
+import { DEFAULT_PAGE_SIZE } from '../pagination'
 
 type Row = Record<string, unknown>
 type Col = { key: string; label: string }
@@ -84,7 +85,7 @@ export function HsItemsSearchPanel() {
   const [gName, setGName] = useState('')
   const [core6, setCore6] = useState('')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [pageInput, setPageInput] = useState('1')
   const [rows, setRows] = useState<Row[]>([])
   const [cols, setCols] = useState<Col[]>([])
@@ -156,7 +157,7 @@ export function HsItemsSearchPanel() {
         <input className="rounded-md border border-slate-300 px-3 py-2 font-mono text-sm" placeholder="code_ts" value={codeTs} onChange={(e) => setCodeTs(e.target.value)} />
         <input className="rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="商品名称" value={gName} onChange={(e) => setGName(e.target.value)} />
         <input className="rounded-md border border-slate-300 px-3 py-2 font-mono text-sm" placeholder="核心 HS6" value={core6} onChange={(e) => setCore6(e.target.value)} />
-        <select className="rounded-md border border-slate-300 px-3 py-2 text-sm" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value) || 50)}>
+        <select className="rounded-md border border-slate-300 px-3 py-2 text-sm" value={pageSize} onChange={(e) => setPageSize(Number(e.target.value) || DEFAULT_PAGE_SIZE)}>
           <option value={10}>10 / 页</option>
           <option value={20}>20 / 页</option>
           <option value={50}>50 / 页</option>

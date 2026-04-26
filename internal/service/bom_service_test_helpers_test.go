@@ -171,12 +171,15 @@ func (s *bomSessionRepoStub) UpdateImportState(ctx context.Context, sessionID st
 }
 
 type bomSearchTaskRepoStub struct {
-	mu             sync.Mutex
-	tasks          []biz.TaskReadinessSnapshot
-	cacheMap       map[string]*biz.QuoteCacheSnapshot
-	manualQuoteGap uint64
-	pendingPairs   []biz.MpnPlatformPair
-	upsertTasks    bool
+	mu              sync.Mutex
+	tasks           []biz.TaskReadinessSnapshot
+	cacheMap        map[string]*biz.QuoteCacheSnapshot
+	candidateRows   map[string][]biz.AgentQuoteRow
+	candidateCalls  int
+	cacheBatchCalls int
+	manualQuoteGap  uint64
+	pendingPairs    []biz.MpnPlatformPair
+	upsertTasks     bool
 }
 
 func (s *bomSearchTaskRepoStub) DBOk() bool { return true }
@@ -257,9 +260,22 @@ func (s *bomSearchTaskRepoStub) LoadQuoteCachesForKeys(ctx context.Context, bizD
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.cacheBatchCalls++
 	out := make(map[string]*biz.QuoteCacheSnapshot, len(s.cacheMap))
 	for k, v := range s.cacheMap {
 		out[k] = cloneQuoteCacheSnapshot(v)
+	}
+	return out, nil
+}
+
+func (s *bomSearchTaskRepoStub) ListManufacturerAliasQuoteRows(ctx context.Context, bizDate time.Time, pairs []biz.MpnPlatformPair) (map[string][]biz.AgentQuoteRow, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.candidateCalls++
+	out := make(map[string][]biz.AgentQuoteRow, len(s.candidateRows))
+	for k, rows := range s.candidateRows {
+		out[k] = append([]biz.AgentQuoteRow(nil), rows...)
 	}
 	return out, nil
 }

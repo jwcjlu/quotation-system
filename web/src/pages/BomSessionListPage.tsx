@@ -5,7 +5,6 @@ import { SourcingSessionPage } from './SourcingSessionPage'
 
 const LAST_BOM_KEY = 'bom_last_bom_id'
 const LAST_SESSION_KEY = 'bom_last_session_id'
-
 interface BomSessionListPageProps {
   /** 从会话看板进入配单（调用方应已确认或可再次校验 data_ready） */
   onEnterMatch?: (sessionId: string) => void
@@ -13,7 +12,7 @@ interface BomSessionListPageProps {
 
 export function BomSessionListPage({ onEnterMatch }: BomSessionListPageProps) {
   const [listPage, setListPage] = useState(1)
-  const [pageSize] = useState(20)
+  const pageSize = 10
   const [status, setStatus] = useState('')
   const [bizDate, setBizDate] = useState('')
   const [q, setQ] = useState('')

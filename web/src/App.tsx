@@ -12,13 +12,16 @@ import { GuidePage } from './pages/GuidePage'
 type Page = 'guide' | 'bom-workbench' | 'agent-scripts' | 'agent-admin' | 'hs-resolve' | 'hs-meta'
 type RoleKey = 'anonymous' | 'user' | 'admin'
 
+const NAV_COLOR_STORAGE_KEY = 'caichip_nav_color'
+const DEFAULT_NAV_COLOR = '#334155'
+
 const PAGE_LABELS: Record<Page, string> = {
   guide: '\u4f7f\u7528\u6307\u5357',
   'bom-workbench': 'BOM\u5de5\u4f5c\u53f0',
-  'agent-scripts': '\u811a\u672c\u5305',
-  'agent-admin': 'Agent\u8fd0\u7ef4',
   'hs-resolve': 'HS\u578b\u53f7\u89e3\u6790',
   'hs-meta': 'HS\u5143\u6570\u636e',
+  'agent-scripts': '\u811a\u672c\u5305',
+  'agent-admin': 'Agent\u8fd0\u7ef4',
 }
 
 const ALLOWED_PAGES: Record<RoleKey, Page[]> = {
@@ -36,15 +39,36 @@ function firstAllowedPage(user: AuthUser | null): Page {
   return ALLOWED_PAGES[roleKey(user)][0]
 }
 
+function normalizeHexColor(value: string | null): string {
+  if (!value) return DEFAULT_NAV_COLOR
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value : DEFAULT_NAV_COLOR
+}
+
+function isDarkColor(hex: string): boolean {
+  const value = normalizeHexColor(hex).slice(1)
+  const r = Number.parseInt(value.slice(0, 2), 16)
+  const g = Number.parseInt(value.slice(2, 4), 16)
+  const b = Number.parseInt(value.slice(4, 6), 16)
+  return (r * 299 + g * 587 + b * 114) / 1000 < 145
+}
+
 function App() {
   const [page, setPage] = useState<Page>(() => firstAllowedPage(null))
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const [authMessage, setAuthMessage] = useState<string | null>(null)
   const [hsPrefill, setHsPrefill] = useState<HsResolvePrefill | null>(null)
+  const [navColor, setNavColor] = useState(() => normalizeHexColor(window.localStorage.getItem(NAV_COLOR_STORAGE_KEY)))
   const hsPrefillKeySeq = useRef(0)
 
   const allowedPages = useMemo(() => ALLOWED_PAGES[roleKey(currentUser)], [currentUser])
+  const navIsDark = useMemo(() => isDarkColor(navColor), [navColor])
+
+  const updateNavColor = (value: string) => {
+    const next = normalizeHexColor(value)
+    setNavColor(next)
+    window.localStorage.setItem(NAV_COLOR_STORAGE_KEY, next)
+  }
 
   const refreshCurrentUser = useCallback(async () => {
     if (!hasSessionToken()) {
@@ -108,10 +132,14 @@ function App() {
           }
           setPage(target)
         }}
-        className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+        className={`relative rounded-md px-3 py-2 text-sm font-semibold transition ${
           page === target
-            ? 'bg-white text-slate-950 shadow-sm'
-            : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+            ? navIsDark
+              ? 'bg-white/15 text-white shadow-sm after:absolute after:inset-x-3 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-blue-200'
+              : 'bg-[#e8eef7] text-[#244a86] shadow-sm after:absolute after:inset-x-3 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-[#3d6fb6]'
+            : navIsDark
+              ? 'text-slate-100 hover:bg-white/10 hover:text-white'
+              : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950'
         }`}
       >
         {PAGE_LABELS[target]}
@@ -121,30 +149,63 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-800 bg-slate-900 text-white shadow-lg shadow-slate-900/10">
+      <header
+        className="border-b shadow-sm"
+        style={{
+          backgroundColor: navColor,
+          borderColor: navIsDark ? 'rgba(15, 23, 42, 0.55)' : '#d7e0ed',
+        }}
+      >
         <div className="mx-auto grid max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div className="min-w-0">
             <div>
-              <p className="text-xs font-semibold uppercase text-blue-300">CAICHIP</p>
+              <p className={`text-xs font-semibold uppercase ${navIsDark ? 'text-blue-200' : 'text-[#2d65ad]'}`}>CAICHIP</p>
               <div className="mt-1 flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-semibold tracking-tight text-white">{'BOM\u914d\u5355\u7cfb\u7edf'}</h1>
-                <div className="rounded-md border border-emerald-400/40 bg-emerald-400/10 px-3 py-1.5 text-xs font-medium text-emerald-200">
+                <h1 className={`text-2xl font-semibold tracking-tight ${navIsDark ? 'text-white' : 'text-slate-950'}`}>{'BOM\u914d\u5355\u7cfb\u7edf'}</h1>
+                <div
+                  className={`rounded-md border px-3 py-1.5 text-xs font-medium ${
+                    navIsDark
+                      ? 'border-emerald-300/40 bg-emerald-300/10 text-emerald-100'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}
+                >
                   {currentUser ? (currentUser.role === 'admin' ? 'Admin' : 'User') : '\u672a\u767b\u5f55'}
                 </div>
               </div>
             </div>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+            <p className={`mt-3 max-w-2xl text-sm leading-6 ${navIsDark ? 'text-slate-200' : 'text-slate-600'}`}>
               {'\u96c6\u4e2d\u7ba1\u7406 BOM \u4f1a\u8bdd\u3001\u5339\u914d\u5355\u3001HS \u578b\u53f7\u89e3\u6790\u548c Agent \u8fd0\u7ef4\u6d41\u7a0b\u3002'}
             </p>
-            <nav className="mt-5 flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 p-2 shadow-inner shadow-black/10">
-              {(Object.keys(PAGE_LABELS) as Page[]).map(renderNavButton)}
-            </nav>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <nav
+                className={`inline-flex max-w-full flex-wrap items-center gap-1 rounded-lg border px-2 py-1.5 shadow-inner ${
+                  navIsDark ? 'border-white/15 bg-white/10 shadow-black/10' : 'border-[#d7e0ed] bg-white shadow-slate-200/70'
+                }`}
+              >
+                {(Object.keys(PAGE_LABELS) as Page[]).map(renderNavButton)}
+              </nav>
+              <label
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium shadow-sm ${
+                  navIsDark ? 'border-white/20 bg-white/10 text-slate-100' : 'border-[#d7e0ed] bg-white text-slate-600'
+                }`}
+              >
+                导航栏背景
+                <input
+                  type="color"
+                  aria-label="导航栏背景"
+                  className="h-6 w-8 cursor-pointer rounded border border-[#cbd6e5] bg-white p-0"
+                  value={navColor}
+                  onChange={(event) => updateNavColor(event.target.value)}
+                />
+              </label>
+            </div>
           </div>
 
           <div className="w-full lg:justify-self-end">
             <AuthPanel
               currentUser={currentUser}
               busy={!authReady}
+              navIsDark={navIsDark}
               message={authMessage}
               onAuthenticated={(user) => {
                 setCurrentUser(user)

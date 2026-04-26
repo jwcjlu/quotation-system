@@ -30,6 +30,12 @@ export interface HsResolveReply {
   error_message: string
 }
 
+export interface UploadHsManualDatasheetReply {
+  upload_id: string
+  expires_at_unix: number
+  content_sha256: string
+}
+
 export interface HsResolveConfirmParams {
   run_id: string
   selected_code_ts: string
@@ -72,6 +78,15 @@ function normalizeReply(input: unknown): HsResolveReply {
   }
 }
 
+function normalizeManualUploadReply(input: unknown): UploadHsManualDatasheetReply {
+  const row = (input ?? {}) as Record<string, unknown>
+  return {
+    upload_id: asString(row.upload_id),
+    expires_at_unix: asNumber(row.expires_at_unix),
+    content_sha256: asString(row.content_sha256),
+  }
+}
+
 function buildQuery(params: Record<string, string | number | boolean | undefined>): string {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
@@ -89,6 +104,16 @@ export async function hsResolveByModel(params: HsResolveByModelParams): Promise<
     body: JSON.stringify(params),
   })
   return normalizeReply(payload)
+}
+
+export async function uploadHsManualDatasheet(file: File): Promise<UploadHsManualDatasheetReply> {
+  const form = new FormData()
+  form.set('file', file)
+  const payload = await fetchJson<Record<string, unknown>>('/api/hs/resolve/manual-datasheet/upload', {
+    method: 'POST',
+    body: form,
+  })
+  return normalizeManualUploadReply(payload)
 }
 
 export async function hsResolveTask(taskId: string): Promise<HsResolveReply> {

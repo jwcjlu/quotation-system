@@ -8,24 +8,17 @@ import (
 	"testing"
 	"time"
 
-	"caichip/internal/biz"
 	"caichip/internal/conf"
 
 	"gorm.io/gorm"
 )
 
-func TestDispatchTaskRepo_SubmitLeasedResultFailedSchedulesRetry(t *testing.T) {
+func TestDispatchTaskRepo_RequeueLeasedSchedulesRetry(t *testing.T) {
 	repo, db := newDispatchTaskRepoRetryTest(t)
 	taskID, leaseID := seedLeasedDispatchTaskRetryTest(t, db, "task-retry", 1, 3, []int{60, 300, 900})
 
 	before := time.Now()
-	if err := repo.SubmitLeasedResult(context.Background(), &biz.TaskResultIn{
-		TaskID:       taskID,
-		AgentID:      "agent-1",
-		LeaseID:      leaseID,
-		Status:       "failed",
-		ErrorMessage: "proxy rejected",
-	}); err != nil {
+	if err := repo.RequeueLeased(context.Background(), taskID, leaseID, 2, before.Add(60*time.Second), "proxy rejected"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -42,7 +35,7 @@ func TestDispatchTaskRepo_SubmitLeasedResultFailedSchedulesRetry(t *testing.T) {
 	if got.NextClaimAt == nil {
 		t.Fatal("expected next_claim_at to be set")
 	}
-	if delta := got.NextClaimAt.Sub(before); delta < 55*time.Second || delta > 65*time.Second {
+	if delta := got.NextClaimAt.Sub(before); delta < 59*time.Second || delta > 61*time.Second {
 		t.Fatalf("expected retry delay around 60s, got %v", delta)
 	}
 	if got.LeaseID.Valid || got.LeasedToAgentID.Valid || got.LeasedAt != nil || got.LeaseDeadlineAt != nil {
@@ -53,17 +46,11 @@ func TestDispatchTaskRepo_SubmitLeasedResultFailedSchedulesRetry(t *testing.T) {
 	}
 }
 
-func TestDispatchTaskRepo_SubmitLeasedResultFailedExhaustsToTerminal(t *testing.T) {
+func TestDispatchTaskRepo_FailLeasedTerminalClearsLease(t *testing.T) {
 	repo, db := newDispatchTaskRepoRetryTest(t)
 	taskID, leaseID := seedLeasedDispatchTaskRetryTest(t, db, "task-terminal", 4, 3, []int{60, 300, 900})
 
-	if err := repo.SubmitLeasedResult(context.Background(), &biz.TaskResultIn{
-		TaskID:       taskID,
-		AgentID:      "agent-1",
-		LeaseID:      leaseID,
-		Status:       "failed",
-		ErrorMessage: "captcha loop",
-	}); err != nil {
+	if err := repo.FailLeasedTerminal(context.Background(), taskID, leaseID, "failed_terminal", "captcha loop", time.Now()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -82,6 +69,9 @@ func TestDispatchTaskRepo_SubmitLeasedResultFailedExhaustsToTerminal(t *testing.
 	}
 	if got.NextClaimAt != nil {
 		t.Fatalf("did not expect next_claim_at for terminal task, got %+v", got.NextClaimAt)
+	}
+	if got.LeaseID.Valid || got.LeasedToAgentID.Valid || got.LeasedAt != nil || got.LeaseDeadlineAt != nil {
+		t.Fatalf("expected lease columns to be cleared, got %+v", got)
 	}
 }
 
@@ -120,29 +110,29 @@ func seedLeasedDispatchTaskRetryTest(t *testing.T, db *gorm.DB, taskID string, a
 		t.Fatalf("marshal backoff: %v", err)
 	}
 	row := map[string]interface{}{
-		"task_id":             taskID,
-		"queue":               "default",
-		"script_id":           "retry-demo",
-		"version":             "1.0.0",
-		"required_tags":       []byte("null"),
-		"entry_file":          nil,
-		"timeout_sec":         120,
-		"params_json":         []byte("null"),
-		"argv_json":           []byte("null"),
-		"attempt":             attempt,
-		"state":               "leased",
-		"lease_id":            leaseID,
-		"leased_to_agent_id":  "agent-1",
-		"leased_at":           now,
-		"lease_deadline_at":   now.Add(2 * time.Minute),
-		"next_claim_at":       nil,
-		"finished_at":         nil,
-		"result_status":       nil,
-		"last_error":          nil,
-		"retry_max":           retryMax,
-		"retry_backoff_json":  backoffJSON,
-		"created_at":          now,
-		"updated_at":          now,
+		"task_id":            taskID,
+		"queue":              "default",
+		"script_id":          "retry-demo",
+		"version":            "1.0.0",
+		"required_tags":      []byte("null"),
+		"entry_file":         nil,
+		"timeout_sec":        120,
+		"params_json":        []byte("null"),
+		"argv_json":          []byte("null"),
+		"attempt":            attempt,
+		"state":              "leased",
+		"lease_id":           leaseID,
+		"leased_to_agent_id": "agent-1",
+		"leased_at":          now,
+		"lease_deadline_at":  now.Add(2 * time.Minute),
+		"next_claim_at":      nil,
+		"finished_at":        nil,
+		"result_status":      nil,
+		"last_error":         nil,
+		"retry_max":          retryMax,
+		"retry_backoff_json": backoffJSON,
+		"created_at":         now,
+		"updated_at":         now,
 	}
 	if err := db.WithContext(context.Background()).Table(TableCaichipDispatchTask).Create(row).Error; err != nil {
 		t.Fatalf("seed task: %v", err)

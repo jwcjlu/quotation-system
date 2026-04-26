@@ -3,6 +3,7 @@ package biz
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"caichip/internal/conf"
@@ -34,6 +35,14 @@ func (s *dbTaskScheduler) EnqueueTask(t *QueuedTask) {
 	if t.Queue == "" {
 		t.Queue = "default"
 	}
+	policy := DispatchRetryPolicyFromBootstrap(s.bc)
+	if t.RetryMax == nil {
+		retryMax := policy.RetryMax
+		t.RetryMax = &retryMax
+	}
+	if len(t.RetryBackoffSec) == 0 {
+		t.RetryBackoffSec = append([]int(nil), policy.BackoffSec...)
+	}
 	_ = s.dispatch.EnqueuePending(context.Background(), t)
 }
 
@@ -42,7 +51,7 @@ func (s *dbTaskScheduler) PullTasksForAgent(agentID string, running []RunningTas
 	now := time.Now()
 	off := BootstrapAgentOfflineThreshold(s.bc)
 	offlineBefore := now.Add(-off)
-	_, _ = s.dispatch.ReclaimStaleLeases(ctx, now, offlineBefore)
+	s.reclaimStaleLeases(ctx, now, offlineBefore)
 
 	meta, err := s.registry.LoadSchedulingMeta(ctx, agentID)
 	if err != nil || meta == nil {
@@ -69,11 +78,18 @@ func (s *dbTaskScheduler) PullTasksForAgent(agentID string, running []RunningTas
 
 func (s *dbTaskScheduler) SubmitTaskResult(in *TaskResultIn) error {
 	ctx := context.Background()
-	err := s.dispatch.SubmitLeasedResult(ctx, in)
-	if errors.Is(err, ErrDispatchLeaseMismatch) {
-		return ErrLeaseReassigned
+	if strings.EqualFold(strings.TrimSpace(in.Status), "success") {
+		return s.mapLeaseErr(s.dispatch.FinishLeased(ctx, in.TaskID, in.LeaseID, in.Status))
 	}
-	return err
+	task, err := s.dispatch.LoadLeasedTask(ctx, in.TaskID, in.LeaseID)
+	if err != nil || task == nil {
+		return s.mapLeaseErr(err)
+	}
+	transition := DispatchFailureTransitionForTask(time.Now(), DispatchRetryPolicyFromBootstrap(s.bc), *task, DispatchFailureReasonFromResult(in))
+	if transition.RetryAt != nil {
+		return s.mapLeaseErr(s.dispatch.RequeueLeased(ctx, task.TaskID, task.LeaseID, transition.NextAttempt, *transition.RetryAt, transition.LastError))
+	}
+	return s.mapLeaseErr(s.dispatch.FailLeasedTerminal(ctx, task.TaskID, task.LeaseID, transition.ResultStatus, transition.LastError, transition.FinishedAt))
 }
 
 func (s *dbTaskScheduler) TouchTaskHeartbeat(agentID string) {
@@ -109,6 +125,29 @@ func (s *dbTaskScheduler) WaitForLongPoll(ctx context.Context, agentID string, r
 		case <-t.C:
 		}
 	}
+}
+
+func (s *dbTaskScheduler) reclaimStaleLeases(ctx context.Context, now, offlineBefore time.Time) {
+	stale, err := s.dispatch.ListStaleLeasedTasks(ctx, now, offlineBefore)
+	if err != nil {
+		return
+	}
+	base := DispatchRetryPolicyFromBootstrap(s.bc)
+	for _, task := range stale {
+		transition := DispatchFailureTransitionForTask(now, base, task.DispatchLeasedTask, task.FailureReason)
+		if transition.RetryAt != nil {
+			_ = s.mapLeaseErr(s.dispatch.RequeueLeased(ctx, task.TaskID, task.LeaseID, transition.NextAttempt, *transition.RetryAt, transition.LastError))
+			continue
+		}
+		_ = s.mapLeaseErr(s.dispatch.FailLeasedTerminal(ctx, task.TaskID, task.LeaseID, transition.ResultStatus, transition.LastError, transition.FinishedAt))
+	}
+}
+
+func (s *dbTaskScheduler) mapLeaseErr(err error) error {
+	if errors.Is(err, ErrDispatchLeaseMismatch) {
+		return ErrLeaseReassigned
+	}
+	return err
 }
 
 var _ TaskScheduler = (*dbTaskScheduler)(nil)

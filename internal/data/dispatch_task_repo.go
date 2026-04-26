@@ -20,10 +20,11 @@ import (
 var ErrDispatchTaskNoDB = errors.New("dispatch task repo: database not configured")
 
 const (
-	dispatchStatePending   = "pending"
-	dispatchStateLeased    = "leased"
-	dispatchStateFinished  = "finished"
-	dispatchStateCancelled = "cancelled"
+	dispatchStatePending        = "pending"
+	dispatchStateLeased         = "leased"
+	dispatchStateFinished       = "finished"
+	dispatchStateFailedTerminal = "failed_terminal"
+	dispatchStateCancelled      = "cancelled"
 )
 
 // DispatchTaskRepo 访问调度队列表 `caichip_dispatch_task`（MySQL 5.7+；SKIP LOCKED 需 8.0.1+/MariaDB 10.6+，否则自动降级）。
@@ -132,6 +133,19 @@ func caichipDispatchRowFromQueuedTask(t *biz.QueuedTask) (*CaichipDispatchTask, 
 		State:            dispatchStatePending,
 		RetryMax:         retryMax,
 		RetryBackoffJSON: retryBackoffJSON,
+	}
+	policy := biz.DispatchRetryPolicyFromBootstrap(nil)
+	if t.RetryMax != nil {
+		policy.RetryMax = *t.RetryMax
+	}
+	if xs := dispatchRetryBackoffForQueuedTask(t.RetryBackoffSec); len(xs) > 0 {
+		policy.BackoffSec = xs
+	}
+	row.RetryMax = policy.RetryMax
+	if b, err := json.Marshal(policy.BackoffSec); err == nil {
+		row.RetryBackoffJSON = b
+	} else {
+		return nil, err
 	}
 	if t.NextClaimAt != nil && !t.NextClaimAt.IsZero() {
 		ts := *t.NextClaimAt

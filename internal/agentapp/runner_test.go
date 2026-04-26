@@ -113,13 +113,13 @@ func TestRunTask_Skipped(t *testing.T) {
 		"proxy_user":     "d3340666324",
 		"proxy_password": "iba8egjn"}
 	data, _ := structpb.NewStruct(params)*/
-	file := "ickey_crawler.py"
+	file := "find_chips_crawler.py"
 	st, code, stdout, msg := RunTask("D:\\tmp", &v1.TaskObject{
 		TaskId:    "111111",
-		ScriptId:  "ickey",
+		ScriptId:  "find_chip",
 		Version:   "0.0.1",
 		EntryFile: &file,
-		Argv:      []string{"--model", "TS5A3159DCKR", "--parse-workers", "8"}, //"--user", "18025478083", "--password", "jw123456", "--no-headless",
+		Argv:      []string{"--model", "B6S", "--parse-workers", "8"}, //"--user", "18025478083", "--password", "jw123456", "--no-headless",
 
 		Params:         nil,
 		TimeoutSec:     180,

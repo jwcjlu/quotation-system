@@ -36,7 +36,21 @@ func ApplyBOMQuotesFromAgentStdout(ctx context.Context, repo BOMSearchTaskRepo, 
 	}
 	quoteRows, ok := ParseTaskStdoutQuoteRows(stdout)
 	if !ok {
-		return false, ErrBOMQuotesStdoutParseRejected
+		msg := "task stdout quotes parse rejected"
+		sessions := make(map[string]struct{})
+		for _, row := range rows {
+			err = repo.FinalizeSearchTask(ctx, row.SessionID, row.MpnNorm, row.PlatformID, row.BizDate, tid, "failed_terminal", &msg, "", nil, nil)
+			if err != nil {
+				return false, err
+			}
+			sessions[row.SessionID] = struct{}{}
+		}
+		if session != nil && session.DBOk() {
+			for sid := range sessions {
+				_ = TryMarkSessionDataReady(ctx, session, repo, sid)
+			}
+		}
+		return true, nil
 	}
 	quotes, err := json.Marshal(quoteRows)
 	if err != nil {

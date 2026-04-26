@@ -62,3 +62,17 @@ func sanitizeDispatchRetryBackoffSec(xs []int32) []int {
 	}
 	return out
 }
+
+func sanitizeDispatchRetryBackoffInts(xs []int) []int {
+	if len(xs) == 0 {
+		return nil
+	}
+	out := make([]int, 0, len(xs))
+	for _, x := range xs {
+		if x <= 0 {
+			return nil
+		}
+		out = append(out, x)
+	}
+	return out
+}

@@ -38,3 +38,18 @@ slider.png
 
 # Temporary Office files
 ~$*.xlsx
+
+# Local sample files
+Request to Tolen s.xlsx
+Request to Tolen.xlsx
+Tolen quote_req_1222.xlsx
+Tolen1226_req_221222_1.xls
+Tolen1226_req_221222_2.xls
+关税查询结果.xlsx
+电子元器件常见厂牌和缩写.xlsx
+docs/2022年版《进出口税则商品及品目注释》公众版+V2.4（20250107更新）.pdf
+
+# Local scratch files
+scripts/drission_page_test.py
+scripts/icgoo_tuned_env.cmd
+scripts/sclcsc.html

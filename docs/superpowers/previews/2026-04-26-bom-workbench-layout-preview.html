@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BOM 工作台布局预览</title>
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --panel: #ffffff;
+      --line: #d8e0ea;
+      --muted: #64748b;
+      --text: #0f172a;
+      --nav: #0f172a;
+      --blue: #2563eb;
+      --amber: #d97706;
+      --green: #059669;
+      --red: #dc2626;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .page { min-height: 100vh; background: var(--bg); }
+    .top {
+      background: var(--nav);
+      color: #fff;
+      padding: 18px 28px 16px;
+      border-bottom: 1px solid #111827;
+    }
+    .top-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 24px;
+      align-items: end;
+    }
+    .brand { color: #93c5fd; font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+    h1 { margin: 4px 0 8px; font-size: 26px; letter-spacing: 0; }
+    .sub { margin: 0; color: #cbd5e1; font-size: 13px; line-height: 1.6; }
+    .nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .nav span {
+      border-radius: 7px;
+      padding: 8px 12px;
+      background: #1e293b;
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .nav .active { background: #fff; color: #0f172a; box-shadow: 0 1px 4px rgba(0,0,0,.14); }
+    .auth-card {
+      border: 1px solid rgba(148, 163, 184, .35);
+      background: rgba(15, 23, 42, .4);
+      border-radius: 10px;
+      padding: 14px;
+      color: #e2e8f0;
+      font-size: 13px;
+    }
+    .auth-card strong { display: block; margin-bottom: 6px; }
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 22px 28px 36px; }
+    .review-note {
+      margin-bottom: 14px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      color: #1e3a8a;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .workbench {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      min-height: 760px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 14px 40px rgba(15, 23, 42, .08);
+    }
+    .sidebar {
+      background: #fff;
+      border-right: 1px solid var(--line);
+      padding: 18px;
+      min-width: 0;
+    }
+    .side-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+    .side-head h2 { margin: 0; font-size: 18px; letter-spacing: 0; }
+    .btn {
+      border: 0;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #fff;
+      padding: 8px 11px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .filters {
+      margin: 16px 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+    .field {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 8px 9px;
+      min-height: 38px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .field.wide { grid-column: 1 / -1; }
+    .session-list { display: grid; gap: 10px; }
+    .session-card {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .session-card.active {
+      border-color: #93c5fd;
+      background: #eff6ff;
+      box-shadow: inset 3px 0 0 var(--blue);
+    }
+    .session-title { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+    .session-title strong { font-size: 14px; line-height: 1.3; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge.blue { background: #dbeafe; color: #1d4ed8; }
+    .badge.green { background: #dcfce7; color: #047857; }
+    .badge.amber { background: #fef3c7; color: #b45309; }
+    .badge.red { background: #fee2e2; color: #b91c1c; }
+    .small { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .workspace { min-width: 0; padding: 18px; display: grid; gap: 14px; align-content: start; }
+    .workspace-head {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .head-line { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+    .workspace-head h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: 0; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
+    .head-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .secondary {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #334155;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .primary {
+      border: 0;
+      background: var(--blue);
+      color: #fff;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .disabled {
+      border: 1px solid #cbd5e1;
+      background: #e2e8f0;
+      color: #64748b;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .timeline {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .step {
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      border-radius: 9px;
+      padding: 10px;
+      font-size: 12px;
+      min-height: 68px;
+    }
+    .step strong { display: block; margin-bottom: 4px; font-size: 13px; }
+    .step.done { border-color: #bbf7d0; background: #f0fdf4; }
+    .step.warn { border-color: #fde68a; background: #fffbeb; }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 3px 0;
+    }
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #334155;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .tab.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+    .tab.disabled { background: #e2e8f0; color: #64748b; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .metric {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .metric .label { color: var(--muted); font-size: 12px; }
+    .metric .value { margin-top: 6px; font-size: 26px; font-weight: 800; letter-spacing: 0; }
+    .two-col { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 14px; }
+    .panel {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    .panel-head h3 { margin: 0; font-size: 15px; letter-spacing: 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 10px 11px; border-bottom: 1px solid #eef2f7; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; color: #475569; font-size: 11px; white-space: nowrap; }
+    td { color: #1e293b; }
+    .status-line {
+      border: 1px solid #fde68a;
+      background: #fffbeb;
+      color: #92400e;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .sub-switch {
+      display: flex;
+      gap: 8px;
+      padding: 12px 14px 0;
+      flex-wrap: wrap;
+    }
+    .sub-switch span {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      background: #fff;
+    }
+    .sub-switch .active {
+      border-color: #0f172a;
+      background: #0f172a;
+      color: #fff;
+    }
+    .audit-box {
+      margin: 12px 14px 14px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .audit-box h4 {
+      margin: 0 0 9px;
+      font-size: 13px;
+    }
+    .audit-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 140px 140px auto;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .audit-cell {
+      border: 1px solid #dbeafe;
+      background: #fff;
+      border-radius: 7px;
+      padding: 8px;
+      min-height: 34px;
+    }
+    .rail { display: grid; gap: 10px; }
+    .rail-card {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .rail-card h4 { margin: 0 0 8px; font-size: 13px; }
+    .bar {
+      height: 8px;
+      border-radius: 99px;
+      background: #e2e8f0;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .bar span { display: block; height: 100%; background: var(--green); }
+    .mobile-preview {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: 390px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .phone {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: #111827;
+      padding: 12px;
+      box-shadow: 0 16px 40px rgba(15,23,42,.16);
+    }
+    .phone-screen {
+      background: #f8fafc;
+      border-radius: 16px;
+      overflow: hidden;
+      min-height: 640px;
+    }
+    .phone-top { padding: 14px; background: #0f172a; color: #fff; }
+    .phone-body { padding: 12px; display: grid; gap: 10px; }
+    .phone-card {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .review-side {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 16px;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+    .review-side h3 { margin-top: 0; }
+    @media (max-width: 1100px) {
+      .top-inner, .workbench, .mobile-preview { grid-template-columns: 1fr; }
+      .sidebar { border-right: 0; border-bottom: 1px solid var(--line); }
+      .two-col, .grid4, .timeline { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      body { min-width: 0; }
+      .top, .wrap { padding-left: 14px; padding-right: 14px; }
+      .two-col, .grid4, .timeline { grid-template-columns: 1fr; }
+      .head-line { display: grid; }
+      .head-actions { justify-content: start; }
+      .mobile-preview { display: block; }
+      .phone { width: 100%; margin-bottom: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <div class="top-inner">
+        <div>
+          <div class="brand">CAICHIP</div>
+          <h1>BOM 配单系统</h1>
+          <p class="sub">评审预览：把原来的 BOM 会话和匹配单两个入口合并为一个 BOM 工作台。</p>
+          <nav class="nav" aria-label="一级导航预览">
+            <span class="active">BOM工作台</span>
+            <span>HS型号解析</span>
+            <span>Agent运维</span>
+            <span>使用指南</span>
+          </nav>
+        </div>
+        <div class="auth-card">
+          <strong>当前用户</strong>
+          <span class="badge green">Admin</span>
+          <p class="sub" style="margin-top: 8px;">权限逻辑保持原样，匹配单能力合并到工作台内部。</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <div class="review-note">
+        使用 session <span class="mono">d68dcedd-f3bc-4075-b349-7803f8340389</span> 的本地接口数据制作：导入完成，当前会话状态为 <strong>searching</strong>；48 行 BOM、192 个搜索任务、190 成功、2 搜索中；匹配单因可用性缺口暂不可进入。
+      </div>
+
+      <section class="workbench" aria-label="BOM 工作台桌面预览">
+        <aside class="sidebar">
+          <div class="side-head">
+            <div>
+              <h2>BOM 会话</h2>
+              <div class="small">列表不再打开详情弹窗，而是在右侧加载工作区。</div>
+            </div>
+            <button class="btn">新建 BOM</button>
+          </div>
+          <div class="filters">
+            <div class="field">状态：全部</div>
+            <div class="field">业务日：2026-04-21</div>
+            <div class="field wide">搜索：标题 / 客户 / 型号</div>
+          </div>
+          <div class="session-list">
+            <article class="session-card active">
+              <div class="session-title">
+                <strong>沙特阿拉伯大单</strong>
+                <span class="badge amber">searching</span>
+              </div>
+              <div class="small mono">d68dcedd-f3bc-4075-b349-7803f8340389</div>
+              <div class="small">48 行 · 4 个平台 · 搜索中 2 · 2026-04-21</div>
+            </article>
+            <article class="session-card">
+              <div class="session-title">
+                <strong>样例：欧洲工业板卡</strong>
+                <span class="badge green">data_ready</span>
+              </div>
+              <div class="small">32 行 · 已可配单 · 最近更新 09:42</div>
+            </article>
+            <article class="session-card">
+              <div class="session-title">
+                <strong>样例：汽车电源模块</strong>
+                <span class="badge blue">parsing</span>
+              </div>
+              <div class="small">导入中 · 解析 65% · 等待完成</div>
+            </article>
+            <article class="session-card">
+              <div class="session-title">
+                <strong>样例：消费电子补单</strong>
+                <span class="badge red">needs_fix</span>
+              </div>
+              <div class="small">缺口 6 · 可重试 3 · 需要处理</div>
+            </article>
+          </div>
+        </aside>
+
+        <section class="workspace">
+          <div class="workspace-head">
+            <div class="head-line">
+              <div>
+                <h2>沙特阿拉伯大单</h2>
+                <div class="small">
+                  <span class="mono">d68dcedd-f3bc-4075-b349-7803f8340389</span>
+                  · 业务日 2026-04-21 · selection revision 3
+                </div>
+              </div>
+              <div class="head-actions">
+                <button class="secondary">刷新</button>
+                <button class="secondary">导出 Excel</button>
+                <button class="disabled">匹配单未就绪</button>
+              </div>
+            </div>
+            <div class="timeline">
+              <div class="step done">
+                <strong>1. 导入完成</strong>
+                ready · 100% · import completed
+              </div>
+              <div class="step warn">
+                <strong>2. 搜索进行中</strong>
+                192 个任务，2 个仍在 searching
+              </div>
+              <div class="step warn">
+                <strong>3. 可用性待修复</strong>
+                多数行无可用报价，需看 BOM 行/搜索与清洗
+              </div>
+              <div class="step">
+                <strong>4. 匹配单</strong>
+                data_ready 后在同页进入
+              </div>
+            </div>
+          </div>
+
+          <div class="tabs">
+            <span class="tab">总览</span>
+            <span class="tab">BOM行 48</span>
+            <span class="tab active">搜索与清洗 2</span>
+            <span class="tab">缺口方案</span>
+            <span class="tab disabled">匹配单</span>
+            <span class="tab">维护信息</span>
+          </div>
+
+          <div class="grid4">
+            <div class="metric">
+              <div class="label">BOM 行</div>
+              <div class="value">48</div>
+            </div>
+            <div class="metric">
+              <div class="label">搜索与清洗</div>
+              <div class="value">192</div>
+            </div>
+            <div class="metric">
+              <div class="label">搜索中</div>
+              <div class="value" style="color: var(--amber);">2</div>
+            </div>
+            <div class="metric">
+              <div class="label">保存方案</div>
+              <div class="value">0</div>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>搜索与清洗 · 当前推荐处理区</h3>
+                <span class="badge amber">2 个仍在搜索中</span>
+              </div>
+              <div class="sub-switch">
+                <span class="active">任务状态</span>
+                <span>厂牌别名审核</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>行号</th>
+                    <th>MPN</th>
+                    <th>平台</th>
+                    <th>UI 状态</th>
+                    <th>重试</th>
+                    <th>更新时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>5</td>
+                    <td class="mono">VDRS10P300BSE</td>
+                    <td>hqchip</td>
+                    <td><span class="badge amber">searching</span></td>
+                    <td>暂不可重试</td>
+                    <td>2026-04-21 14:15</td>
+                  </tr>
+                  <tr>
+                    <td>5</td>
+                    <td class="mono">VDRS10P300BSE</td>
+                    <td>其他平台</td>
+                    <td><span class="badge green">succeeded</span></td>
+                    <td>无需重试</td>
+                    <td>2026-04-21 14:49 / 21:08</td>
+                  </tr>
+                  <tr>
+                    <td>2</td>
+                    <td class="mono">VCR3220SL471KC</td>
+                    <td>find_chips / hqchip / ickey / szlcsc</td>
+                    <td><span class="badge green">succeeded</span></td>
+                    <td>无需重试</td>
+                    <td>2026-04-21</td>
+                  </tr>
+                  <tr>
+                    <td>3</td>
+                    <td class="mono">VCR3220SL680KC</td>
+                    <td>find_chips / hqchip / ickey / szlcsc</td>
+                    <td><span class="badge green">succeeded</span></td>
+                    <td>无需重试</td>
+                    <td>2026-04-21</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="audit-box">
+                <h4>厂牌别名审核 · 搜索结果进入匹配前的清洗步骤</h4>
+                <div class="audit-grid">
+                  <div class="audit-cell">
+                    <strong>Diode Solutions</strong><br>
+                    <span class="small">关联行：6、19、20 · 需求厂牌提示：Diodes / ST</span>
+                  </div>
+                  <div class="audit-cell mono">MFR_DIODES</div>
+                  <div class="audit-cell">Diodes Inc.</div>
+                  <button class="primary">审核通过</button>
+                  <div class="audit-cell">
+                    <strong>WUE</strong><br>
+                    <span class="small">关联行：27、28、29、37、38、39</span>
+                  </div>
+                  <div class="audit-cell mono">MFR_WURTH</div>
+                  <div class="audit-cell">Wurth Elektronik</div>
+                  <button class="secondary">待确认</button>
+                </div>
+              </div>
+            </section>
+
+            <aside class="rail">
+              <div class="status-line">
+                <strong>匹配单入口状态</strong><br>
+                当前调用匹配结果接口返回 <span class="mono">BOM_LINE_AVAILABILITY_GAP</span>，所以工作台内的“匹配单”tab 置灰，并引导用户先处理搜索、清洗和可用性问题。
+              </div>
+              <div class="rail-card">
+                <h4>搜索覆盖</h4>
+                <div class="small">expected 192 / existing 192 / missing 0</div>
+                <div class="bar"><span style="width:100%"></span></div>
+              </div>
+              <div class="rail-card">
+                <h4>平台范围</h4>
+                <div class="small">find_chips · hqchip · ickey · szlcsc</div>
+              </div>
+              <div class="rail-card">
+                <h4>导入状态</h4>
+                <div class="small">ready · done · 2026-04-21 13:55</div>
+              </div>
+            </aside>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h3>BOM 行预览 · 异常优先</h3>
+              <span class="badge amber">raw quote exists but no usable quote remains</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>行号</th>
+                  <th>MPN</th>
+                  <th>厂牌</th>
+                  <th>封装</th>
+                  <th>数量</th>
+                  <th>可用性</th>
+                  <th>报价平台</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2</td>
+                  <td class="mono">VCR3220SL471KC</td>
+                  <td>Hitano</td>
+                  <td>SMT 8.1x5.3x3.2</td>
+                  <td>6,585</td>
+                  <td><span class="badge amber">no_match_after_filter</span></td>
+                  <td>raw 4 / usable 0</td>
+                </tr>
+                <tr>
+                  <td>3</td>
+                  <td class="mono">VCR3220SL680KC</td>
+                  <td>Hitano</td>
+                  <td>SMT 8.1x5.3x3.2</td>
+                  <td>390</td>
+                  <td><span class="badge amber">no_match_after_filter</span></td>
+                  <td>raw 4 / usable 0</td>
+                </tr>
+                <tr>
+                  <td>4</td>
+                  <td class="mono">VDRS05C275BSE</td>
+                  <td>Vishay BCcomponents</td>
+                  <td>THT 7x11x4.9</td>
+                  <td>110</td>
+                  <td><span class="badge amber">no_match_after_filter</span></td>
+                  <td>raw 4 / usable 0</td>
+                </tr>
+                <tr>
+                  <td>5</td>
+                  <td class="mono">VDRS10P300BSE</td>
+                  <td>Vishay BCcomponents</td>
+                  <td>THT 12x16.5x5.9</td>
+                  <td>600</td>
+                  <td><span class="badge blue">collecting</span></td>
+                  <td>raw 3 / usable 0</td>
+                </tr>
+                <tr>
+                  <td>48</td>
+                  <td class="mono">CC0603KRX7R9BB104</td>
+                  <td>Yageo</td>
+                  <td>SMT 0603</td>
+                  <td>104,896</td>
+                  <td><span class="badge amber">no_match_after_filter</span></td>
+                  <td>raw 4 / usable 0</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </section>
+      </section>
+
+      <section class="mobile-preview" aria-label="移动端预览">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-top">
+              <strong>BOM 工作台</strong>
+              <div class="small" style="color:#cbd5e1;">移动端：先列表，后详情</div>
+            </div>
+            <div class="phone-body">
+              <div class="phone-card">
+                <div class="session-title">
+                  <strong>沙特阿拉伯大单</strong>
+                  <span class="badge amber">searching</span>
+                </div>
+                <div class="small">48 行 · 搜索中 2 · 点击进入工作区</div>
+              </div>
+              <div class="phone-card">
+                <button class="secondary" style="width:100%; margin-bottom:10px;">返回会话列表</button>
+                <strong>搜索与清洗</strong>
+                <div class="tabs" style="margin:10px 0;">
+                  <span class="tab active">搜索</span>
+                  <span class="tab">别名审核</span>
+                  <span class="tab">BOM行</span>
+                  <span class="tab disabled">匹配单</span>
+                </div>
+                <div class="status-line">匹配单未就绪：还有 2 个搜索任务进行中；厂牌别名审核放在清洗阶段处理。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="review-side">
+          <h3>评审时重点看</h3>
+          <p>1. 顶部不再有单独“匹配单”一级入口，业务入口收敛为“BOM工作台”。</p>
+          <p>2. 左侧切会话，右侧处理当前会话，消除原来的详情弹窗和跨页跳转。</p>
+          <p>3. 系统根据当前 session 数据推荐停留在“搜索与清洗”tab；搜索任务和厂牌别名审核都在匹配前处理。</p>
+          <p>4. 移动端使用列表/详情两段式，不强行压成双栏。</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

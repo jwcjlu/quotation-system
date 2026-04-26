@@ -1,19 +1,30 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
+	"testing"
 	"time"
 
 	"caichip/internal/biz"
 	"caichip/internal/data"
+	"github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
 )
 
 type bomSessionRepoStub struct {
-	mu        sync.Mutex
-	view      *biz.BOMSessionView
-	fullLines []data.BomSessionLine
+	mu                sync.Mutex
+	sessionExists     bool
+	importInProgress  bool
+	view              *biz.BOMSessionView
+	fullLines         []data.BomSessionLine
+	patches           []biz.BOMImportStatePatch
+	replaced          bool
+	replacedLineNos   []int
+	tryStartCalls     int
+	tryStartSuccesses int
 }
 
 func (s *bomSessionRepoStub) DBOk() bool { return true }
@@ -26,6 +37,10 @@ func (s *bomSessionRepoStub) GetSession(ctx context.Context, sessionID string) (
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	exists := s.sessionExists || s.view != nil || len(s.fullLines) > 0
+	if !exists {
+		return nil, gorm.ErrRecordNotFound
+	}
 	return cloneBOMSessionView(s.view), nil
 }
 
@@ -42,6 +57,24 @@ func (s *bomSessionRepoStub) ListSessions(ctx context.Context, page, pageSize in
 }
 
 func (s *bomSessionRepoStub) ReplaceSessionLines(ctx context.Context, sessionID string, lines []biz.BomImportLine, parseMode *string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.replaced = true
+	s.replacedLineNos = s.replacedLineNos[:0]
+	s.fullLines = s.fullLines[:0]
+	for idx, line := range lines {
+		lineNo := line.LineNo
+		if lineNo <= 0 {
+			lineNo = idx + 1
+		}
+		s.replacedLineNos = append(s.replacedLineNos, lineNo)
+		s.fullLines = append(s.fullLines, data.BomSessionLine{
+			ID:     int64(idx + 1),
+			LineNo: lineNo,
+			Mpn:    line.Mpn,
+		})
+	}
 	return 0, nil
 }
 
@@ -83,12 +116,67 @@ func (s *bomSessionRepoStub) UpdateSessionLine(ctx context.Context, sessionID st
 	return 0, nil
 }
 
+func (s *bomSessionRepoStub) TryStartImport(ctx context.Context, sessionID, startedMessage string) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.tryStartCalls++
+	exists := s.sessionExists || s.view != nil || len(s.fullLines) > 0
+	if !exists {
+		return false, gorm.ErrRecordNotFound
+	}
+	if s.view == nil {
+		s.view = &biz.BOMSessionView{SessionID: sessionID}
+	}
+	if s.importInProgress || s.view.ImportStatus == biz.BOMImportStatusParsing {
+		return false, nil
+	}
+	s.importInProgress = true
+	s.view.ImportStatus = biz.BOMImportStatusParsing
+	s.view.ImportProgress = 0
+	s.view.ImportStage = biz.BOMImportStageValidating
+	s.view.ImportMessage = startedMessage
+	now := time.Now()
+	s.view.ImportUpdatedAt = &now
+	s.tryStartSuccesses++
+	return true, nil
+}
+
+func (s *bomSessionRepoStub) UpdateImportState(ctx context.Context, sessionID string, patch biz.BOMImportStatePatch) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.patches = append(s.patches, patch)
+	if s.view == nil {
+		s.view = &biz.BOMSessionView{SessionID: sessionID}
+	}
+	s.view.ImportStatus = patch.Status
+	s.view.ImportProgress = patch.Progress
+	s.view.ImportStage = patch.Stage
+	if patch.Message != nil {
+		s.view.ImportMessage = *patch.Message
+	}
+	if patch.ErrorCode != nil {
+		s.view.ImportErrorCode = *patch.ErrorCode
+	}
+	if patch.Error != nil {
+		s.view.ImportError = *patch.Error
+	}
+	now := time.Now()
+	s.view.ImportUpdatedAt = &now
+	if patch.Status == biz.BOMImportStatusIdle {
+		s.importInProgress = false
+	}
+	return nil
+}
+
 type bomSearchTaskRepoStub struct {
 	mu             sync.Mutex
 	tasks          []biz.TaskReadinessSnapshot
 	cacheMap       map[string]*biz.QuoteCacheSnapshot
 	manualQuoteGap uint64
 	pendingPairs   []biz.MpnPlatformPair
+	upsertTasks    bool
 }
 
 func (s *bomSearchTaskRepoStub) DBOk() bool { return true }
@@ -136,6 +224,7 @@ func (s *bomSearchTaskRepoStub) UpsertPendingTasks(ctx context.Context, sessionI
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.upsertTasks = true
 	s.pendingPairs = append(s.pendingPairs, pairs...)
 	return nil
 }
@@ -322,4 +411,39 @@ func cloneTimePtr(in *time.Time) *time.Time {
 	}
 	out := *in
 	return &out
+}
+
+func makeSimpleBOMExcel(t *testing.T) []byte {
+	t.Helper()
+	return makeBOMExcelWithRows(t, 1)
+}
+
+func makeBOMExcelWithRows(t *testing.T, rowCount int) []byte {
+	t.Helper()
+
+	f := excelize.NewFile()
+	sheet := f.GetSheetName(0)
+	if err := f.SetSheetRow(sheet, "A1", &[]any{"Model", "Manufacturer", "Package", "Quantity"}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < rowCount; i++ {
+		cell, err := excelize.CoordinatesToCellName(1, i+2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		row := []any{
+			"PART-" + time.Now().Format("150405") + "-" + string(rune('A'+(i%26))),
+			"",
+			"",
+			1,
+		}
+		if err := f.SetSheetRow(sheet, cell, &row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
 }

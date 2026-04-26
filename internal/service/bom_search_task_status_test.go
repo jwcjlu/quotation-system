@@ -130,6 +130,14 @@ func (r *searchTaskStatusSessionRepoStub) UpdateSessionLine(context.Context, str
 	return 0, nil
 }
 
+func (r *searchTaskStatusSessionRepoStub) TryStartImport(context.Context, string, string) (bool, error) {
+	return false, nil
+}
+
+func (r *searchTaskStatusSessionRepoStub) UpdateImportState(context.Context, string, biz.BOMImportStatePatch) error {
+	return nil
+}
+
 type searchTaskStatusRepoStub struct {
 	mu          sync.Mutex
 	statusRows  []biz.SearchTaskStatusRow

@@ -14,8 +14,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-const dispatchStateFailedTerminal = "failed_terminal"
-
 func (r *DispatchTaskRepo) SubmitLeasedResult(ctx context.Context, in *biz.TaskResultIn) error {
 	if in == nil {
 		return errors.New("dispatch submit result: nil input")

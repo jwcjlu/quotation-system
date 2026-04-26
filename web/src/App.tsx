@@ -1,26 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getMe, type AuthUser } from './api/auth'
-import { getSession } from './api/bomSession'
 import { hasSessionToken, subscribeSessionChange } from './auth/session'
 import { AuthPanel } from './components/AuthPanel'
-import { MatchResultPage } from './pages/MatchResultPage'
-import { BomSessionListPage } from './pages/BomSessionListPage'
+import { BomWorkbenchPage } from './pages/BomWorkbenchPage'
 import { AgentScriptsPage } from './pages/AgentScriptsPage'
 import { AgentAdminPage } from './pages/AgentAdminPage'
 import { HsResolvePage, type HsResolvePrefill } from './pages/HsResolvePage'
 import { HsMetaAdminPage } from './pages/HsMetaAdminPage'
 import { GuidePage } from './pages/GuidePage'
 
-const LAST_BOM_KEY = 'bom_last_bom_id'
-const SESSION_MATCH_READY = 'data_ready'
-
-type Page = 'guide' | 'bom-list' | 'result' | 'agent-scripts' | 'agent-admin' | 'hs-resolve' | 'hs-meta'
+type Page = 'guide' | 'bom-workbench' | 'agent-scripts' | 'agent-admin' | 'hs-resolve' | 'hs-meta'
 type RoleKey = 'anonymous' | 'user' | 'admin'
 
 const PAGE_LABELS: Record<Page, string> = {
   guide: '\u4f7f\u7528\u6307\u5357',
-  'bom-list': 'BOM\u4f1a\u8bdd',
-  result: '\u5339\u914d\u5355',
+  'bom-workbench': 'BOM\u5de5\u4f5c\u53f0',
   'agent-scripts': '\u811a\u672c\u5305',
   'agent-admin': 'Agent\u8fd0\u7ef4',
   'hs-resolve': 'HS\u578b\u53f7\u89e3\u6790',
@@ -28,9 +22,9 @@ const PAGE_LABELS: Record<Page, string> = {
 }
 
 const ALLOWED_PAGES: Record<RoleKey, Page[]> = {
-  anonymous: ['bom-list', 'guide'],
-  user: ['bom-list', 'result', 'hs-resolve', 'guide'],
-  admin: ['bom-list', 'result', 'agent-scripts', 'agent-admin', 'hs-resolve', 'hs-meta', 'guide'],
+  anonymous: ['bom-workbench', 'guide'],
+  user: ['bom-workbench', 'hs-resolve', 'guide'],
+  admin: ['bom-workbench', 'agent-scripts', 'agent-admin', 'hs-resolve', 'hs-meta', 'guide'],
 }
 
 function roleKey(user: AuthUser | null): RoleKey {
@@ -47,13 +41,10 @@ function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null)
   const [authReady, setAuthReady] = useState(false)
   const [authMessage, setAuthMessage] = useState<string | null>(null)
-  const [bomId, setBomId] = useState<string | null>(() => localStorage.getItem(LAST_BOM_KEY))
-  const [matchNavHint, setMatchNavHint] = useState<string | null>(null)
   const [hsPrefill, setHsPrefill] = useState<HsResolvePrefill | null>(null)
   const hsPrefillKeySeq = useRef(0)
 
   const allowedPages = useMemo(() => ALLOWED_PAGES[roleKey(currentUser)], [currentUser])
-  const effectiveBomId = bomId || localStorage.getItem(LAST_BOM_KEY)
 
   const refreshCurrentUser = useCallback(async () => {
     if (!hasSessionToken()) {
@@ -104,53 +95,24 @@ function App() {
     }
   }, [allowedPages, currentUser, page])
 
-  const openMatchPage = useCallback(async () => {
-    const id = bomId || localStorage.getItem(LAST_BOM_KEY)
-    setMatchNavHint(null)
-    if (!id) return
-
-    try {
-      const session = await getSession(id)
-      const status = (session.status || '').trim()
-      if (status !== SESSION_MATCH_READY) {
-        setMatchNavHint(`session status ${status || 'unknown'} is not ${SESSION_MATCH_READY}`)
-        return
-      }
-      setBomId(id)
-      localStorage.setItem(LAST_BOM_KEY, id)
-      if (allowedPages.includes('result')) {
-        setPage('result')
-      }
-    } catch (error) {
-      setMatchNavHint(error instanceof Error ? error.message : 'failed to validate session')
-    }
-  }, [allowedPages, bomId])
-
   const renderNavButton = (target: Page) => {
     if (!allowedPages.includes(target)) return null
-    const disabled = target === 'result' && !effectiveBomId
 
     return (
       <button
         key={target}
         type="button"
         onClick={() => {
-          if (target === 'result') {
-            void openMatchPage()
-            return
-          }
           if (target === 'hs-resolve') {
             setHsPrefill(null)
           }
-          setMatchNavHint(null)
           setPage(target)
         }}
         className={`rounded-md px-3 py-2 text-sm font-medium transition ${
           page === target
             ? 'bg-white text-slate-950 shadow-sm'
             : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-        } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-        disabled={disabled}
+        }`}
       >
         {PAGE_LABELS[target]}
       </button>
@@ -206,30 +168,10 @@ function App() {
         </div>
       )}
 
-      {matchNavHint && (
-        <div className="mx-auto mt-4 flex max-w-7xl items-start justify-between gap-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-sm">
-          <span>{matchNavHint}</span>
-          <button type="button" className="shrink-0 text-amber-900 underline" onClick={() => setMatchNavHint(null)}>
-            {'\u5173\u95ed'}
-          </button>
-        </div>
-      )}
-
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
         {page === 'guide' && <GuidePage />}
-        {page === 'bom-list' && (
-          <BomSessionListPage
-            onEnterMatch={(sid) => {
-              setBomId(sid)
-              localStorage.setItem(LAST_BOM_KEY, sid)
-              setMatchNavHint(null)
-              setPage('result')
-            }}
-          />
-        )}
-        {page === 'result' && effectiveBomId && (
-          <MatchResultPage
-            bomId={effectiveBomId}
+        {page === 'bom-workbench' && (
+          <BomWorkbenchPage
             onNavigateToHsResolve={(model, manufacturer) => {
               hsPrefillKeySeq.current += 1
               setHsPrefill({ key: hsPrefillKeySeq.current, model, manufacturer })

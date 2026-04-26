@@ -27,6 +27,10 @@ vi.mock('./pages/BomSessionListPage', () => ({
   BomSessionListPage: () => <div>bom session page</div>,
 }))
 
+vi.mock('./pages/BomWorkbenchPage', () => ({
+  BomWorkbenchPage: () => <div>bom workbench page</div>,
+}))
+
 vi.mock('./pages/MatchResultPage', () => ({
   MatchResultPage: () => <div>match result page</div>,
 }))
@@ -56,14 +60,14 @@ describe('App navigation auth gating', () => {
     subscribeSessionChange.mockReturnValue(vi.fn())
   })
 
-  it('shows bom list as the default entry for anonymous users', async () => {
+  it('shows bom workbench as the default entry for anonymous users', async () => {
     getMe.mockRejectedValue(new Error('unauthorized'))
 
     const { default: App } = await import('./App')
     render(<App />)
 
-    expect(screen.getByText('bom session page')).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: 'BOM\u4f1a\u8bdd' })).toBeInTheDocument()
+    expect(screen.getByText('bom workbench page')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'BOM\u5de5\u4f5c\u53f0' })).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: '\u4f7f\u7528\u6307\u5357' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '\u5339\u914d\u5355' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'HS\u578b\u53f7\u89e3\u6790' })).not.toBeInTheDocument()
@@ -85,8 +89,8 @@ describe('App navigation auth gating', () => {
     const { default: App } = await import('./App')
     render(<App />)
 
-    expect(await screen.findByRole('button', { name: 'BOM\u4f1a\u8bdd' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '\u5339\u914d\u5355' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'BOM\u5de5\u4f5c\u53f0' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '\u5339\u914d\u5355' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'HS\u578b\u53f7\u89e3\u6790' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '\u4f7f\u7528\u6307\u5357' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '\u811a\u672c\u5305' })).not.toBeInTheDocument()
@@ -107,8 +111,8 @@ describe('App navigation auth gating', () => {
     const { default: App } = await import('./App')
     render(<App />)
 
-    expect(await screen.findByRole('button', { name: 'BOM\u4f1a\u8bdd' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '\u5339\u914d\u5355' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'BOM\u5de5\u4f5c\u53f0' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '\u5339\u914d\u5355' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'HS\u578b\u53f7\u89e3\u6790' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '\u811a\u672c\u5305' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Agent\u8fd0\u7ef4' })).toBeInTheDocument()

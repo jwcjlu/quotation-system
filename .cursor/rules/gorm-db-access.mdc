@@ -1,0 +1,13 @@
+---
+description: 数据库访问统一使用 GORM
+alwaysApply: true
+---
+
+# 数据库访问规范（GORM）
+
+- 所有数据库读写操作必须通过 GORM 完成。
+- 禁止在业务代码中拼接 SQL 字符串执行查询或更新。
+- 仅以下场景允许使用 SQL 文件或原生 SQL：
+  - schema migration（`docs/schema/migrations/`）
+  - 必要的只读运维/排障脚本
+- 如确需原生 SQL，必须参数化并在代码审查中说明原因。

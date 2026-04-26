@@ -11,3 +11,30 @@ debug_page.html
 findchips_page_*.html
 findchips_20*.html
 findchips_products.validate.json
+
+# Local editor and agent state
+.gocache/
+.learnings/
+.superpowers/
+.vscode/
+
+# Python caches
+__pycache__/
+
+# Local build outputs
+cmd/agent/*.exe
+server.exe
+
+# Local secrets
+pkg/kuaidaili/.secret
+
+# Debug snapshots and logs
+scripts/icgoo_captcha_snapshots/
+scripts/*.log
+layout-*.png
+output_gap_marked.png
+slide_result.jpg
+slider.png
+
+# Temporary Office files
+~$*.xlsx

@@ -1,0 +1,10 @@
+---
+description: ICGOO 验证码快照与离线评估时，detect 与 PNG 必须同轮对齐。
+alwaysApply: false
+---
+
+# 滑块快照与 eval 对齐
+
+- 多轮验证码会**覆盖** `00_background.png` / `00_slider.png`；`00_detect.txt` 只对应**第 1 轮**。
+- 用 `scripts/eval_icgoo_captcha_snapshots.py` 做命中率时，勿把「最后一轮图」与 `00_detect` 比；应使用每轮副本 `round_NN_background.png`（爬虫已按轮复制）+ `round_NN_detect.txt`，或仅**单轮**会话下的 `00_*` + `00_detect`。
+- 参考 x：优先 `raw_x_detected`；否则 `raw_x_px - gap_offset_image_px`（与 `detect_gap_position` 输出同语义）。

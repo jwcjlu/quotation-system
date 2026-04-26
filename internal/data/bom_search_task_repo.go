@@ -662,12 +662,20 @@ func (r *BOMSearchTaskRepo) LoadQuoteCachesForKeys(ctx context.Context, bizDate 
 	if err := q.Find(&rows).Error; err != nil {
 		return nil, err
 	}
+	cacheIDs := make([]uint64, 0, len(rows))
+	for i := range rows {
+		cacheIDs = append(cacheIDs, rows[i].ID)
+	}
+	quotesByCacheID, err := r.loadQuoteRowsJSONByCacheIDs(ctx, cacheIDs)
+	if err != nil {
+		return nil, err
+	}
 	for i := range rows {
 		row := &rows[i]
 		key := row.MpnNorm + "\x00" + row.PlatformID
-		qj, err := r.loadQuoteRowsJSONByCacheID(ctx, row.ID)
-		if err != nil {
-			return nil, err
+		qj, ok := quotesByCacheID[row.ID]
+		if !ok {
+			qj = []byte("[]")
 		}
 		nd := row.NoMpnDetail
 		out[key] = &biz.QuoteCacheSnapshot{

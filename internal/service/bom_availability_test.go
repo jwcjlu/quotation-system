@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
 
@@ -104,6 +105,47 @@ func TestComputeLineAvailability_NilDepsAndEmptyInput(t *testing.T) {
 	}
 }
 
+func TestComputeLineAvailability_ReusesSessionAliasLookups(t *testing.T) {
+	view := &biz.BOMSessionView{
+		SessionID:   "session-1",
+		BizDate:     time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC),
+		PlatformIDs: []string{"find_chips"},
+	}
+	lines := []data.BomSessionLine{
+		{LineNo: 1, Mpn: "READY-1", Mfr: strPtr("TI"), Qty: floatPtr(5)},
+		{LineNo: 2, Mpn: "READY-2", Mfr: strPtr("TI"), Qty: floatPtr(5)},
+		{LineNo: 3, Mpn: "READY-3", Mfr: strPtr("TI"), Qty: floatPtr(5)},
+	}
+	plats := []string{"find_chips"}
+	search := &bomSearchTaskRepoStub{
+		tasks: []biz.TaskReadinessSnapshot{
+			{MpnNorm: biz.NormalizeMPNForBOMSearch("READY-1"), PlatformID: "find_chips", State: "succeeded"},
+			{MpnNorm: biz.NormalizeMPNForBOMSearch("READY-2"), PlatformID: "find_chips", State: "succeeded"},
+			{MpnNorm: biz.NormalizeMPNForBOMSearch("READY-3"), PlatformID: "find_chips", State: "succeeded"},
+		},
+		cacheMap: map[string]*biz.QuoteCacheSnapshot{
+			quoteCachePairKey(biz.NormalizeMPNForBOMSearch("READY-1"), "find_chips"): {Outcome: "ok", QuotesJSON: quoteRowsJSON(t, "READY-1", "TI")},
+			quoteCachePairKey(biz.NormalizeMPNForBOMSearch("READY-2"), "find_chips"): {Outcome: "ok", QuotesJSON: quoteRowsJSON(t, "READY-2", "TI")},
+			quoteCachePairKey(biz.NormalizeMPNForBOMSearch("READY-3"), "find_chips"): {Outcome: "ok", QuotesJSON: quoteRowsJSON(t, "READY-3", "TI")},
+		},
+	}
+	alias := newCountingAliasLookup(map[string]string{"TI": "MFR_TI"})
+	svc := &BomService{
+		search:   search,
+		fx:       data.NewBomFxRateRepo(nil),
+		alias:    alias,
+		bomMatch: &conf.BomMatch{BaseCcy: "USD", ParsePriceTierStrings: true},
+	}
+
+	_, _, err := svc.computeLineAvailability(context.Background(), view, lines, plats)
+	if err != nil {
+		t.Fatalf("computeLineAvailability() error = %v", err)
+	}
+	if got := alias.CallCount("TI"); got != 1 {
+		t.Fatalf("alias lookup count for TI = %d, want 1", got)
+	}
+}
+
 func quoteRowsJSON(t *testing.T, model, mfr string) []byte {
 	t.Helper()
 	rows := []biz.AgentQuoteRow{{
@@ -123,3 +165,40 @@ func quoteRowsJSON(t *testing.T, model, mfr string) []byte {
 func strPtr(v string) *string { return &v }
 
 func floatPtr(v float64) *float64 { return &v }
+
+type countingAliasLookup struct {
+	mu    sync.Mutex
+	hits  map[string]string
+	calls map[string]int
+}
+
+func newCountingAliasLookup(hits map[string]string) *countingAliasLookup {
+	return &countingAliasLookup{
+		hits:  hits,
+		calls: make(map[string]int),
+	}
+}
+
+func (c *countingAliasLookup) CanonicalID(ctx context.Context, aliasNorm string) (string, bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.calls[aliasNorm]++
+	id, ok := c.hits[aliasNorm]
+	return id, ok, nil
+}
+
+func (c *countingAliasLookup) CallCount(aliasNorm string) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.calls[aliasNorm]
+}
+
+func (c *countingAliasLookup) DBOk() bool { return true }
+
+func (c *countingAliasLookup) ListDistinctCanonicals(ctx context.Context, limit int) ([]biz.ManufacturerCanonicalDisplay, error) {
+	return nil, nil
+}
+
+func (c *countingAliasLookup) CreateRow(ctx context.Context, canonicalID, displayName, alias, aliasNorm string) error {
+	return nil
+}

@@ -432,3 +432,131 @@ describe('SourcingSessionPage', () => {
     expect(screen.getAllByText(/配单 V1/).length).toBeGreaterThan(0)
   })
 })
+describe('SourcingSessionPage compact layout', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    getBOMLines.mockResolvedValue({ lines: [] })
+    getSessionSearchTaskCoverage.mockResolvedValue(emptyCoverage)
+    listLineGaps.mockResolvedValue({ gaps: [] })
+    listMatchRuns.mockResolvedValue({ runs: [] })
+    listSessionSearchTasks.mockResolvedValue(emptySearchTasks)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+
+  it('shows the overview tab when there are no anomalies', async () => {
+    getSession.mockResolvedValue({
+      ...baseSession,
+      status: 'data_ready',
+      import_status: 'ready',
+      import_progress: 100,
+    })
+
+    render(<SourcingSessionPage sessionId="session-1" onEnterMatch={vi.fn()} />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    expect(screen.getByTestId('session-dashboard-tabs')).toBeInTheDocument()
+    expect(screen.getByTestId('session-tab-overview')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('session-overview-panel')).toBeInTheDocument()
+  })
+
+  it('opens the gap panel when unresolved gaps need attention', async () => {
+    getSession.mockResolvedValue({
+      ...baseSession,
+      status: 'data_ready',
+      import_status: 'ready',
+      import_progress: 100,
+    })
+    listLineGaps.mockResolvedValue({
+      gaps: [
+        {
+          gap_id: '99',
+          session_id: 'session-1',
+          line_id: '2',
+          line_no: 2,
+          mpn: 'NO-DATA',
+          gap_type: 'NO_DATA',
+          reason_code: 'NO_DATA',
+          reason_detail: 'all selected platforms returned no data',
+          resolution_status: 'open',
+          substitute_mpn: '',
+          substitute_reason: '',
+          updated_at: '',
+        },
+      ],
+    })
+
+    render(<SourcingSessionPage sessionId="session-1" onEnterMatch={vi.fn()} />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    expect(screen.getByTestId('session-tab-gaps')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('session-gaps-panel')).toHaveAttribute('open')
+  })
+
+  it('uses tabs and puts abnormal BOM lines first', async () => {
+    getSession.mockResolvedValue({
+      ...baseSession,
+      status: 'data_ready',
+      import_status: 'ready',
+      import_progress: 100,
+    })
+    getBOMLines.mockResolvedValue({
+      lines: [
+        {
+          line_id: 'line-1',
+          line_no: 1,
+          mpn: 'OK-DATA',
+          mfr: '',
+          package: '',
+          qty: 1,
+          match_status: '',
+          platform_gaps: [],
+          availability_status: 'ready',
+          availability_reason: '',
+          has_usable_quote: true,
+          raw_quote_platform_count: 1,
+          usable_quote_platform_count: 1,
+          resolution_status: '',
+        },
+        {
+          line_id: 'line-2',
+          line_no: 2,
+          mpn: 'NO-DATA',
+          mfr: '',
+          package: '',
+          qty: 1,
+          match_status: '',
+          platform_gaps: [],
+          availability_status: 'no_data',
+          availability_reason: 'NO_DATA_REASON',
+          has_usable_quote: false,
+          raw_quote_platform_count: 0,
+          usable_quote_platform_count: 0,
+          resolution_status: 'open',
+        },
+      ],
+    })
+
+    render(<SourcingSessionPage sessionId="session-1" onEnterMatch={vi.fn()} />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    expect(screen.getByTestId('session-dashboard-tabs')).toBeInTheDocument()
+    expect(screen.getByTestId('session-tab-lines')).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getAllByTestId('session-line-mpn').map((el) => el.textContent)).toEqual([
+      'NO-DATA',
+      'OK-DATA',
+    ])
+  })
+})

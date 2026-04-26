@@ -88,6 +88,8 @@ type ManualQuoteDraft = {
 type SubstituteDraft = { substitute_mpn: string; reason: string }
 
 const GAP_STATUSES = ['open', 'manual_quote_added', 'substitute_selected']
+type SessionDashboardTab = 'overview' | 'lines' | 'search' | 'gaps' | 'maintenance'
+const SEARCH_ATTENTION_STATES = new Set(['failed', 'missing'])
 
 export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: SourcingSessionPageProps) {
   const [sessionTitle, setSessionTitle] = useState('')
@@ -140,6 +142,8 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<LineDraft>({ mpn: '', mfr: '', package: '', qty: '' })
+  const [activeTab, setActiveTab] = useState<SessionDashboardTab>('overview')
+  const [tabTouched, setTabTouched] = useState(false)
   const previousImportStatusRef = useRef('')
 
   const loadSession = useCallback(async () => {
@@ -510,6 +514,31 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
   const noMatchAfterFilterLineCount = blockingAvailabilityLines.filter(
     (line) => normalizeAvailabilityStatus(line.availability_status) === 'no_match_after_filter'
   ).length
+  const orderedLines = [...lines].sort((a, b) => {
+    const aBlocked = BLOCKING_AVAILABILITY_STATUSES.has(normalizeAvailabilityStatus(a.availability_status))
+    const bBlocked = BLOCKING_AVAILABILITY_STATUSES.has(normalizeAvailabilityStatus(b.availability_status))
+    if (aBlocked !== bBlocked) return aBlocked ? -1 : 1
+    return a.line_no - b.line_no
+  })
+  const searchAttentionCount = (searchTasks?.tasks ?? []).filter(
+    (task) => task.retryable || SEARCH_ATTENTION_STATES.has(task.search_ui_state)
+  ).length
+  const recommendedTab: SessionDashboardTab =
+    searchAttentionCount > 0
+      ? 'search'
+      : lineGaps.length > 0
+        ? 'gaps'
+        : blockingAvailabilityLines.length > 0
+          ? 'lines'
+          : 'overview'
+  const currentTab = tabTouched ? activeTab : recommendedTab
+  const tabs: { id: SessionDashboardTab; label: string; count?: number }[] = [
+    { id: 'overview', label: '总览' },
+    { id: 'lines', label: 'BOM 行', count: blockingAvailabilityLines.length },
+    { id: 'search', label: '搜索任务', count: searchAttentionCount },
+    { id: 'gaps', label: '缺口方案', count: lineGaps.length },
+    { id: 'maintenance', label: '维护信息' },
+  ]
 
   return (
     <div className={embedded ? 'space-y-6' : 'space-y-8'}>
@@ -604,16 +633,91 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
         />
       )}
 
+      <div
+        data-testid="session-dashboard-tabs"
+        role="tablist"
+        aria-label="会话看板分页"
+        className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm"
+      >
+        {tabs.map((tab) => {
+          const selected = currentTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              data-testid={`session-tab-${tab.id}`}
+              aria-selected={selected}
+              onClick={() => {
+                setActiveTab(tab.id)
+                setTabTouched(true)
+              }}
+              className={
+                selected
+                  ? 'rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white'
+                  : 'rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100'
+              }
+            >
+              {tab.label}
+              {tab.count ? (
+                <span className="ml-2 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
+                  {tab.count}
+                </span>
+              ) : null}
+            </button>
+          )
+        })}
+      </div>
+
+      {currentTab === 'overview' && (
+        <section data-testid="session-overview-panel" className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="font-semibold text-slate-800">处理概览</h3>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            {[
+              ['BOM 行', lines.length],
+              ['异常行', blockingAvailabilityLines.length],
+              ['搜索异常', searchAttentionCount],
+              ['待处理缺口', lineGaps.length],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-slate-200 px-4 py-3">
+                <div className="text-xs text-slate-500">{label}</div>
+                <div className="mt-1 text-2xl font-semibold text-slate-800">{value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {currentTab === 'search' && (
       <SearchTaskStatusPanel
         data={searchTasks}
         loading={searchTasksLoading}
         retrying={retryingSearchTasks}
+        defaultOpen
         onRefresh={() => void loadSearchTasks()}
         onRetryBatch={() => void handleRetrySearchTaskBatch()}
         onRetryTask={(task) => void handleRetrySearchTask(task)}
       />
+      )}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      {currentTab === 'gaps' && (
+      <details
+        data-testid="session-gaps-panel"
+        open
+        className="rounded-xl border border-slate-200 bg-white shadow-sm"
+      >
+        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-6 [&::-webkit-details-marker]:hidden">
+          <div>
+            <h3 className="font-semibold text-slate-800">缺口与配单方案</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              当前缺口 {lineGaps.length} 个，已保存配单方案 {matchRuns.length} 个。
+            </p>
+          </div>
+          <span className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500">
+            展开
+          </span>
+        </summary>
+        <div className="border-t border-slate-100 p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-semibold text-slate-800">缺口与配单方案</h3>
@@ -762,8 +866,26 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
             ))}
           </div>
         )}
-      </section>
+        </div>
+      </details>
+      )}
 
+      {currentTab === 'maintenance' && (
+      <details
+        data-testid="session-maintenance-panel"
+        open
+        className="rounded-xl border border-slate-200 bg-white shadow-sm"
+      >
+        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-6 [&::-webkit-details-marker]:hidden">
+          <div>
+            <h3 className="font-semibold text-slate-800">会话维护</h3>
+            <p className="mt-1 text-sm text-slate-600">单据信息和平台范围默认收起，需要调整时再展开。</p>
+          </div>
+          <span className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500">
+            展开
+          </span>
+        </summary>
+        <div className="grid gap-4 border-t border-slate-100 p-6 lg:grid-cols-2">
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="mb-3 font-semibold text-slate-800">单据信息（PATCH /bom-sessions）</h3>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -851,6 +973,26 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           {savingPlatforms ? '保存中...' : '保存平台勾选'}
         </button>
       </section>
+        </div>
+      </details>
+      )}
+
+      {currentTab === 'lines' && (
+      <details
+        data-testid="session-lines-panel"
+        open
+        className="rounded-xl border border-slate-200 bg-white shadow-sm"
+      >
+        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-6 [&::-webkit-details-marker]:hidden">
+          <div>
+            <h3 className="font-semibold text-slate-800">BOM 行</h3>
+            <p className="mt-1 text-sm text-slate-600">保留为默认展开，方便直接核对和编辑当前物料行。</p>
+          </div>
+          <span className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500">
+            收起
+          </span>
+        </summary>
+        <div className="border-t border-slate-100 p-6">
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -935,7 +1077,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                   </td>
                 </tr>
               ) : (
-                lines.map((row) => (
+                orderedLines.map((row) => (
                   <tr key={row.line_id || String(row.line_no)} className="border-b border-slate-100 align-top">
                     <td className="px-2 py-2">{row.line_no}</td>
                     {editingId === row.line_id ? (
@@ -971,7 +1113,7 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
                       </>
                     ) : (
                       <>
-                        <td className="px-2 py-2 font-mono">{row.mpn}</td>
+                        <td data-testid="session-line-mpn" className="px-2 py-2 font-mono">{row.mpn}</td>
                         <td className="px-2 py-2">{row.mfr || '—'}</td>
                         <td className="px-2 py-2">{row.package || '—'}</td>
                         <td className="px-2 py-2">{row.qty}</td>
@@ -1059,6 +1201,9 @@ export function SourcingSessionPage({ sessionId, embedded, onEnterMatch }: Sourc
           </table>
         </div>
       </section>
+        </div>
+      </details>
+      )}
     </div>
   )
 }

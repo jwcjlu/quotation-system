@@ -4,6 +4,7 @@ interface SearchTaskStatusPanelProps {
   data: ListSessionSearchTasksReply | null
   loading?: boolean
   retrying?: boolean
+  defaultOpen?: boolean
   onRefresh: () => void
   onRetryBatch: () => void
   onRetryTask: (task: SessionSearchTaskRow) => void
@@ -19,6 +20,7 @@ const STATE_CLASS: Record<string, string> = {
   cancelled: 'bg-zinc-100 text-zinc-600 border-zinc-200',
   missing: 'bg-orange-50 text-orange-700 border-orange-200',
 }
+const SEARCH_ATTENTION_STATES = new Set(['failed', 'missing'])
 
 function stateClass(state: string) {
   return STATE_CLASS[state] ?? STATE_CLASS.failed
@@ -58,6 +60,7 @@ export function SearchTaskStatusPanel({
   data,
   loading,
   retrying,
+  defaultOpen = false,
   onRefresh,
   onRetryBatch,
   onRetryTask,
@@ -67,12 +70,34 @@ export function SearchTaskStatusPanel({
   const retryableAnomalies = tasks.filter(
     (task) => task.retryable && task.search_ui_state !== 'no_data'
   )
+  const orderedTasks = [...tasks].sort((a, b) => {
+    const aAttention = a.retryable || SEARCH_ATTENTION_STATES.has(a.search_ui_state)
+    const bAttention = b.retryable || SEARCH_ATTENTION_STATES.has(b.search_ui_state)
+    if (aAttention !== bAttention) return aAttention ? -1 : 1
+    return a.line_no - b.line_no
+  })
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <details
+      data-testid="session-search-task-panel"
+      open={defaultOpen || undefined}
+      className="rounded-xl border border-slate-200 bg-white shadow-sm"
+    >
+      <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 p-6 [&::-webkit-details-marker]:hidden">
         <div>
           <h3 className="font-semibold text-slate-800">搜索任务状态</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            {summary ? `共 ${summary.total} 个任务，可重试 ${summary.retryable} 个` : '暂无任务状态'}
+          </p>
+        </div>
+        <span className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500">
+          展开
+        </span>
+      </summary>
+      <div className="border-t border-slate-100 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-slate-800">搜索任务明细</h3>
           <p className="mt-1 text-sm text-slate-500">
             {summary ? `共 ${summary.total} 个任务，可重试 ${summary.retryable} 个` : '暂无任务状态'}
           </p>
@@ -142,7 +167,7 @@ export function SearchTaskStatusPanel({
                 </td>
               </tr>
             ) : (
-              tasks.map((task) => (
+              orderedTasks.map((task) => (
                 <tr
                   key={`${task.line_id}-${task.platform_id}-${task.search_task_id || 'missing'}`}
                   className="border-b border-slate-100 align-top"
@@ -193,6 +218,7 @@ export function SearchTaskStatusPanel({
           </tbody>
         </table>
       </div>
-    </section>
+      </div>
+    </details>
   )
 }

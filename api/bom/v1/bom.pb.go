@@ -105,6 +105,9 @@ type UploadBOMReply struct {
 	BomId         string                 `protobuf:"bytes,1,opt,name=bom_id,json=bomId,proto3" json:"bom_id,omitempty"`
 	Items         []*ParsedItem          `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
 	Total         int32                  `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
+	Accepted      bool                   `protobuf:"varint,4,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	ImportStatus  string                 `protobuf:"bytes,5,opt,name=import_status,json=importStatus,proto3" json:"import_status,omitempty"`
+	ImportMessage string                 `protobuf:"bytes,6,opt,name=import_message,json=importMessage,proto3" json:"import_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -158,6 +161,27 @@ func (x *UploadBOMReply) GetTotal() int32 {
 		return x.Total
 	}
 	return 0
+}
+
+func (x *UploadBOMReply) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
+func (x *UploadBOMReply) GetImportStatus() string {
+	if x != nil {
+		return x.ImportStatus
+	}
+	return ""
+}
+
+func (x *UploadBOMReply) GetImportMessage() string {
+	if x != nil {
+		return x.ImportMessage
+	}
+	return ""
 }
 
 type ParsedItem struct {
@@ -2154,6 +2178,13 @@ type GetSessionReply struct {
 	ContactPhone      string                 `protobuf:"bytes,8,opt,name=contact_phone,json=contactPhone,proto3" json:"contact_phone,omitempty"`
 	ContactEmail      string                 `protobuf:"bytes,9,opt,name=contact_email,json=contactEmail,proto3" json:"contact_email,omitempty"`
 	ContactExtra      string                 `protobuf:"bytes,10,opt,name=contact_extra,json=contactExtra,proto3" json:"contact_extra,omitempty"`
+	ImportStatus      string                 `protobuf:"bytes,11,opt,name=import_status,json=importStatus,proto3" json:"import_status,omitempty"`
+	ImportProgress    int32                  `protobuf:"varint,12,opt,name=import_progress,json=importProgress,proto3" json:"import_progress,omitempty"`
+	ImportStage       string                 `protobuf:"bytes,13,opt,name=import_stage,json=importStage,proto3" json:"import_stage,omitempty"`
+	ImportMessage     string                 `protobuf:"bytes,14,opt,name=import_message,json=importMessage,proto3" json:"import_message,omitempty"`
+	ImportErrorCode   string                 `protobuf:"bytes,15,opt,name=import_error_code,json=importErrorCode,proto3" json:"import_error_code,omitempty"`
+	ImportError       string                 `protobuf:"bytes,16,opt,name=import_error,json=importError,proto3" json:"import_error,omitempty"`
+	ImportUpdatedAt   string                 `protobuf:"bytes,17,opt,name=import_updated_at,json=importUpdatedAt,proto3" json:"import_updated_at,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -2254,6 +2285,55 @@ func (x *GetSessionReply) GetContactEmail() string {
 func (x *GetSessionReply) GetContactExtra() string {
 	if x != nil {
 		return x.ContactExtra
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetImportStatus() string {
+	if x != nil {
+		return x.ImportStatus
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetImportProgress() int32 {
+	if x != nil {
+		return x.ImportProgress
+	}
+	return 0
+}
+
+func (x *GetSessionReply) GetImportStage() string {
+	if x != nil {
+		return x.ImportStage
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetImportMessage() string {
+	if x != nil {
+		return x.ImportMessage
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetImportErrorCode() string {
+	if x != nil {
+		return x.ImportErrorCode
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetImportError() string {
+	if x != nil {
+		return x.ImportError
+	}
+	return ""
+}
+
+func (x *GetSessionReply) GetImportUpdatedAt() string {
+	if x != nil {
+		return x.ImportUpdatedAt
 	}
 	return ""
 }
@@ -7169,11 +7249,14 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"session_id\x18\x05 \x01(\tR\tsessionId\x1a@\n" +
 	"\x12ColumnMappingEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"k\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd3\x01\n" +
 	"\x0eUploadBOMReply\x12\x15\n" +
 	"\x06bom_id\x18\x01 \x01(\tR\x05bomId\x12,\n" +
 	"\x05items\x18\x02 \x03(\v2\x16.api.bom.v1.ParsedItemR\x05items\x12\x14\n" +
-	"\x05total\x18\x03 \x01(\x05R\x05total\"\xbc\x01\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\x12\x1a\n" +
+	"\baccepted\x18\x04 \x01(\bR\baccepted\x12#\n" +
+	"\rimport_status\x18\x05 \x01(\tR\fimportStatus\x12%\n" +
+	"\x0eimport_message\x18\x06 \x01(\tR\rimportMessage\"\xbc\x01\n" +
 	"\n" +
 	"ParsedItem\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x10\n" +
@@ -7334,7 +7417,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x12selection_revision\x18\x03 \x01(\x05R\x11selectionRevision\"2\n" +
 	"\x11GetSessionRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"\xdf\x02\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"\xf2\x04\n" +
 	"\x0fGetSessionReply\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x14\n" +
@@ -7347,7 +7430,14 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\rcontact_phone\x18\b \x01(\tR\fcontactPhone\x12#\n" +
 	"\rcontact_email\x18\t \x01(\tR\fcontactEmail\x12#\n" +
 	"\rcontact_extra\x18\n" +
-	" \x01(\tR\fcontactExtra\"\x87\x01\n" +
+	" \x01(\tR\fcontactExtra\x12#\n" +
+	"\rimport_status\x18\v \x01(\tR\fimportStatus\x12'\n" +
+	"\x0fimport_progress\x18\f \x01(\x05R\x0eimportProgress\x12!\n" +
+	"\fimport_stage\x18\r \x01(\tR\vimportStage\x12%\n" +
+	"\x0eimport_message\x18\x0e \x01(\tR\rimportMessage\x12*\n" +
+	"\x11import_error_code\x18\x0f \x01(\tR\x0fimportErrorCode\x12!\n" +
+	"\fimport_error\x18\x10 \x01(\tR\vimportError\x12*\n" +
+	"\x11import_updated_at\x18\x11 \x01(\tR\x0fimportUpdatedAt\"\x87\x01\n" +
 	"\x13ListSessionsRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x16\n" +

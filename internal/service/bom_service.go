@@ -1,11 +1,9 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -23,7 +21,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// BomService 实现 BOM HTTP API（api/bom/v1.BomServiceHTTPServer）。
+// BomService implements the BOM HTTP API.
 type BomService struct {
 	session    biz.BOMSessionRepo
 	search     biz.BOMSearchTaskRepo
@@ -31,6 +29,7 @@ type BomService struct {
 	matchRuns  biz.BOMMatchRunRepo
 	merge      biz.MergeDispatchExecutor
 	openai     *data.OpenAIChat
+	llmChatFn  func(ctx context.Context, system, user string) (string, error)
 	fx         *data.BomFxRateRepo
 	alias      biz.BomManufacturerAliasRepo
 	hsMapping  biz.HsModelMappingRepo
@@ -91,7 +90,7 @@ func (s *BomService) dbOK() bool {
 	return s.session != nil && s.session.DBOk() && s.search != nil && s.search.DBOk()
 }
 
-// matchDepsOK：SearchQuotes / AutoMatch / GetMatchResult 依赖报价缓存、汇率与厂牌别名表；有 DB 时 Wire 注入的 fx/alias 须非 nil 且 DBOk。
+// matchDepsOK reports whether quote matching dependencies are available.
 func (s *BomService) matchDepsOK() bool {
 	if !s.dbOK() {
 		return false
@@ -177,7 +176,7 @@ func (s *BomService) AutoMatch(ctx context.Context, req *v1.AutoMatchRequest) (*
 }
 
 func (s *BomService) GetBOM(ctx context.Context, req *v1.GetBOMRequest) (*v1.GetBOMReply, error) {
-	return nil, notImplemented("GetBOM 未实现，请使用 GetSession / GetBOMLines")
+	return nil, notImplemented("GetBOM 闂佸搫鐗滄禍婊堟偪閸曨垱鍋濋悽顖ｅ枤缁€澶愭偣閸ヮ亝鑵瑰┑鐐叉喘閹?GetSession / GetBOMLines")
 }
 
 func (s *BomService) GetMatchResult(ctx context.Context, req *v1.GetMatchResultRequest) (*v1.GetMatchResultReply, error) {
@@ -239,9 +238,11 @@ func (s *BomService) loadSessionLinesAndPlatforms(ctx context.Context, sid strin
 	return view, lines, plats, nil
 }
 
-// matchReadinessError 在会话尚未满足与 GetReadiness 一致的「可进入配单」条件时拒绝。
-// gRPC FailedPrecondition 常映射为 HTTP 400；此处选用 ServiceUnavailable，表示依赖侧（搜索任务/缓存）未就绪、可稍后重试。
+// matchReadinessError 闂侀潻璐熼崝瀣閹殿喗瀚氭繝闈涙濮ｏ綁鏌￠崼顐＄凹鐎殿啫鍛儱闁稿繐鎳愰悷?GetReadiness 婵炴垶鎸撮崑鎾绘煠瀹勯偊鍤熸繛鍫熷灴婵″浠﹂挊澶庮唹闁哄鏅滅粙鎴﹀矗閸℃稒鐓€鐎广儱鎳庣粈瀣煏閸℃校婵炵⒈鍨辩粋鎺楁嚋閸偒妲梺褰掓敱鐢偟鍒掗悜钘壩?// gRPC FailedPrecondition 闁汇埄鍨伴幉鈥澄ｈ娴滄悂宕熼鍥╊槹 HTTP 400闂佹寧绋掔粙鎺楊敆濠靛洤绶為柛鏇ㄥ灙閸嬫挻寰勭仦鐐 ServiceUnavailable闂佹寧绋戦惌渚€濡撮崘顏嗙焼閺夌偞澹嗙拹鈺呮偣瑜庨悧鏃堝疾閸洘鏅柛顐ゅ枑閸嬫繄绱掓鏍ㄧ窔闁瑰箍鍨藉畷?缂傚倸鍊归幐鎼佹偤閵娾晜鏅璺侯儐瀵捇鎮樿箛姘惈闁告閰ｆ俊瀛樻媴缁嬭儻顔夌紓浣割儏缁夋挳骞冨Δ鍛厒鐎广儱鐗忓Σ鎼佹煏?
 func (s *BomService) matchReadinessError(ctx context.Context, sid string, view *biz.BOMSessionView, lines []data.BomSessionLine) error {
+	if strings.EqualFold(strings.TrimSpace(view.ImportStatus), biz.BOMImportStatusParsing) {
+		return kerrors.ServiceUnavailable("BOM_NOT_READY", "session import is parsing; please retry later")
+	}
 	_, availabilitySummary, err := s.computeLineAvailability(ctx, view, lines, view.PlatformIDs)
 	if err != nil {
 		return err
@@ -289,7 +290,7 @@ func quoteCacheUsable(snap *biz.QuoteCacheSnapshot) bool {
 	return len(snap.QuotesJSON) > 0
 }
 
-// quoteCacheUnusableReason 说明为何不参与配单（与 quoteCacheUsable 判定一致）；hit=false 时仅返回 miss。
+// quoteCacheUnusableReason 闁荤姴娲ら悺銊ノｉ幋鐐碘枖閺夌偞澹嗙粔鍨槈閹惧磭孝鐎殿噮鍓氱粙澶嬫償閵娿儱璧嬮梺鍛婎殕濞测晝妲愬▎鎰枖?quoteCacheUsable 闂佸憡甯囬崐鏇㈡偩閻愵剛鈻旈柍褜鍓熼幊娑欐綇閸撗咁槴闂佹寧绋掑▔顣弔=false 闂佸搫鍟﹢鍦垝鎼淬垺浜ら柡鍌涘缁€鈧?miss闂?
 func quoteCacheUnusableReason(hit bool, snap *biz.QuoteCacheSnapshot) string {
 	if !hit {
 		return "quote_cache_miss"
@@ -502,6 +503,13 @@ func (s *BomService) GetSession(ctx context.Context, req *v1.GetSessionRequest) 
 		ContactPhone:      v.ContactPhone,
 		ContactEmail:      v.ContactEmail,
 		ContactExtra:      v.ContactExtra,
+		ImportStatus:      v.ImportStatus,
+		ImportProgress:    int32(v.ImportProgress),
+		ImportStage:       v.ImportStage,
+		ImportMessage:     v.ImportMessage,
+		ImportErrorCode:   v.ImportErrorCode,
+		ImportError:       v.ImportError,
+		ImportUpdatedAt:   formatOptTimeRFC3339(v.ImportUpdatedAt),
 	}, nil
 }
 
@@ -1169,84 +1177,11 @@ func (s *BomService) SubmitBomSearchResult(ctx context.Context, req *v1.SubmitBo
 	}, nil
 }
 
-func (s *BomService) UploadBOM(ctx context.Context, req *v1.UploadBOMRequest) (*v1.UploadBOMReply, error) {
-	sid := strings.TrimSpace(req.GetSessionId())
-	if sid == "" {
-		return nil, notImplemented("请使用 session_id 将 Excel 导入到 bom_session_line")
+func formatOptTimeRFC3339(t *time.Time) string {
+	if t == nil {
+		return ""
 	}
-	if !s.dbOK() {
-		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
-	}
-	parseModeRaw := strings.TrimSpace(req.GetParseMode())
-	pmLower := strings.ToLower(parseModeRaw)
-	var lines []biz.BomImportLine
-	var ierrs []biz.BomImportError
-	switch pmLower {
-	case "llm":
-		if s.openai == nil {
-			return nil, kerrors.BadRequest("BOM_LLM_DISABLED", "parse_mode=llm 需要在配置中设置 openai.api_key")
-		}
-		rows, ferrs := biz.ReadBomImportFirstSheetFromReader(bytes.NewReader(req.GetFile()))
-		if len(ferrs) > 0 {
-			return nil, kerrors.BadRequest("BOM_IMPORT", ferrs[0].Error())
-		}
-		if len(rows) > biz.MaxBomLLMSheetRows {
-			return nil, kerrors.BadRequest("BOM_LLM", fmt.Sprintf("工作表行数超过 llm 模式上限 %d，请拆分文件", biz.MaxBomLLMSheetRows))
-		}
-		user := biz.BuildBomLLMUserPrompt(rows)
-		if len(user) > biz.MaxBomLLMPromptBytes {
-			return nil, kerrors.BadRequest("BOM_LLM", fmt.Sprintf("工作表体积超过 llm 模式上限（约 %d 字节），请拆分或删减列", biz.MaxBomLLMPromptBytes))
-		}
-		raw, err := s.openai.Chat(context.WithoutCancel(ctx), biz.BomLLMSystemPrompt(), user)
-		if err != nil {
-			return nil, kerrors.BadRequest("BOM_LLM", err.Error())
-		}
-		lines, ierrs = biz.ParseBomImportLinesFromLLMJSON(raw)
-	default:
-		r := bytes.NewReader(req.GetFile())
-		lines, ierrs = biz.ParseBomImportRowsWithColumnMapping(r, false, req.GetColumnMapping())
-	}
-	if len(ierrs) > 0 {
-		return nil, kerrors.BadRequest("BOM_IMPORT", ierrs[0].Error())
-	}
-	var pmPtr *string
-	if parseModeRaw != "" {
-		pmPtr = &parseModeRaw
-	}
-	if _, err := s.session.ReplaceSessionLines(ctx, sid, lines, pmPtr); err != nil {
-		return nil, err
-	}
-	if err := s.search.CancelAllTasksBySession(ctx, sid); err != nil {
-		return nil, err
-	}
-	view, err := s.session.GetSession(ctx, sid)
-	if err != nil {
-		return nil, err
-	}
-	pairs := buildMpnPlatformPairs(lines, view.PlatformIDs)
-	if err := s.search.UpsertPendingTasks(ctx, sid, view.BizDate, view.SelectionRevision, pairs); err != nil {
-		return nil, err
-	}
-	s.tryMergeDispatchSession(ctx, sid)
-	items := make([]*v1.ParsedItem, 0, len(lines))
-	for i, ln := range lines {
-		var q int32
-		if ln.Qty != nil {
-			q = int32(*ln.Qty)
-		}
-		items = append(items, &v1.ParsedItem{
-			Index:        int32(i + 1),
-			Model:        ln.Mpn,
-			Manufacturer: ln.Mfr,
-			Package:      ln.Package,
-			Quantity:     q,
-		})
-	}
-	return &v1.UploadBOMReply{
-		BomId: sid,
-		Items: items,
-		Total: int32(len(items)),
-	}, nil
+	return t.Format(time.RFC3339Nano)
 }
 
 func buildMpnPlatformPairs(lines []biz.BomImportLine, platforms []string) []biz.MpnPlatformPair {
@@ -1280,7 +1215,7 @@ func normalizeSessionPlatforms(ids []string) []string {
 func (s *BomService) DownloadTemplate(ctx context.Context, req *v1.DownloadTemplateRequest) (*v1.DownloadTemplateReply, error) {
 	f := excelize.NewFile()
 	sheet := f.GetSheetName(0)
-	_ = f.SetSheetRow(sheet, "A1", &[]any{"型号", "数量", "厂牌", "封装", "参数"})
+	_ = f.SetSheetRow(sheet, "A1", &[]any{"Model", "Quantity", "Manufacturer", "Package", "Parameters"})
 	buf, err := f.WriteToBuffer()
 	if err != nil {
 		return nil, err
@@ -1310,7 +1245,7 @@ func (s *BomService) ExportSession(ctx context.Context, req *v1.ExportSessionReq
 	}
 	f := excelize.NewFile()
 	sheet := f.GetSheetName(0)
-	_ = f.SetSheetRow(sheet, "A1", &[]any{"行号", "型号", "厂牌", "封装", "数量"})
+	_ = f.SetSheetRow(sheet, "A1", &[]any{"Line No", "Model", "Manufacturer", "Package", "Quantity"})
 	for i, row := range rows {
 		cell, _ := excelize.CoordinatesToCellName(1, i+2)
 		qty := 0.0

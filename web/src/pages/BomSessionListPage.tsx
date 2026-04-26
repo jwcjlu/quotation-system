@@ -92,7 +92,6 @@ export function BomSessionListPage({ onEnterMatch }: BomSessionListPageProps) {
           新建 BOM 单
         </button>
       </div>
-
       {uploadOpen && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 md:pt-16 bg-black/40 overflow-y-auto"
@@ -153,14 +152,10 @@ export function BomSessionListPage({ onEnterMatch }: BomSessionListPageProps) {
             <SourcingSessionPage
               embedded
               sessionId={detailSessionId}
-              onEnterMatch={
-                onEnterMatch
-                  ? () => {
-                      onEnterMatch(detailSessionId)
-                      setDetailSessionId(null)
-                    }
-                  : undefined
-              }
+              onEnterMatch={onEnterMatch ? () => {
+                onEnterMatch(detailSessionId)
+                setDetailSessionId(null)
+              } : undefined}
             />
           </div>
         </div>

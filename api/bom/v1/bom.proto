@@ -278,6 +278,9 @@ message UploadBOMReply {
   string bom_id = 1;
   repeated ParsedItem items = 2;
   int32 total = 3;
+  bool accepted = 4;
+  string import_status = 5;
+  string import_message = 6;
 }
 
 message ParsedItem {
@@ -502,6 +505,13 @@ message GetSessionReply {
   string contact_phone = 8;
   string contact_email = 9;
   string contact_extra = 10;
+  string import_status = 11;
+  int32 import_progress = 12;
+  string import_stage = 13;
+  string import_message = 14;
+  string import_error_code = 15;
+  string import_error = 16;
+  string import_updated_at = 17;
 }
 
 message ListSessionsRequest {

@@ -18,6 +18,8 @@ type CaichipDispatchTask struct {
 	ParamsJSON       []byte         `gorm:"column:params_json;type:json"`
 	ArgvJSON         []byte         `gorm:"column:argv_json;type:json"`
 	Attempt          int            `gorm:"column:attempt;not null;default:1"`
+	RetryMax         int            `gorm:"column:retry_max;not null;default:3"`
+	RetryBackoffJSON []byte         `gorm:"column:retry_backoff_json;type:json"`
 	State            string         `gorm:"column:state;size:32;not null;default:pending;index:idx_dispatch_claim,priority:2;index:idx_dispatch_state_updated,priority:1;index:idx_dispatch_leased_agent,priority:2"`
 	LeaseID          sql.NullString `gorm:"column:lease_id;size:64"`
 	LeasedToAgentID  sql.NullString `gorm:"column:leased_to_agent_id;size:64;index:idx_dispatch_leased_agent,priority:1"`
@@ -27,8 +29,6 @@ type CaichipDispatchTask struct {
 	FinishedAt       *time.Time     `gorm:"column:finished_at;precision:3"`
 	ResultStatus     sql.NullString `gorm:"column:result_status;size:32"`
 	LastError        sql.NullString `gorm:"column:last_error;type:text"`
-	RetryMax         int            `gorm:"column:retry_max;not null;default:0"`
-	RetryBackoffJSON []byte         `gorm:"column:retry_backoff_json;type:json"`
 	CreatedAt        time.Time      `gorm:"column:created_at;precision:3;autoCreateTime"`
 	UpdatedAt        time.Time      `gorm:"column:updated_at;precision:3;autoUpdateTime;index:idx_dispatch_state_updated,priority:2"`
 }
@@ -149,21 +149,28 @@ func (BomQuoteItem) TableName() string { return TableBomQuoteItem }
 
 // BomSession 对应 t_bom_session。
 type BomSession struct {
-	ID                string    `gorm:"column:id;size:36;primaryKey"`
-	Title             *string   `gorm:"column:title;size:256"`
-	CustomerName      *string   `gorm:"column:customer_name;size:256"`
-	ContactPhone      *string   `gorm:"column:contact_phone;size:64"`
-	ContactEmail      *string   `gorm:"column:contact_email;size:256"`
-	ContactExtra      *string   `gorm:"column:contact_extra;size:512"`
-	Status            string    `gorm:"column:status;size:32;not null;default:draft;index:idx_bom_session_status"`
-	ReadinessMode     string    `gorm:"column:readiness_mode;size:16;not null;default:lenient"`
-	BizDate           time.Time `gorm:"column:biz_date;type:date;not null;index:idx_bom_session_biz_date"`
-	SelectionRevision int       `gorm:"column:selection_revision;not null;default:1"`
-	PlatformIDs       string    `gorm:"column:platform_ids;type:json;not null"`
-	ParseMode         *string   `gorm:"column:parse_mode;size:32"`
-	StorageFileKey    *string   `gorm:"column:storage_file_key;size:512"`
-	CreatedAt         time.Time `gorm:"column:created_at;precision:3"`
-	UpdatedAt         time.Time `gorm:"column:updated_at;precision:3;index:idx_bom_session_updated"`
+	ID                string     `gorm:"column:id;size:36;primaryKey"`
+	Title             *string    `gorm:"column:title;size:256"`
+	CustomerName      *string    `gorm:"column:customer_name;size:256"`
+	ContactPhone      *string    `gorm:"column:contact_phone;size:64"`
+	ContactEmail      *string    `gorm:"column:contact_email;size:256"`
+	ContactExtra      *string    `gorm:"column:contact_extra;size:512"`
+	Status            string     `gorm:"column:status;size:32;not null;default:draft;index:idx_bom_session_status"`
+	ReadinessMode     string     `gorm:"column:readiness_mode;size:16;not null;default:lenient"`
+	BizDate           time.Time  `gorm:"column:biz_date;type:date;not null;index:idx_bom_session_biz_date"`
+	SelectionRevision int        `gorm:"column:selection_revision;not null;default:1"`
+	PlatformIDs       string     `gorm:"column:platform_ids;type:json;not null"`
+	ParseMode         *string    `gorm:"column:parse_mode;size:32"`
+	StorageFileKey    *string    `gorm:"column:storage_file_key;size:512"`
+	ImportStatus      string     `gorm:"column:import_status;size:32;not null;default:idle"`
+	ImportProgress    int        `gorm:"column:import_progress;not null;default:0"`
+	ImportStage       string     `gorm:"column:import_stage;size:64;not null;default:validating"`
+	ImportMessage     *string    `gorm:"column:import_message;type:text"`
+	ImportErrorCode   *string    `gorm:"column:import_error_code;size:64"`
+	ImportError       *string    `gorm:"column:import_error;type:text"`
+	ImportUpdatedAt   *time.Time `gorm:"column:import_updated_at;precision:3"`
+	CreatedAt         time.Time  `gorm:"column:created_at;precision:3"`
+	UpdatedAt         time.Time  `gorm:"column:updated_at;precision:3;index:idx_bom_session_updated"`
 }
 
 func (BomSession) TableName() string { return TableBomSession }

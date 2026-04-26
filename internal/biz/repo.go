@@ -12,6 +12,9 @@ var ErrDispatchLeaseMismatch = errors.New("dispatch: lease mismatch or task not 
 // ErrBOMSessionRevisionMismatch PutPlatforms 时 expected_revision 与库内不一致。
 var ErrBOMSessionRevisionMismatch = errors.New("bom_session: selection_revision mismatch")
 
+// ErrBOMImportStatusTransitionInvalid 会话导入状态非法迁移。
+var ErrBOMImportStatusTransitionInvalid = errors.New("bom_session: invalid import status transition")
+
 // AgentRegistrySummary 运维列表用 Agent 一行快照。
 type AgentRegistrySummary struct {
 	AgentID             string
@@ -43,7 +46,11 @@ type DispatchTaskRepo interface {
 	Ping(ctx context.Context) error
 	EnqueuePending(ctx context.Context, t *QueuedTask) error
 	ReclaimStaleLeases(ctx context.Context, now, offlineBefore time.Time) (int64, error)
-	SubmitLeasedResult(ctx context.Context, in *TaskResultIn) error
+	FinishLeased(ctx context.Context, taskID, leaseID, resultStatus string) error
+	LoadLeasedTask(ctx context.Context, taskID, leaseID string) (*DispatchLeasedTask, error)
+	RequeueLeased(ctx context.Context, taskID, leaseID string, nextAttempt int, nextClaimAt time.Time, lastError string) error
+	FailLeasedTerminal(ctx context.Context, taskID, leaseID, resultStatus, lastError string, finishedAt time.Time) error
+	ListStaleLeasedTasks(ctx context.Context, now, offlineBefore time.Time) ([]StaleDispatchTask, error)
 	PullAndLeaseForAgent(ctx context.Context, queue, agentID string, meta *AgentSchedulingMeta, running []RunningTaskReport, max int, leaseExtraSec int32) ([]TaskMessage, error)
 	ListLeasedTasksByAgent(ctx context.Context, agentID string) ([]LeasedDispatchTaskRow, error)
 }
@@ -144,6 +151,13 @@ type BOMSessionView struct {
 	ContactEmail      string
 	ContactExtra      string
 	Status            string
+	ImportStatus      string
+	ImportProgress    int
+	ImportStage       string
+	ImportMessage     string
+	ImportErrorCode   string
+	ImportError       string
+	ImportUpdatedAt   *time.Time
 	ReadinessMode     string
 	BizDate           time.Time
 	PlatformIDs       []string
@@ -171,6 +185,8 @@ type BOMSessionRepo interface {
 	CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error)
 	DeleteSessionLine(ctx context.Context, sessionID string, lineID int64) error
 	UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, qty *float64, rawText, extraJSON *string) (newRevision int, err error)
+	TryStartImport(ctx context.Context, sessionID, startedMessage string) (started bool, err error)
+	UpdateImportState(ctx context.Context, sessionID string, patch BOMImportStatePatch) error
 }
 
 // BOMSessionListItem 列表行。

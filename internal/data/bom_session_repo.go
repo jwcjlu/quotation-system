@@ -69,6 +69,9 @@ func (r *BomSessionRepo) CreateSession(ctx context.Context, title string, platfo
 		BizDate:           bd,
 		SelectionRevision: 1,
 		PlatformIDs:       string(b),
+		ImportStatus:      biz.BOMImportStatusIdle,
+		ImportProgress:    0,
+		ImportStage:       biz.BOMImportStageValidating,
 		CreatedAt:         now,
 		UpdatedAt:         now,
 	}
@@ -102,6 +105,13 @@ func (r *BomSessionRepo) GetSession(ctx context.Context, sessionID string) (*biz
 		ContactEmail:      derefStr(row.ContactEmail),
 		ContactExtra:      derefStr(row.ContactExtra),
 		Status:            row.Status,
+		ImportStatus:      row.ImportStatus,
+		ImportProgress:    row.ImportProgress,
+		ImportStage:       row.ImportStage,
+		ImportMessage:     derefStr(row.ImportMessage),
+		ImportErrorCode:   derefStr(row.ImportErrorCode),
+		ImportError:       derefStr(row.ImportError),
+		ImportUpdatedAt:   row.ImportUpdatedAt,
 		ReadinessMode:     row.ReadinessMode,
 		BizDate:           row.BizDate,
 		PlatformIDs:       pids,
@@ -329,6 +339,90 @@ func (r *BomSessionRepo) SetSessionStatus(ctx context.Context, sessionID, status
 	}).Error
 }
 
+func (r *BomSessionRepo) TryStartImport(ctx context.Context, sessionID, startedMessage string) (bool, error) {
+	if !r.DBOk() {
+		return false, gorm.ErrInvalidDB
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	msg := strings.TrimSpace(startedMessage)
+	if msg == "" {
+		msg = "import started"
+	}
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return false, tx.Error
+	}
+	defer func() { _ = tx.Rollback() }()
+	var cur BomSession
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", sessionID).First(&cur).Error; err != nil {
+		return false, err
+	}
+	if strings.EqualFold(strings.TrimSpace(cur.ImportStatus), biz.BOMImportStatusParsing) {
+		if err := tx.Commit().Error; err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	if err := tx.Model(&BomSession{}).Where("id = ?", sessionID).Updates(map[string]interface{}{
+		"import_status":     biz.BOMImportStatusParsing,
+		"import_progress":   5,
+		"import_stage":      biz.BOMImportStageValidating,
+		"import_message":    msg,
+		"import_error_code": nil,
+		"import_error":      nil,
+		"import_updated_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		"updated_at":        gorm.Expr("CURRENT_TIMESTAMP(3)"),
+	}).Error; err != nil {
+		return false, err
+	}
+	if err := tx.Commit().Error; err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (r *BomSessionRepo) UpdateImportState(ctx context.Context, sessionID string, patch biz.BOMImportStatePatch) error {
+	if !r.DBOk() {
+		return gorm.ErrInvalidDB
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	status := biz.NormalizeImportStatus(patch.Status)
+	stage := biz.NormalizeImportStage(patch.Stage)
+	progress := biz.ClampProgress(patch.Progress)
+	progressExpr := gorm.Expr("GREATEST(COALESCE(import_progress, 0), ?)", progress)
+	if status == biz.BOMImportStatusFailed {
+		progressExpr = gorm.Expr("?", progress)
+	} else if status == biz.BOMImportStatusParsing && stage == biz.BOMImportStageValidating {
+		progressExpr = gorm.Expr("?", progress)
+	}
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() { _ = tx.Rollback() }()
+	var cur BomSession
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", sessionID).First(&cur).Error; err != nil {
+		return err
+	}
+	if !biz.IsImportStatusTransitionAllowed(cur.ImportStatus, status) {
+		return biz.ErrBOMImportStatusTransitionInvalid
+	}
+	updates := map[string]interface{}{
+		"import_status":     status,
+		"import_progress":   progressExpr,
+		"import_stage":      stage,
+		"import_message":    trimPtr(patch.Message),
+		"import_error_code": trimPtr(patch.ErrorCode),
+		"import_error":      trimPtr(patch.Error),
+		"import_updated_at": gorm.Expr("CURRENT_TIMESTAMP(3)"),
+		"updated_at":        gorm.Expr("CURRENT_TIMESTAMP(3)"),
+	}
+	if err := tx.Model(&BomSession{}).Where("id = ?", sessionID).Updates(updates).Error; err != nil {
+		return err
+	}
+	return tx.Commit().Error
+}
+
 func normalizePlatformSlice(in []string) []string {
 	seen := make(map[string]struct{})
 	out := make([]string, 0, len(in))
@@ -371,6 +465,17 @@ func derefStr(p *string) string {
 		return ""
 	}
 	return *p
+}
+
+func trimPtr(in *string) *string {
+	if in == nil {
+		return nil
+	}
+	v := strings.TrimSpace(*in)
+	if v == "" {
+		return nil
+	}
+	return &v
 }
 
 func (r *BomSessionRepo) CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error) {

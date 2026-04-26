@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { SourcingSessionPage } from '../SourcingSessionPage'
+import { SessionSearchCleanPanel } from './SessionSearchCleanPanel'
 import { SESSION_WORKBENCH_TABS, type SessionWorkbenchTab } from './sessionTabs'
 
 interface SessionWorkspaceProps {
@@ -60,7 +61,9 @@ export function SessionWorkspace({
         })}
       </div>
 
-      {canUseSessionDetail ? (
+      {currentTab === 'search-clean' ? (
+        <SessionSearchCleanPanel sessionId={sessionId} />
+      ) : canUseSessionDetail ? (
         <SourcingSessionPage embedded sessionId={sessionId} />
       ) : (
         <PlaceholderPanel label={currentLabel} sessionId={sessionId} />

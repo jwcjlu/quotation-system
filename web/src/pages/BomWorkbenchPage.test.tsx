@@ -3,8 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BomWorkbenchPage } from './BomWorkbenchPage'
 
-const { listSessions } = vi.hoisted(() => ({
+const {
+  listSessions,
+  listSessionSearchTasks,
+  retrySearchTasks,
+  autoMatch,
+  listManufacturerCanonicals,
+} = vi.hoisted(() => ({
   listSessions: vi.fn(),
+  listSessionSearchTasks: vi.fn(),
+  retrySearchTasks: vi.fn(),
+  autoMatch: vi.fn(),
+  listManufacturerCanonicals: vi.fn(),
 }))
 
 vi.mock('../api', async () => {
@@ -12,6 +22,10 @@ vi.mock('../api', async () => {
   return {
     ...actual,
     listSessions,
+    listSessionSearchTasks,
+    retrySearchTasks,
+    autoMatch,
+    listManufacturerCanonicals,
   }
 })
 
@@ -50,6 +64,25 @@ describe('BomWorkbenchPage', () => {
         },
       ],
     })
+    listSessionSearchTasks.mockResolvedValue({
+      session_id: 'session-1',
+      summary: {
+        total: 0,
+        pending: 0,
+        searching: 0,
+        succeeded: 0,
+        no_data: 0,
+        failed: 0,
+        skipped: 0,
+        cancelled: 0,
+        missing: 0,
+        retryable: 0,
+      },
+      tasks: [],
+    })
+    retrySearchTasks.mockResolvedValue({ accepted: 0 })
+    autoMatch.mockResolvedValue({ items: [], total_amount: 0 })
+    listManufacturerCanonicals.mockResolvedValue([])
   })
 
   it('selects a session from the left list and opens the workspace on the right', async () => {
@@ -94,5 +127,20 @@ describe('BomWorkbenchPage', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'BOM\u884c' }))
 
     expect(screen.getByText('session detail: session-1')).toBeInTheDocument()
+  })
+
+  it('opens search clean tools inside the selected session', async () => {
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+    fireEvent.click(await screen.findByRole('tab', { name: '\u641c\u7d22\u6e05\u6d17' }))
+
+    expect(await screen.findByTestId('search-clean-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('manufacturer-alias-review-panel')).toBeInTheDocument()
+    expect(listSessionSearchTasks).toHaveBeenCalledWith('session-1')
   })
 })

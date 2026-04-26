@@ -13,6 +13,7 @@
 | 4 | [2026-04-19-bom-line-hs-customs-tax-design.md](./2026-04-19-bom-line-hs-customs-tax-design.md) | 配单行 HS、商检、`t_hs_tax_rate_daily` 关税缓存与「一键找 HS」 |
 | 5 | [../plans/2026-04-19-bom-line-hs-customs-tax-implementation.md](../plans/2026-04-19-bom-line-hs-customs-tax-implementation.md) | 上述设计的实现计划（proto、biz、data、Wire、Resolve 空厂牌对齐） |
 | 6 | [2026-04-19-hs-resolve-manual-datasheet-design.md](./2026-04-19-hs-resolve-manual-datasheet-design.md) | HS Resolve：无 datasheet 时手动描述 + 上传手册（PDF）、优先级与 API |
+| 7 | [2026-04-21-bom-llm-async-import-design.md](./2026-04-21-bom-llm-async-import-design.md) | BOM 导入（LLM）异步解析 + 进度条：状态机、分块策略、门禁与兼容性 |
 
 ## 数据模型（DDL 草案）
 

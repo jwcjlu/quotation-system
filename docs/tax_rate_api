@@ -1,0 +1,22 @@
+接口地址:https://www.singlewindow.cn/access/ui/1776225848566/TaxRate001?cw2qEsfh=0RC85aAlqWxhpXxTC7L8RPvSD78IFIygNX76nZ..oW84veAvzBCmtkMhaH6HI98Ok416joJPci1c0uNbipH1.cjWAmm1NHnnQprMNjZoZsmIDbKy3z0uT6a
+
+请求：{"Head":{},"Data":"{\"gName\":\"\",\"codeTs\":\"8542399000\",\"nextPage\":1,\"pageSize\":10}"}
+响应：
+{
+    "status": "success",
+    "indexinfo": "69e337389e7e44804221ff6c",
+    "data": {
+        "statue": 1,
+        "message": "查询成功",
+        "totalCount": 1,
+        "data": [
+            {
+                "impDiscountRate": "0",
+                "gName": "其他集成电路",
+                "codeTs": "8542399000",
+                "impTempRate": "",
+                "impOrdinaryRate": "24%"
+            }
+        ]
+    }
+}

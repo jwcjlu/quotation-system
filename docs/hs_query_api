@@ -1,0 +1,170 @@
+接口地址:https://www.singlewindow.cn/access/ui/1776225848566/Param002?cw2qEsfh=0_ANsxalqWkpLsAEgamx5Yf7_OktVhbTEB3iaFDccSc1jBtIsQzH876YTScp_EGQXeJLc6dz.vPczj3ElcKWsl7JZuoZmBqd2.0FlHnMGvxHAr82gJ76UAA
+
+请求：{"Head":{},"Data":"{\"pageNo\":1,\"rowsPerPage\":10,\"paramName\":\"CusComplex\",\"filterField\":\"CODE_TS\",\"filterValue\":\"8541\"}"}
+响应：{
+    "status": "success",
+    "indexinfo": "69df5c9b9e7e44804217376b",
+    "data": {
+        "pageNo": 1,
+        "rowsPerPage": 10,
+        "pageSumCount": 3,
+        "totalRows": 23,
+        "download": false,
+        "errorType": null,
+        "head": [
+            {
+                "vprepare": "adm",
+                "predate": 1640768908000,
+                "modifier": "U000000003",
+                "modifydate": 1647519694000,
+                "pqcode": "CusComplex",
+                "sortidx": 1,
+                "colname": "CODE_TS",
+                "coldisplay": "商品编码/HS编码",
+                "colwidth": null,
+                "flags": 1,
+                "txt01": null,
+                "txt02": null,
+                "txt03": null,
+                "remark": "VARCHAR2(48)"
+            },
+            {
+                "vprepare": "adm",
+                "predate": 1640768908000,
+                "modifier": "U000000003",
+                "modifydate": 1647519698000,
+                "pqcode": "CusComplex",
+                "sortidx": 2,
+                "colname": "G_NAME",
+                "coldisplay": "商品名称",
+                "colwidth": null,
+                "flags": 1,
+                "txt01": null,
+                "txt02": null,
+                "txt03": null,
+                "remark": "VARCHAR2(765)"
+            },
+            {
+                "vprepare": "adm",
+                "predate": 1640768908000,
+                "modifier": "U000000001",
+                "modifydate": 1643012590000,
+                "pqcode": "CusComplex",
+                "sortidx": 3,
+                "colname": "UNIT_1",
+                "coldisplay": "第一计量单位",
+                "colwidth": null,
+                "flags": null,
+                "txt01": null,
+                "txt02": null,
+                "txt03": null,
+                "remark": "VARCHAR2(9)"
+            },
+            {
+                "vprepare": "adm",
+                "predate": 1640768908000,
+                "modifier": "U000000001",
+                "modifydate": 1643012598000,
+                "pqcode": "CusComplex",
+                "sortidx": 4,
+                "colname": "UNIT_2",
+                "coldisplay": "第二计量单位",
+                "colwidth": null,
+                "flags": null,
+                "txt01": null,
+                "txt02": null,
+                "txt03": null,
+                "remark": "VARCHAR2(9)"
+            },
+            {
+                "vprepare": "adm",
+                "predate": 1640768908000,
+                "modifier": "U000000003",
+                "modifydate": 1643264863000,
+                "pqcode": "CusComplex",
+                "sortidx": 5,
+                "colname": "CONTROL_MARK",
+                "coldisplay": "监管条件代码",
+                "colwidth": null,
+                "flags": null,
+                "txt01": null,
+                "txt02": null,
+                "txt03": null,
+                "remark": "VARCHAR2(30)"
+            }
+        ],
+        "data": [
+            {
+                "ROWNO": 1,
+                "G_NAME": "厚<1.5mm的热轧非卷材",
+                "CONTROL_MARK": "4x",
+                "CODE_TS": "7208541000",
+                "UNIT_1": "035"
+            },
+            {
+                "ROWNO": 2,
+                "G_NAME": "二极管",
+                "UNIT_2": "035",
+                "CODE_TS": "8541100000",
+                "UNIT_1": "007"
+            },
+            {
+                "ROWNO": 3,
+                "G_NAME": "耗散功率＜1W的晶体管",
+                "UNIT_2": "035",
+                "CODE_TS": "8541210000",
+                "UNIT_1": "007"
+            },
+            {
+                "ROWNO": 4,
+                "G_NAME": "耗散功率≥1W的晶体管",
+                "UNIT_2": "035",
+                "CODE_TS": "8541290000",
+                "UNIT_1": "007"
+            },
+            {
+                "ROWNO": 5,
+                "G_NAME": "半导体及可控硅等开关元件",
+                "UNIT_2": "035",
+                "CODE_TS": "8541300000",
+                "UNIT_1": "007"
+            },
+            {
+                "ROWNO": 6,
+                "G_NAME": "氮化镓外延片",
+                "CONTROL_MARK": "3",
+                "UNIT_2": "035",
+                "CODE_TS": "8541410010",
+                "UNIT_1": "007"
+            },
+            {
+                "ROWNO": 7,
+                "G_NAME": "其他发光二极管",
+                "UNIT_2": "035",
+                "CODE_TS": "8541410090",
+                "UNIT_1": "007"
+            },
+            {
+                "ROWNO": 8,
+                "G_NAME": "未装在组件内或组装成块的光电池",
+                "UNIT_2": "035",
+                "CODE_TS": "8541420000",
+                "UNIT_1": "007"
+            },
+            {
+                "ROWNO": 9,
+                "G_NAME": "已装在组件内或组装成块的光电池",
+                "UNIT_2": "035",
+                "CODE_TS": "8541430000",
+                "UNIT_1": "007"
+            },
+            {
+                "ROWNO": 10,
+                "G_NAME": "其他光敏半导体器件",
+                "UNIT_2": "035",
+                "CODE_TS": "8541490000",
+                "UNIT_1": "007"
+            }
+        ]
+    }
+}

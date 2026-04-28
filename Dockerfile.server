@@ -1,9 +1,14 @@
-ARG SERVER_BUILDER_IMAGE=golang:1.23-alpine
+ARG SERVER_BUILDER_IMAGE=golang:1.25.8-alpine
 ARG SERVER_RUNTIME_IMAGE=alpine:3.20
+ARG GOPROXY=https://goproxy.cn,direct
+ARG GOSUMDB=sum.golang.google.cn
 
 FROM ${SERVER_BUILDER_IMAGE} AS builder
 
 WORKDIR /src
+
+ENV GOPROXY=${GOPROXY}
+ENV GOSUMDB=${GOSUMDB}
 
 RUN apk add --no-cache git ca-certificates tzdata
 

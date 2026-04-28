@@ -1,4 +1,7 @@
-FROM golang:1.23-alpine AS builder
+ARG SERVER_BUILDER_IMAGE=golang:1.23-alpine
+ARG SERVER_RUNTIME_IMAGE=alpine:3.20
+
+FROM ${SERVER_BUILDER_IMAGE} AS builder
 
 WORKDIR /src
 
@@ -11,7 +14,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/caichip-server ./cmd/server
 
-FROM alpine:3.20
+FROM ${SERVER_RUNTIME_IMAGE}
 
 WORKDIR /app
 

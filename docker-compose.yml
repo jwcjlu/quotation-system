@@ -1,4 +1,4 @@
-version: "3.9"
+version: "2.2"
 
 services:
   mysql:
@@ -41,6 +41,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.server
+      args:
+        SERVER_BUILDER_IMAGE: ${SERVER_BUILDER_IMAGE:-golang:1.23-alpine}
+        SERVER_RUNTIME_IMAGE: ${SERVER_RUNTIME_IMAGE:-alpine:3.20}
     container_name: caichip-server
     restart: unless-stopped
     depends_on:

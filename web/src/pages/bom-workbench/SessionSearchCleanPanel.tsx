@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  applyManufacturerAliasesToSession,
+  approveManufacturerAliasCleaning,
   listManufacturerAliasCandidates,
   listManufacturerCanonicals,
   listSessionSearchTasks,
@@ -22,7 +24,10 @@ import {
 
 function pendingRowsFromCandidates(items: ManufacturerAliasCandidate[]): PendingMfrRow[] {
   return items.map((item) => ({
+    kind: item.kind,
     alias: item.alias,
+    recommendedCanonicalId: item.recommended_canonical_id,
+    platformIds: item.platform_ids,
     lineIndexes: item.line_nos,
     demandHint: item.demand_hint,
   }))
@@ -155,6 +160,28 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
     }
   }
 
+  async function handleApproveManufacturerAlias(input: { alias: string; canonical_id: string; display_name: string }) {
+    await approveManufacturerAliasCleaning(sessionId, input)
+    const [candidates, canonicals] = await Promise.all([
+      listManufacturerAliasCandidates(sessionId),
+      listManufacturerCanonicals(),
+      loadSearchTasks(),
+    ])
+    setPendingRows(pendingRowsFromCandidates(candidates))
+    setCanonicalRows(canonicals)
+  }
+
+  async function handleApplyExistingAliases() {
+    await applyManufacturerAliasesToSession(sessionId)
+    const [candidates, canonicals] = await Promise.all([
+      listManufacturerAliasCandidates(sessionId),
+      listManufacturerCanonicals(),
+      loadSearchTasks(),
+    ])
+    setPendingRows(pendingRowsFromCandidates(candidates))
+    setCanonicalRows(canonicals)
+  }
+
   const summary = searchTasks?.summary
   const failedCount = (summary?.failed ?? 0) + (summary?.missing ?? 0)
 
@@ -279,8 +306,8 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
       <ManufacturerAliasReviewPanel
         pendingRows={pendingRows}
         canonicalRows={canonicalRows}
-        onApproved={() => void loadSearchTasks()}
-        onManualSuccess={() => void loadSearchTasks()}
+        onApprove={handleApproveManufacturerAlias}
+        onApplyExisting={handleApplyExistingAliases}
       />
     </div>
   )

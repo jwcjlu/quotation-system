@@ -23,21 +23,27 @@ import (
 
 // BomService implements the BOM HTTP API.
 type BomService struct {
-	session    biz.BOMSessionRepo
-	search     biz.BOMSearchTaskRepo
-	gaps       biz.BOMLineGapRepo
-	matchRuns  biz.BOMMatchRunRepo
-	merge      biz.MergeDispatchExecutor
-	openai     *data.OpenAIChat
-	llmChatFn  func(ctx context.Context, system, user string) (string, error)
-	fx         *data.BomFxRateRepo
-	alias      biz.BomManufacturerAliasRepo
-	hsMapping  biz.HsModelMappingRepo
-	hsItem     biz.HsItemReadRepo
-	hsTaxDaily biz.HsTaxRateDailyRepo
-	hsTaxAPI   biz.TaxRateAPIFetcher
-	bomMatch   *conf.BomMatch
-	log        *log.Helper
+	session     biz.BOMSessionRepo
+	search      biz.BOMSearchTaskRepo
+	gaps        biz.BOMLineGapRepo
+	matchRuns   biz.BOMMatchRunRepo
+	merge       biz.MergeDispatchExecutor
+	openai      *data.OpenAIChat
+	llmChatFn   func(ctx context.Context, system, user string) (string, error)
+	fx          *data.BomFxRateRepo
+	alias       biz.BomManufacturerAliasRepo
+	mfrCleaning biz.BomManufacturerCleaningRepo
+	hsMapping   biz.HsModelMappingRepo
+	hsItem      biz.HsItemReadRepo
+	hsTaxDaily  biz.HsTaxRateDailyRepo
+	hsTaxAPI    biz.TaxRateAPIFetcher
+	bomMatch    *conf.BomMatch
+	log         *log.Helper
+}
+
+func (s *BomService) SetManufacturerCleaningRepo(repo biz.BomManufacturerCleaningRepo) *BomService {
+	s.mfrCleaning = repo
+	return s
 }
 
 // NewBomService ...
@@ -167,6 +173,9 @@ func (s *BomService) AutoMatch(ctx context.Context, req *v1.AutoMatchRequest) (*
 	}
 	if err := s.matchReadinessError(ctx, sid, view, lines); err != nil {
 		return nil, err
+	}
+	if pending := demandManufacturerCleaningRequired(lines); len(pending) > 0 {
+		return nil, kerrors.BadRequest("MFR_CLEANING_REQUIRED", "manufacturer cleaning required for lines: "+formatLineNos(pending))
 	}
 	items, total, err := s.computeMatchItems(ctx, view, lines, plats)
 	if err != nil {
@@ -720,6 +729,24 @@ func derefStrPtr(p *string) string {
 	return *p
 }
 
+func demandManufacturerCleaningRequired(lines []data.BomSessionLine) []int {
+	var out []int
+	for _, line := range lines {
+		if strings.TrimSpace(derefStrPtr(line.Mfr)) != "" && line.ManufacturerCanonicalID == nil {
+			out = append(out, line.LineNo)
+		}
+	}
+	return out
+}
+
+func formatLineNos(lineNos []int) string {
+	parts := make([]string, 0, len(lineNos))
+	for _, lineNo := range lineNos {
+		parts = append(parts, strconv.Itoa(lineNo))
+	}
+	return strings.Join(parts, ",")
+}
+
 func derefFloat(p *float64) float64 {
 	if p == nil {
 		return 0
@@ -813,6 +840,10 @@ func (s *BomService) ListSessionSearchTasks(ctx context.Context, req *v1.ListSes
 			row.MpnRaw = line.Mpn
 			row.MpnNorm = mpnNorm
 			row.PlatformID = platformID
+			row, err = s.reconcileFinishedDispatchSearchTask(ctx, sid, view.BizDate, row)
+			if err != nil {
+				return nil, err
+			}
 			row.SearchTaskState = biz.NormalizeBOMSearchTaskState(row.SearchTaskState)
 			row.SearchUIState = biz.MapBOMSearchTaskUIState(row.SearchTaskState)
 			row.Retryable, row.RetryBlockedReason = biz.CanRetryBOMSearchTask(row.SearchTaskState, biz.SearchTaskRetrySingleManual)
@@ -897,7 +928,11 @@ func (s *BomService) CreateSessionLine(ctx context.Context, req *v1.CreateSessio
 		e := req.GetExtraJson()
 		extra = &e
 	}
-	id, lineNo, rev, err := s.session.CreateSessionLine(ctx, req.GetSessionId(), req.GetMpn(), req.GetMfr(), req.GetPackage(), qty, raw, extra)
+	canon, err := s.canonicalPtrForManufacturer(ctx, req.GetMfr())
+	if err != nil {
+		return nil, err
+	}
+	id, lineNo, rev, err := s.session.CreateSessionLine(ctx, req.GetSessionId(), req.GetMpn(), req.GetMfr(), req.GetPackage(), canon, qty, raw, extra)
 	if err != nil {
 		return nil, err
 	}
@@ -958,7 +993,15 @@ func (s *BomService) PatchSessionLine(ctx context.Context, req *v1.PatchSessionL
 	if req.ExtraJson != nil {
 		extra = req.ExtraJson
 	}
-	rev, err := s.session.UpdateSessionLine(ctx, sid, lid, mpn, mfr, pkg, qty, raw, extra)
+	var mfrCanon biz.OptionalStringPtr
+	if req.Mfr != nil {
+		canon, err := s.canonicalPtrForManufacturer(ctx, *req.Mfr)
+		if err != nil {
+			return nil, err
+		}
+		mfrCanon = biz.OptionalStringPtr{Set: true, Value: canon}
+	}
+	rev, err := s.session.UpdateSessionLine(ctx, sid, lid, mpn, mfr, pkg, mfrCanon, qty, raw, extra)
 	if err != nil {
 		return nil, err
 	}

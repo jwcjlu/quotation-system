@@ -7,8 +7,11 @@ export interface ManufacturerCanonicalRow {
 }
 
 export interface ManufacturerAliasCandidate {
+  kind: 'demand' | 'quote'
   alias: string
+  recommended_canonical_id: string
   line_nos: number[]
+  platform_ids: string[]
   demand_hint: string
 }
 
@@ -153,6 +156,27 @@ export async function listManufacturerCanonicals(
   }))
 }
 
+export async function approveManufacturerAliasCleaning(
+  sessionId: string,
+  input: { alias: string; canonical_id: string; display_name: string }
+): Promise<{ session_line_updated: number; quote_item_updated: number }> {
+  return fetchJson(`/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/manufacturer-alias-approvals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+export async function applyManufacturerAliasesToSession(
+  sessionId: string
+): Promise<{ session_line_updated: number; quote_item_updated: number }> {
+  return fetchJson(`/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/manufacturer-aliases/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
+}
+
 export async function listManufacturerAliasCandidates(
   sessionId: string
 ): Promise<ManufacturerAliasCandidate[]> {
@@ -161,8 +185,11 @@ export async function listManufacturerAliasCandidates(
   )
   const rows = (json.items ?? []) as Record<string, unknown>[]
   return rows.map((r) => ({
+    kind: str(r.kind) === 'demand' ? 'demand' : 'quote',
     alias: str(r.alias),
+    recommended_canonical_id: str(r.recommended_canonical_id ?? r.recommendedCanonicalId),
     line_nos: ((r.line_nos ?? r.lineNos ?? []) as unknown[]).map(num).filter((v) => v > 0),
+    platform_ids: ((r.platform_ids ?? r.platformIds ?? []) as unknown[]).map(str).filter(Boolean),
     demand_hint: str(r.demand_hint ?? r.demandHint),
   }))
 }

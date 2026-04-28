@@ -19,6 +19,8 @@ var _ = binding.EncodeURL
 
 const _ = http.SupportPackageIsVersion1
 
+const OperationBomServiceApplyKnownManufacturerAliasesToSession = "/api.bom.v1.BomService/ApplyKnownManufacturerAliasesToSession"
+const OperationBomServiceApproveManufacturerAliasCleaning = "/api.bom.v1.BomService/ApproveManufacturerAliasCleaning"
 const OperationBomServiceAutoMatch = "/api.bom.v1.BomService/AutoMatch"
 const OperationBomServiceCreateManufacturerAlias = "/api.bom.v1.BomService/CreateManufacturerAlias"
 const OperationBomServiceCreateSession = "/api.bom.v1.BomService/CreateSession"
@@ -52,6 +54,8 @@ const OperationBomServiceSubmitBomSearchResult = "/api.bom.v1.BomService/SubmitB
 const OperationBomServiceUploadBOM = "/api.bom.v1.BomService/UploadBOM"
 
 type BomServiceHTTPServer interface {
+	ApplyKnownManufacturerAliasesToSession(context.Context, *ApplyKnownManufacturerAliasesToSessionRequest) (*ApplyKnownManufacturerAliasesToSessionReply, error)
+	ApproveManufacturerAliasCleaning(context.Context, *ApproveManufacturerAliasCleaningRequest) (*ApproveManufacturerAliasCleaningReply, error)
 	// AutoMatch 自动配单
 	AutoMatch(context.Context, *AutoMatchRequest) (*AutoMatchReply, error)
 	CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error)
@@ -110,6 +114,8 @@ func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r.GET("/api/v1/bom/template", _BomService_DownloadTemplate0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/manufacturer-canonicals", _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom/manufacturer-aliases", _BomService_CreateManufacturerAlias0_HTTP_Handler(srv))
+	r.POST("/api/v1/bom-sessions/{session_id}/manufacturer-alias-approvals", _BomService_ApproveManufacturerAliasCleaning0_HTTP_Handler(srv))
+	r.POST("/api/v1/bom-sessions/{session_id}/manufacturer-aliases/apply", _BomService_ApplyKnownManufacturerAliasesToSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}", _BomService_GetBOM0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match", _BomService_GetMatchResult0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match-sources", _BomService_ListMatchSources0_HTTP_Handler(srv))
@@ -222,6 +228,97 @@ func _BomService_DownloadTemplate0_HTTP_Handler(srv BomServiceHTTPServer) func(c
 	}
 }
 
+func _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ListManufacturerCanonicalsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceListManufacturerCanonicals)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListManufacturerCanonicals(ctx, req.(*ListManufacturerCanonicalsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListManufacturerCanonicalsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_CreateManufacturerAlias0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in CreateManufacturerAliasRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceCreateManufacturerAlias)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.CreateManufacturerAlias(ctx, req.(*CreateManufacturerAliasRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*CreateManufacturerAliasReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_ApproveManufacturerAliasCleaning0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ApproveManufacturerAliasCleaningRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceApproveManufacturerAliasCleaning)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ApproveManufacturerAliasCleaning(ctx, req.(*ApproveManufacturerAliasCleaningRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ApproveManufacturerAliasCleaningReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_ApplyKnownManufacturerAliasesToSession0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ApplyKnownManufacturerAliasesToSessionRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceApplyKnownManufacturerAliasesToSession)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ApplyKnownManufacturerAliasesToSession(ctx, req.(*ApplyKnownManufacturerAliasesToSessionRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ApplyKnownManufacturerAliasesToSessionReply)
+		return ctx.Result(200, reply)
+	}
+}
+
 func _BomService_GetBOM0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
 	return func(ctx http.Context) error {
 		var in GetBOMRequest
@@ -306,47 +403,6 @@ func _BomService_GetMatchSourceDetail0_HTTP_Handler(srv BomServiceHTTPServer) fu
 			return err
 		}
 		reply := out.(*GetMatchSourceDetailReply)
-		return ctx.Result(200, reply)
-	}
-}
-
-func _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
-	return func(ctx http.Context) error {
-		var in ListManufacturerCanonicalsRequest
-		if err := ctx.BindQuery(&in); err != nil {
-			return err
-		}
-		http.SetOperation(ctx, OperationBomServiceListManufacturerCanonicals)
-		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
-			return srv.ListManufacturerCanonicals(ctx, req.(*ListManufacturerCanonicalsRequest))
-		})
-		out, err := h(ctx, &in)
-		if err != nil {
-			return err
-		}
-		reply := out.(*ListManufacturerCanonicalsReply)
-		return ctx.Result(200, reply)
-	}
-}
-
-func _BomService_CreateManufacturerAlias0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
-	return func(ctx http.Context) error {
-		var in CreateManufacturerAliasRequest
-		if err := ctx.Bind(&in); err != nil {
-			return err
-		}
-		if err := ctx.BindQuery(&in); err != nil {
-			return err
-		}
-		http.SetOperation(ctx, OperationBomServiceCreateManufacturerAlias)
-		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
-			return srv.CreateManufacturerAlias(ctx, req.(*CreateManufacturerAliasRequest))
-		})
-		out, err := h(ctx, &in)
-		if err != nil {
-			return err
-		}
-		reply := out.(*CreateManufacturerAliasReply)
 		return ctx.Result(200, reply)
 	}
 }
@@ -838,6 +894,8 @@ func _BomService_ExportSession0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx 
 }
 
 type BomServiceHTTPClient interface {
+	ApplyKnownManufacturerAliasesToSession(ctx context.Context, req *ApplyKnownManufacturerAliasesToSessionRequest, opts ...http.CallOption) (rsp *ApplyKnownManufacturerAliasesToSessionReply, err error)
+	ApproveManufacturerAliasCleaning(ctx context.Context, req *ApproveManufacturerAliasCleaningRequest, opts ...http.CallOption) (rsp *ApproveManufacturerAliasCleaningReply, err error)
 	// AutoMatch 自动配单
 	AutoMatch(ctx context.Context, req *AutoMatchRequest, opts ...http.CallOption) (rsp *AutoMatchReply, err error)
 	CreateManufacturerAlias(ctx context.Context, req *CreateManufacturerAliasRequest, opts ...http.CallOption) (rsp *CreateManufacturerAliasReply, err error)
@@ -894,6 +952,32 @@ type BomServiceHTTPClientImpl struct {
 
 func NewBomServiceHTTPClient(client *http.Client) BomServiceHTTPClient {
 	return &BomServiceHTTPClientImpl{client}
+}
+
+func (c *BomServiceHTTPClientImpl) ApplyKnownManufacturerAliasesToSession(ctx context.Context, in *ApplyKnownManufacturerAliasesToSessionRequest, opts ...http.CallOption) (*ApplyKnownManufacturerAliasesToSessionReply, error) {
+	var out ApplyKnownManufacturerAliasesToSessionReply
+	pattern := "/api/v1/bom-sessions/{session_id}/manufacturer-aliases/apply"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationBomServiceApplyKnownManufacturerAliasesToSession))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *BomServiceHTTPClientImpl) ApproveManufacturerAliasCleaning(ctx context.Context, in *ApproveManufacturerAliasCleaningRequest, opts ...http.CallOption) (*ApproveManufacturerAliasCleaningReply, error) {
+	var out ApproveManufacturerAliasCleaningReply
+	pattern := "/api/v1/bom-sessions/{session_id}/manufacturer-alias-approvals"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationBomServiceApproveManufacturerAliasCleaning))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // AutoMatch 自动配单

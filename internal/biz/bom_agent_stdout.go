@@ -20,9 +20,6 @@ func ApplyBOMQuotesFromAgentStdout(ctx context.Context, repo BOMSearchTaskRepo, 
 	if !strings.EqualFold(strings.TrimSpace(status), "success") {
 		return false, nil
 	}
-	if strings.TrimSpace(stdout) == "" {
-		return false, nil
-	}
 	tid := strings.TrimSpace(taskID)
 	if tid == "" {
 		return false, nil
@@ -34,21 +31,18 @@ func ApplyBOMQuotesFromAgentStdout(ctx context.Context, repo BOMSearchTaskRepo, 
 	if len(rows) == 0 {
 		return false, nil
 	}
+	if strings.TrimSpace(stdout) == "" {
+		msg := "task stdout quotes missing"
+		if err := finalizeBOMStdoutRowsAsFailed(ctx, repo, session, rows, tid, msg); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
 	quoteRows, ok := ParseTaskStdoutQuoteRows(stdout)
 	if !ok {
 		msg := "task stdout quotes parse rejected"
-		sessions := make(map[string]struct{})
-		for _, row := range rows {
-			err = repo.FinalizeSearchTask(ctx, row.SessionID, row.MpnNorm, row.PlatformID, row.BizDate, tid, "failed_terminal", &msg, "", nil, nil)
-			if err != nil {
-				return false, err
-			}
-			sessions[row.SessionID] = struct{}{}
-		}
-		if session != nil && session.DBOk() {
-			for sid := range sessions {
-				_ = TryMarkSessionDataReady(ctx, session, repo, sid)
-			}
+		if err := finalizeBOMStdoutRowsAsFailed(ctx, repo, session, rows, tid, msg); err != nil {
+			return false, err
 		}
 		return true, nil
 	}
@@ -70,4 +64,21 @@ func ApplyBOMQuotesFromAgentStdout(ctx context.Context, repo BOMSearchTaskRepo, 
 		}
 	}
 	return true, nil
+}
+
+func finalizeBOMStdoutRowsAsFailed(ctx context.Context, repo BOMSearchTaskRepo, session BOMSessionRepo, rows []BOMSearchTaskLookup, taskID, msg string) error {
+	lastErr := strings.TrimSpace(msg)
+	sessions := make(map[string]struct{})
+	for _, row := range rows {
+		if err := repo.FinalizeSearchTask(ctx, row.SessionID, row.MpnNorm, row.PlatformID, row.BizDate, taskID, "failed_terminal", &lastErr, "", nil, nil); err != nil {
+			return err
+		}
+		sessions[row.SessionID] = struct{}{}
+	}
+	if session != nil && session.DBOk() {
+		for sid := range sessions {
+			_ = TryMarkSessionDataReady(ctx, session, repo, sid)
+		}
+	}
+	return nil
 }

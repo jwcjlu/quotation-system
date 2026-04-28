@@ -7,19 +7,20 @@ import (
 
 // AgentQuoteRow 各平台采集脚本 stdout 中统一的报价数组元素结构（JSON 对象字段一致）。
 type AgentQuoteRow struct {
-	Seq           int    `json:"seq"`
-	Model         string `json:"model"`
-	Manufacturer  string `json:"manufacturer"`
-	Package       string `json:"package"`
-	Desc          string `json:"desc"`
-	Stock         string `json:"stock"`
-	MOQ           string `json:"moq"`
-	PriceTiers    string `json:"price_tiers"`
-	HKPrice       string `json:"hk_price"`
-	MainlandPrice string `json:"mainland_price"`
-	LeadTime      string `json:"lead_time"`
-	QueryModel    string `json:"query_model,omitempty"`
-	DatasheetURL  string `json:"datasheet_url"`
+	Seq                     int     `json:"seq"`
+	Model                   string  `json:"model"`
+	Manufacturer            string  `json:"manufacturer"`
+	ManufacturerCanonicalID *string `json:"manufacturer_canonical_id,omitempty"`
+	Package                 string  `json:"package"`
+	Desc                    string  `json:"desc"`
+	Stock                   string  `json:"stock"`
+	MOQ                     string  `json:"moq"`
+	PriceTiers              string  `json:"price_tiers"`
+	HKPrice                 string  `json:"hk_price"`
+	MainlandPrice           string  `json:"mainland_price"`
+	LeadTime                string  `json:"lead_time"`
+	QueryModel              string  `json:"query_model,omitempty"`
+	DatasheetURL            string  `json:"datasheet_url"`
 }
 
 type taskStdoutEnvelope struct {

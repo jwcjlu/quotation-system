@@ -45,6 +45,37 @@ func TestListSessionSearchTasksIncludesMissingAndRetryable(t *testing.T) {
 	}
 }
 
+func TestListSessionSearchTasksReconcilesFinishedDispatchWithoutStdout(t *testing.T) {
+	svc, session, search := newBomSearchTaskStatusServiceTest()
+	bizDate := time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC)
+	session.view = &biz.BOMSessionView{
+		SessionID: "session-1", Status: "searching", BizDate: bizDate,
+		PlatformIDs: []string{"hqchip"}, SelectionRevision: 2,
+	}
+	session.lines = []biz.BOMSessionLineView{{ID: 12, LineNo: 12, Mpn: "TPS5430DDA"}}
+	search.statusRows = []biz.SearchTaskStatusRow{{
+		MpnNorm: "TPS5430DDA", PlatformID: "hqchip", SearchTaskState: "running",
+		DispatchTaskID: "task-1", DispatchTaskState: "finished", DispatchResult: "success",
+	}}
+
+	resp, err := svc.ListSessionSearchTasks(context.Background(), &v1.ListSessionSearchTasksRequest{SessionId: "session-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if search.finalState != "failed_terminal" || search.lastErr == "" {
+		t.Fatalf("expected stuck finished dispatch to finalize failed, state=%q err=%q", search.finalState, search.lastErr)
+	}
+	if resp.GetSummary().GetSearching() != 0 || resp.GetSummary().GetFailed() != 1 || resp.GetSummary().GetRetryable() != 1 {
+		t.Fatalf("unexpected summary: %+v", resp.GetSummary())
+	}
+	if got := resp.GetTasks()[0]; got.GetSearchUiState() != "failed" || !got.GetRetryable() {
+		t.Fatalf("expected failed retryable row, got %+v", got)
+	}
+	if session.setStatus != "data_ready" {
+		t.Fatalf("expected session data_ready after reconciliation, got %q", session.setStatus)
+	}
+}
+
 func TestRetrySearchTasksCreatesMissingPendingTask(t *testing.T) {
 	svc, session, search := newBomSearchTaskStatusServiceTest()
 	bizDate := time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC)
@@ -79,6 +110,7 @@ type searchTaskStatusSessionRepoStub struct {
 	sessionExists bool
 	view          *biz.BOMSessionView
 	lines         []biz.BOMSessionLineView
+	setStatus     string
 }
 
 func (r *searchTaskStatusSessionRepoStub) DBOk() bool { return true }
@@ -114,11 +146,12 @@ func (r *searchTaskStatusSessionRepoStub) ListSessionLines(context.Context, stri
 	return append([]biz.BOMSessionLineView(nil), r.lines...), nil
 }
 
-func (r *searchTaskStatusSessionRepoStub) SetSessionStatus(context.Context, string, string) error {
+func (r *searchTaskStatusSessionRepoStub) SetSessionStatus(_ context.Context, _ string, status string) error {
+	r.setStatus = status
 	return nil
 }
 
-func (r *searchTaskStatusSessionRepoStub) CreateSessionLine(context.Context, string, string, string, string, *float64, *string, *string) (int64, int32, int, error) {
+func (r *searchTaskStatusSessionRepoStub) CreateSessionLine(context.Context, string, string, string, string, *string, *float64, *string, *string) (int64, int32, int, error) {
 	return 0, 0, 0, nil
 }
 
@@ -126,7 +159,7 @@ func (r *searchTaskStatusSessionRepoStub) DeleteSessionLine(context.Context, str
 	return nil
 }
 
-func (r *searchTaskStatusSessionRepoStub) UpdateSessionLine(context.Context, string, int64, *string, *string, *string, *float64, *string, *string) (int, error) {
+func (r *searchTaskStatusSessionRepoStub) UpdateSessionLine(context.Context, string, int64, *string, *string, *string, biz.OptionalStringPtr, *float64, *string, *string) (int, error) {
 	return 0, nil
 }
 
@@ -143,6 +176,8 @@ type searchTaskStatusRepoStub struct {
 	statusRows  []biz.SearchTaskStatusRow
 	stateByKey  map[string]string
 	upsertPairs []biz.MpnPlatformPair
+	finalState  string
+	lastErr     string
 }
 
 func (r *searchTaskStatusRepoStub) DBOk() bool { return true }
@@ -151,7 +186,19 @@ func (r *searchTaskStatusRepoStub) LoadSearchTaskByCaichipTaskID(context.Context
 	return nil, nil
 }
 
-func (r *searchTaskStatusRepoStub) FinalizeSearchTask(context.Context, string, string, string, time.Time, string, string, *string, string, []byte, []byte) error {
+func (r *searchTaskStatusRepoStub) FinalizeSearchTask(_ context.Context, _, mpnNorm, platformID string, _ time.Time, _ string, state string, lastErr *string, _ string, _, _ []byte) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.finalState = state
+	if lastErr != nil {
+		r.lastErr = *lastErr
+	}
+	for i := range r.statusRows {
+		if r.statusRows[i].MpnNorm == mpnNorm && r.statusRows[i].PlatformID == platformID {
+			r.statusRows[i].SearchTaskState = state
+			r.statusRows[i].LastError = r.lastErr
+		}
+	}
 	return nil
 }
 
@@ -160,7 +207,15 @@ func (r *searchTaskStatusRepoStub) ListSearchTaskStatusRows(context.Context, str
 }
 
 func (r *searchTaskStatusRepoStub) ListTasksForSession(context.Context, string) ([]biz.TaskReadinessSnapshot, error) {
-	return nil, nil
+	out := make([]biz.TaskReadinessSnapshot, 0, len(r.statusRows))
+	for _, row := range r.statusRows {
+		out = append(out, biz.TaskReadinessSnapshot{
+			MpnNorm:    row.MpnNorm,
+			PlatformID: row.PlatformID,
+			State:      row.SearchTaskState,
+		})
+	}
+	return out, nil
 }
 
 func (r *searchTaskStatusRepoStub) ListActiveBySession(context.Context, string) ([]biz.TaskReadinessSnapshot, error) {

@@ -53,6 +53,20 @@ service BomService {
     };
   }
 
+  rpc ApproveManufacturerAliasCleaning(ApproveManufacturerAliasCleaningRequest) returns (ApproveManufacturerAliasCleaningReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions/{session_id}/manufacturer-alias-approvals"
+      body: "*"
+    };
+  }
+
+  rpc ApplyKnownManufacturerAliasesToSession(ApplyKnownManufacturerAliasesToSessionRequest) returns (ApplyKnownManufacturerAliasesToSessionReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions/{session_id}/manufacturer-aliases/apply"
+      body: "*"
+    };
+  }
+
   // 获取 BOM 详情（含解析结果）
   rpc GetBOM(GetBOMRequest) returns (GetBOMReply) {
     option (google.api.http) = {
@@ -464,6 +478,27 @@ message CreateManufacturerAliasRequest {
 }
 
 message CreateManufacturerAliasReply {}
+
+message ApproveManufacturerAliasCleaningRequest {
+  string session_id = 1;
+  string alias = 2;
+  string canonical_id = 3;
+  string display_name = 4;
+}
+
+message ApproveManufacturerAliasCleaningReply {
+  int32 session_line_updated = 1;
+  int32 quote_item_updated = 2;
+}
+
+message ApplyKnownManufacturerAliasesToSessionRequest {
+  string session_id = 1;
+}
+
+message ApplyKnownManufacturerAliasesToSessionReply {
+  int32 session_line_updated = 1;
+  int32 quote_item_updated = 2;
+}
 
 // ========== DownloadTemplate ==========
 message DownloadTemplateRequest {}

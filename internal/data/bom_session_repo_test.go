@@ -134,3 +134,57 @@ func TestBomSessionRepo_UpdateImportState(t *testing.T) {
 		t.Fatalf("unexpected failed override import_progress: %d", got.ImportProgress)
 	}
 }
+
+func TestBomSessionRepo_ReplaceSessionLinesPersistsManufacturerCanonicalID(t *testing.T) {
+	dsn := strings.TrimSpace(os.Getenv("TEST_DATABASE_URL"))
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL not set")
+	}
+	driver := strings.TrimSpace(os.Getenv("TEST_DATABASE_DRIVER"))
+	if driver == "" {
+		driver = "mysql"
+	}
+	db, cleanup, err := NewDB(&conf.Data{
+		Database: &conf.DataDatabase{
+			Driver: driver,
+			Dsn:    dsn,
+		},
+	})
+	if err != nil {
+		t.Fatalf("open test db: %v", err)
+	}
+	defer cleanup()
+	if err := AutoMigrateSchema(db); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+
+	ctx := context.Background()
+	repo := NewBomSessionRepo(&Data{DB: db})
+	sessionID, _, _, err := repo.CreateSession(ctx, "manufacturer canonical test", []string{"find_chips"}, nil, nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSession() error = %v", err)
+	}
+	defer func() {
+		_ = db.WithContext(ctx).Where("session_id = ?", sessionID).Delete(&BomSessionLine{}).Error
+		_ = db.WithContext(ctx).Where("id = ?", sessionID).Delete(&BomSession{}).Error
+	}()
+
+	canon := "MFR_TEXAS_INSTRUMENTS"
+	_, err = repo.ReplaceSessionLines(ctx, sessionID, []biz.BomImportLine{
+		{LineNo: 1, Mpn: "SN74HC595DR", Mfr: "TI", ManufacturerCanonicalID: &canon},
+		{LineNo: 2, Mpn: "EMPTY-MFR"},
+	}, nil)
+	if err != nil {
+		t.Fatalf("ReplaceSessionLines() error = %v", err)
+	}
+	rows, err := repo.ListSessionLinesFull(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("ListSessionLinesFull() error = %v", err)
+	}
+	if rows[0].ManufacturerCanonicalID == nil || *rows[0].ManufacturerCanonicalID != canon {
+		t.Fatalf("line 1 canonical = %v, want %s", rows[0].ManufacturerCanonicalID, canon)
+	}
+	if rows[1].ManufacturerCanonicalID != nil {
+		t.Fatalf("empty manufacturer line canonical = %v, want nil", rows[1].ManufacturerCanonicalID)
+	}
+}

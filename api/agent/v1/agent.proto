@@ -154,6 +154,7 @@ message TaskResultRequest {
   int32 attempt = 14;
   string trace_id = 15;
   string error_message = 16;
+  string stdout_tail = 17 [json_name = "stdout_tail"]; // 兼容旧 Agent：报价 JSON 与 stdout 等价，优先使用 stdout
 }
 
 message TaskResultReply {

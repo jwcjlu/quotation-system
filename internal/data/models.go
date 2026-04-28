@@ -177,16 +177,17 @@ func (BomSession) TableName() string { return TableBomSession }
 
 // BomSessionLine 对应 t_bom_session_line。
 type BomSessionLine struct {
-	ID        int64     `gorm:"column:id;primaryKey;autoIncrement"`
-	SessionID string    `gorm:"column:session_id;size:36;not null;index:idx_bom_line_session;uniqueIndex:uk_session_line;index:idx_bom_line_mpn,priority:1"`
-	LineNo    int       `gorm:"column:line_no;not null;uniqueIndex:uk_session_line"`
-	RawText   *string   `gorm:"column:raw_text;type:text"`
-	Mpn       string    `gorm:"column:mpn;size:256;not null;index:idx_bom_line_mpn,priority:2"`
-	Mfr       *string   `gorm:"column:mfr;size:256"`
-	Package   *string   `gorm:"column:package;size:128"`
-	Qty       *float64  `gorm:"column:qty;type:decimal(18,4)"`
-	ExtraJSON []byte    `gorm:"column:extra_json;type:json"`
-	CreatedAt time.Time `gorm:"column:created_at;precision:3"`
+	ID                      int64     `gorm:"column:id;primaryKey;autoIncrement"`
+	SessionID               string    `gorm:"column:session_id;size:36;not null;index:idx_bom_line_session;uniqueIndex:uk_session_line;index:idx_bom_line_mpn,priority:1"`
+	LineNo                  int       `gorm:"column:line_no;not null;uniqueIndex:uk_session_line"`
+	RawText                 *string   `gorm:"column:raw_text;type:text"`
+	Mpn                     string    `gorm:"column:mpn;size:256;not null;index:idx_bom_line_mpn,priority:2"`
+	Mfr                     *string   `gorm:"column:mfr;size:256"`
+	ManufacturerCanonicalID *string   `gorm:"column:manufacturer_canonical_id;size:128"`
+	Package                 *string   `gorm:"column:package;size:128"`
+	Qty                     *float64  `gorm:"column:qty;type:decimal(18,4)"`
+	ExtraJSON               []byte    `gorm:"column:extra_json;type:json"`
+	CreatedAt               time.Time `gorm:"column:created_at;precision:3"`
 }
 
 func (BomSessionLine) TableName() string { return TableBomSessionLine }

@@ -53,7 +53,9 @@ func (s *BomService) matchOneLine(
 		}
 	}
 	var mfrHint *biz.BomManufacturerResolveHint
-	if mf := strings.TrimSpace(derefStrPtr(line.Mfr)); mf != "" {
+	if line.ManufacturerCanonicalID != nil && strings.TrimSpace(*line.ManufacturerCanonicalID) != "" {
+		mfrHint = &biz.BomManufacturerResolveHint{CanonID: strings.TrimSpace(*line.ManufacturerCanonicalID), Hit: true}
+	} else if mf := strings.TrimSpace(derefStrPtr(line.Mfr)); mf != "" {
 		id, hit, rerr := biz.ResolveManufacturerCanonical(ctx, mf, aliasCache)
 		if rerr != nil {
 			return nil, 0, rerr

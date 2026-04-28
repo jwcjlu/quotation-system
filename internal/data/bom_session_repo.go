@@ -262,6 +262,9 @@ func (r *BomSessionRepo) ReplaceSessionLines(ctx context.Context, sessionID stri
 		if ln.Mfr != "" {
 			line.Mfr = &ln.Mfr
 		}
+		if ln.ManufacturerCanonicalID != nil {
+			line.ManufacturerCanonicalID = ln.ManufacturerCanonicalID
+		}
 		if ln.Package != "" {
 			line.Package = &ln.Package
 		}
@@ -321,9 +324,11 @@ func (r *BomSessionRepo) ListSessionLines(ctx context.Context, sessionID string)
 	out := make([]biz.BOMSessionLineView, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, biz.BOMSessionLineView{
-			ID:     row.ID,
-			LineNo: row.LineNo,
-			Mpn:    row.Mpn,
+			ID:                      row.ID,
+			LineNo:                  row.LineNo,
+			Mpn:                     row.Mpn,
+			Mfr:                     derefStr(row.Mfr),
+			ManufacturerCanonicalID: row.ManufacturerCanonicalID,
 		})
 	}
 	return out, nil
@@ -478,7 +483,7 @@ func trimPtr(in *string) *string {
 	return &v
 }
 
-func (r *BomSessionRepo) CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error) {
+func (r *BomSessionRepo) CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, manufacturerCanonicalID *string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error) {
 	if !r.DBOk() {
 		return 0, 0, 0, gorm.ErrInvalidDB
 	}
@@ -511,6 +516,9 @@ func (r *BomSessionRepo) CreateSessionLine(ctx context.Context, sessionID, mpn, 
 	}
 	if mfr != "" {
 		row.Mfr = &mfr
+	}
+	if manufacturerCanonicalID != nil {
+		row.ManufacturerCanonicalID = manufacturerCanonicalID
 	}
 	if pkg != "" {
 		row.Package = &pkg
@@ -572,7 +580,7 @@ func (r *BomSessionRepo) DeleteSessionLine(ctx context.Context, sessionID string
 	return tx.Commit().Error
 }
 
-func (r *BomSessionRepo) UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, qty *float64, rawText, extraJSON *string) (newRevision int, err error) {
+func (r *BomSessionRepo) UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, manufacturerCanonicalID biz.OptionalStringPtr, qty *float64, rawText, extraJSON *string) (newRevision int, err error) {
 	if !r.DBOk() {
 		return 0, gorm.ErrInvalidDB
 	}
@@ -593,6 +601,9 @@ func (r *BomSessionRepo) UpdateSessionLine(ctx context.Context, sessionID string
 	}
 	if mfr != nil {
 		up["mfr"] = mfr
+	}
+	if manufacturerCanonicalID.Set {
+		up["manufacturer_canonical_id"] = manufacturerCanonicalID.Value
 	}
 	if pkg != nil {
 		up["package"] = pkg

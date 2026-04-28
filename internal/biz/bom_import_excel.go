@@ -31,13 +31,14 @@ var headerAliases = map[string][]string{
 
 // BomImportLine Excel 解析后的一行（待写入 bom_session_line）。
 type BomImportLine struct {
-	LineNo    int
-	Mpn       string
-	Mfr       string
-	Package   string
-	Qty       *float64
-	ExtraJSON []byte
-	RawText   string
+	LineNo                  int
+	Mpn                     string
+	Mfr                     string
+	ManufacturerCanonicalID *string
+	Package                 string
+	Qty                     *float64
+	ExtraJSON               []byte
+	RawText                 string
 }
 
 // BomImportError 校验错误（可映射为 API errors 数组）。

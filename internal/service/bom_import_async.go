@@ -180,6 +180,11 @@ func (s *BomService) finishImportedLines(ctx context.Context, sid string, lines 
 	if parseModeRaw != "" {
 		pmPtr = &parseModeRaw
 	}
+	cleanedLines, err := s.canonicalizeBomImportLines(ctx, lines)
+	if err != nil {
+		return "BOM_IMPORT_MFR_CANONICALIZE_FAILED", err
+	}
+	lines = cleanedLines
 	if _, err := s.session.ReplaceSessionLines(ctx, sid, lines, pmPtr); err != nil {
 		return "BOM_IMPORT_PERSIST", err
 	}

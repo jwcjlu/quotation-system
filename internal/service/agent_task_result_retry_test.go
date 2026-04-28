@@ -53,3 +53,22 @@ func TestAgentService_TaskResultPassesErrorMessage(t *testing.T) {
 		t.Fatalf("unexpected result payload: %+v", sched.lastResult)
 	}
 }
+
+func TestAgentService_TaskResultAcceptsLegacyStdoutTail(t *testing.T) {
+	sched := &stubTaskScheduler{}
+	svc := NewAgentService(nil, sched, nil, nil, nil, nil, nil, testAgentConf(), log.DefaultLogger)
+
+	_, err := svc.TaskResult(context.Background(), &v1.TaskResultRequest{
+		AgentId:    "agent-1",
+		TaskId:     "task-1",
+		LeaseId:    "lease-1",
+		Status:     "success",
+		StdoutTail: `[{"model":"ABC"}]`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sched.lastResult == nil || sched.lastResult.Stdout != `[{"model":"ABC"}]` {
+		t.Fatalf("unexpected result payload: %+v", sched.lastResult)
+	}
+}

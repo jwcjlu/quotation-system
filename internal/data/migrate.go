@@ -88,7 +88,18 @@ func migrateBOMQuoteTables(db *gorm.DB) error {
 		}
 	}
 	// 现网可能仍是旧主键形态，避免 AutoMigrate 尝试重建主键；仅确保明细表存在。
+	for _, column := range bomQuoteCacheCompatColumns() {
+		if !db.Migrator().HasColumn(&BomQuoteCache{}, column) {
+			if err := db.Migrator().AddColumn(&BomQuoteCache{}, column); err != nil {
+				return err
+			}
+		}
+	}
 	return db.AutoMigrate(&BomQuoteItem{})
+}
+
+func bomQuoteCacheCompatColumns() []string {
+	return []string{"SourceType", "SessionID", "LineID", "CreatedBy"}
 }
 
 func backfillBOMPlatformRunParams(db *gorm.DB) error {

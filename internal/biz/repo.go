@@ -166,9 +166,16 @@ type BOMSessionView struct {
 
 // BOMSessionLineView 会话行只读快照。
 type BOMSessionLineView struct {
-	ID     int64
-	LineNo int
-	Mpn    string
+	ID                      int64
+	LineNo                  int
+	Mpn                     string
+	Mfr                     string
+	ManufacturerCanonicalID *string
+}
+
+type OptionalStringPtr struct {
+	Set   bool
+	Value *string
 }
 
 // BOMSessionRepo bom_session / bom_session_line 持久化。
@@ -182,9 +189,9 @@ type BOMSessionRepo interface {
 	ReplaceSessionLines(ctx context.Context, sessionID string, lines []BomImportLine, parseMode *string) (nextLineNo int, err error)
 	ListSessionLines(ctx context.Context, sessionID string) ([]BOMSessionLineView, error)
 	SetSessionStatus(ctx context.Context, sessionID, status string) error
-	CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error)
+	CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, manufacturerCanonicalID *string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error)
 	DeleteSessionLine(ctx context.Context, sessionID string, lineID int64) error
-	UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, qty *float64, rawText, extraJSON *string) (newRevision int, err error)
+	UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, manufacturerCanonicalID OptionalStringPtr, qty *float64, rawText, extraJSON *string) (newRevision int, err error)
 	TryStartImport(ctx context.Context, sessionID, startedMessage string) (started bool, err error)
 	UpdateImportState(ctx context.Context, sessionID string, patch BOMImportStatePatch) error
 }
@@ -252,6 +259,17 @@ type BomManufacturerAliasRepo interface {
 	DBOk() bool
 	ListDistinctCanonicals(ctx context.Context, limit int) ([]ManufacturerCanonicalDisplay, error)
 	CreateRow(ctx context.Context, canonicalID, displayName, alias, aliasNorm string) error
+}
+
+type ManufacturerCleaningResult struct {
+	SessionLineUpdated int64
+	QuoteItemUpdated   int64
+}
+
+type BomManufacturerCleaningRepo interface {
+	DBOk() bool
+	BackfillSessionManufacturerCanonical(ctx context.Context, sessionID, aliasNorm, canonicalID string, overwrite bool) (ManufacturerCleaningResult, error)
+	ApplyKnownAliasesToSession(ctx context.Context, sessionID string) (ManufacturerCleaningResult, error)
 }
 
 // HsModelMappingRecord 型号到 code_ts 的映射记录。

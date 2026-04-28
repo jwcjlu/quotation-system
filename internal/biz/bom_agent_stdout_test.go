@@ -135,13 +135,13 @@ func (r *stdoutSessionRepoStub) SetSessionStatus(_ context.Context, _ string, st
 	return nil
 }
 
-func (r *stdoutSessionRepoStub) CreateSessionLine(context.Context, string, string, string, string, *float64, *string, *string) (int64, int32, int, error) {
+func (r *stdoutSessionRepoStub) CreateSessionLine(context.Context, string, string, string, string, *string, *float64, *string, *string) (int64, int32, int, error) {
 	return 0, 0, 0, nil
 }
 
 func (r *stdoutSessionRepoStub) DeleteSessionLine(context.Context, string, int64) error { return nil }
 
-func (r *stdoutSessionRepoStub) UpdateSessionLine(context.Context, string, int64, *string, *string, *string, *float64, *string, *string) (int, error) {
+func (r *stdoutSessionRepoStub) UpdateSessionLine(context.Context, string, int64, *string, *string, *string, OptionalStringPtr, *float64, *string, *string) (int, error) {
 	return 0, nil
 }
 
@@ -194,5 +194,49 @@ func TestApplyBOMQuotesFromAgentStdout_ParseRejectedFinalizesTask(t *testing.T) 
 	}
 	if search.lastErr == "" {
 		t.Fatalf("expected parse rejection reason to be recorded")
+	}
+}
+
+func TestApplyBOMQuotesFromAgentStdout_EmptyStdoutFinalizesTask(t *testing.T) {
+	bizDate := time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC)
+	search := &stdoutSearchRepoStub{
+		lookups: []BOMSearchTaskLookup{{
+			SessionID:  "sid",
+			MpnNorm:    "ABC",
+			PlatformID: "icgoo",
+			BizDate:    bizDate,
+		}},
+		tasks: []TaskReadinessSnapshot{{
+			MpnNorm:    "ABC",
+			PlatformID: "icgoo",
+			State:      "running",
+		}},
+	}
+	session := &stdoutSessionRepoStub{
+		view: &BOMSessionView{
+			SessionID:     "sid",
+			Status:        "searching",
+			ReadinessMode: ReadinessLenient,
+			BizDate:       bizDate,
+			PlatformIDs:   []string{"icgoo"},
+		},
+		lines: []BOMSessionLineView{{Mpn: "ABC"}},
+	}
+
+	applied, err := ApplyBOMQuotesFromAgentStdout(context.Background(), search, session, "task-1", "success", "")
+	if err != nil {
+		t.Fatalf("ApplyBOMQuotesFromAgentStdout returned error: %v", err)
+	}
+	if !applied {
+		t.Fatalf("expected empty-stdout BOM task to be applied as terminal")
+	}
+	if search.finalState != "failed_terminal" {
+		t.Fatalf("expected failed_terminal, got %q", search.finalState)
+	}
+	if session.setStatus != "data_ready" {
+		t.Fatalf("expected session data_ready after terminal task, got %q", session.setStatus)
+	}
+	if search.lastErr == "" {
+		t.Fatalf("expected missing stdout reason to be recorded")
 	}
 }

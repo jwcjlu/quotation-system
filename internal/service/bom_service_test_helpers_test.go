@@ -70,9 +70,10 @@ func (s *bomSessionRepoStub) ReplaceSessionLines(ctx context.Context, sessionID 
 		}
 		s.replacedLineNos = append(s.replacedLineNos, lineNo)
 		s.fullLines = append(s.fullLines, data.BomSessionLine{
-			ID:     int64(idx + 1),
-			LineNo: lineNo,
-			Mpn:    line.Mpn,
+			ID:                      int64(idx + 1),
+			LineNo:                  lineNo,
+			Mpn:                     line.Mpn,
+			ManufacturerCanonicalID: line.ManufacturerCanonicalID,
 		})
 	}
 	return 0, nil
@@ -104,7 +105,7 @@ func (s *bomSessionRepoStub) SetSessionStatus(ctx context.Context, sessionID, st
 	return nil
 }
 
-func (s *bomSessionRepoStub) CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, qty *float64, rawText, extraJSON *string) (int64, int32, int, error) {
+func (s *bomSessionRepoStub) CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, manufacturerCanonicalID *string, qty *float64, rawText, extraJSON *string) (int64, int32, int, error) {
 	return 0, 0, 0, nil
 }
 
@@ -112,7 +113,7 @@ func (s *bomSessionRepoStub) DeleteSessionLine(ctx context.Context, sessionID st
 	return nil
 }
 
-func (s *bomSessionRepoStub) UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, qty *float64, rawText, extraJSON *string) (int, error) {
+func (s *bomSessionRepoStub) UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, manufacturerCanonicalID biz.OptionalStringPtr, qty *float64, rawText, extraJSON *string) (int, error) {
 	return 0, nil
 }
 

@@ -257,7 +257,7 @@ func (s *AgentService) TaskResult(ctx context.Context, req *v1.TaskResultRequest
 		LeaseID:      req.GetLeaseId(),
 		Status:       req.GetStatus(),
 		Attempt:      attempt,
-		Stdout:       req.GetStdout(),
+		Stdout:       taskResultStdout(req),
 		ErrorMessage: req.GetErrorMessage(),
 	}
 	if err := s.sched.SubmitTaskResult(in); err != nil {
@@ -277,7 +277,7 @@ func (s *AgentService) maybeApplyBOMQuotesFromTaskStdout(ctx context.Context, re
 	if s == nil || s.bomSearch == nil || !s.bomSearch.DBOk() {
 		return
 	}
-	applied, err := biz.ApplyBOMQuotesFromAgentStdout(ctx, s.bomSearch, s.bomSession, req.GetTaskId(), req.GetStatus(), req.GetStdout())
+	applied, err := biz.ApplyBOMQuotesFromAgentStdout(ctx, s.bomSearch, s.bomSession, req.GetTaskId(), req.GetStatus(), taskResultStdout(req))
 	if err != nil {
 		if errors.Is(err, biz.ErrBOMQuotesStdoutParseRejected) {
 			s.log.Warnf("task result: stdout quotes not parseable or rejected task_id=%q", req.GetTaskId())
@@ -289,6 +289,16 @@ func (s *AgentService) maybeApplyBOMQuotesFromTaskStdout(ctx context.Context, re
 	if applied {
 		return
 	}
+}
+
+func taskResultStdout(req *v1.TaskResultRequest) string {
+	if req == nil {
+		return ""
+	}
+	if out := strings.TrimSpace(req.GetStdout()); out != "" {
+		return req.GetStdout()
+	}
+	return req.GetStdoutTail()
 }
 
 // BadRequestError 400 业务错误。

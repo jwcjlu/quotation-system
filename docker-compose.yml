@@ -51,6 +51,8 @@ services:
     ports:
       - "18080:18080"
       - "19090:19090"
+    volumes:
+      - ./static/agent-scripts:/app/agent_data/script-store
 
   web:
     build:

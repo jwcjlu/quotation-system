@@ -51,7 +51,7 @@ agent:
 
 script_store:
   enabled: false
-  root: ./agent_data/script-store
+  root: ./static/agent-scripts
   url_prefix: /static/agent-scripts
   public_base_url: ""
   max_upload_mb: 64

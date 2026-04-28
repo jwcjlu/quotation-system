@@ -5,6 +5,9 @@ ARG GOSUMDB=sum.golang.google.cn
 
 FROM ${SERVER_BUILDER_IMAGE} AS builder
 
+ARG GOPROXY=https://goproxy.cn,direct
+ARG GOSUMDB=sum.golang.google.cn
+
 WORKDIR /src
 
 ENV GOPROXY=${GOPROXY}

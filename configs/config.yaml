@@ -6,6 +6,18 @@ server:
     addr: 0.0.0.0:19090
     timeout: 30
 
+log:
+  # debug/info/warn/error/dpanic/panic/fatal
+  level: info
+  # console/json
+  encoding: console
+  # true 时使用 zap development 配置
+  development: false
+  # 日志文件路径；达到 100MB 自动切割并压缩归档
+  file_path: logs/server.log
+  # 仅保留最近 N 个 .gz 归档（轮转时自动清理）
+  max_backups: 30
+
 data:
   database:
     driver: mysql

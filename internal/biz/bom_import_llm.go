@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -68,13 +67,13 @@ func BuildBomLLMUserPrompt(rows [][]string) string {
 }
 
 type llmBomItem struct {
-	LineNo        int             `json:"line_no"`
-	Model         string          `json:"model"`
-	Manufacturer  string          `json:"manufacturer"`
-	Package       string          `json:"package"`
-	Params        string          `json:"params"`
-	RawText       string          `json:"raw_text"`
-	Quantity      json.RawMessage `json:"quantity"`
+	LineNo       int             `json:"line_no"`
+	Model        string          `json:"model"`
+	Manufacturer string          `json:"manufacturer"`
+	Package      string          `json:"package"`
+	Params       string          `json:"params"`
+	RawText      string          `json:"raw_text"`
+	Quantity     json.RawMessage `json:"quantity"`
 }
 
 // ParseBomImportLinesFromLLMJSON 从模型回复解析 items → BomImportLine（与 Excel 规则对齐：默认数量 1、params 进 ExtraJSON）。
@@ -156,7 +155,7 @@ func parseLLMQuantity(raw json.RawMessage) (*float64, error) {
 		if sVal == "" {
 			return nil, nil
 		}
-		v, err := strconv.ParseFloat(sVal, 64)
+		v, err := parseQtyText(sVal)
 		if err != nil {
 			return nil, fmt.Errorf("quantity not numeric")
 		}

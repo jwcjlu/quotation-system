@@ -51,3 +51,14 @@ func TestParseBomImportLinesFromLLMJSONQuantityString(t *testing.T) {
 		t.Fatal(*lines[0].Qty)
 	}
 }
+
+func TestParseBomImportLinesFromLLMJSONQuantityRangeString(t *testing.T) {
+	raw := `{"items":[{"line_no":2,"model":"A","manufacturer":"","package":"","quantity":"10000-12000","params":"","raw_text":""}]}`
+	lines, errs := ParseBomImportLinesFromLLMJSON(raw)
+	if len(errs) != 0 {
+		t.Fatal(errs)
+	}
+	if *lines[0].Qty != 10000 {
+		t.Fatal(*lines[0].Qty)
+	}
+}

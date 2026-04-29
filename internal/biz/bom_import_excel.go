@@ -287,7 +287,7 @@ func parseDataRow(excelRow int, row []string, colMap map[string]int, seq *int) (
 			one := 1.0
 			line.Qty = &one
 		} else {
-			q, err := strconv.ParseFloat(qs, 64)
+			q, err := parseQtyText(qs)
 			if err != nil {
 				errs = append(errs, BomImportError{Row: excelRow, Field: "qty", Reason: "not_numeric"})
 			} else {

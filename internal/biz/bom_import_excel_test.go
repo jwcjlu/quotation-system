@@ -165,3 +165,24 @@ func TestBomImport_InvalidQty(t *testing.T) {
 		t.Fatalf("got %+v", errs)
 	}
 }
+
+func TestBomImport_QtyRangeUsesLeftValue(t *testing.T) {
+	f := excelize.NewFile()
+	sheet := f.GetSheetName(0)
+	_ = f.SetSheetRow(sheet, "A1", &[]any{"型号", "数量"})
+	_ = f.SetSheetRow(sheet, "A2", &[]any{"X", "10000-12000"})
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+
+	lines, errs := ParseBomImportRows(&buf, false)
+	if len(errs) != 0 {
+		t.Fatalf("errs: %v", errs)
+	}
+	if len(lines) != 1 || lines[0].Qty == nil || *lines[0].Qty != 10000 {
+		t.Fatalf("lines %+v", lines)
+	}
+}

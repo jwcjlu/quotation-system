@@ -130,22 +130,34 @@ func (s *BomService) platformHasUsableQuote(ctx context.Context, line data.BomSe
 		}
 		mfrHint = &biz.BomManufacturerResolveHint{CanonID: id, Hit: hit}
 	}
-	pick, err := biz.PickBestQuoteForLine(ctx, biz.LineMatchInput{
-		BomMpn:           line.Mpn,
-		BomPackage:       derefStrPtr(line.Package),
-		BomMfr:           derefStrPtr(line.Mfr),
-		BomQty:           bomLineQtyInt(line.Qty),
-		PlatformID:       pid,
-		QuoteRows:        rows,
-		BizDate:          bizDate,
-		RequestDay:       time.Now(),
-		BaseCCY:          s.bomMatchBaseCCY(),
-		RoundingMode:     s.bomMatchRoundingMode(),
-		ParseTierStrings: s.bomMatchParseTiers(),
-		BomMfrHint:       mfrHint,
-	}, fxCache, aliasCache)
+	runPick := func(model string) (biz.LineMatchPick, error) {
+		return biz.PickBestQuoteForLine(ctx, biz.LineMatchInput{
+			BomMpn:           model,
+			BomPackage:       derefStrPtr(line.Package),
+			BomMfr:           derefStrPtr(line.Mfr),
+			BomQty:           bomLineQtyInt(line.Qty),
+			PlatformID:       pid,
+			QuoteRows:        rows,
+			BizDate:          bizDate,
+			RequestDay:       time.Now(),
+			BaseCCY:          s.bomMatchBaseCCY(),
+			RoundingMode:     s.bomMatchRoundingMode(),
+			ParseTierStrings: s.bomMatchParseTiers(),
+			BomMfrHint:       mfrHint,
+		}, fxCache, aliasCache)
+	}
+	pick, err := runPick(line.Mpn)
 	if err != nil {
 		return false, err
+	}
+	if !pick.Ok {
+		sub := strings.TrimSpace(derefStrPtr(line.SubstituteMpn))
+		if sub != "" && !strings.EqualFold(sub, line.Mpn) {
+			pick, err = runPick(sub)
+			if err != nil {
+				return false, err
+			}
+		}
 	}
 	return pick.Ok, nil
 }

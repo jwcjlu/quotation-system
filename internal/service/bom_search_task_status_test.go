@@ -151,7 +151,7 @@ func (r *searchTaskStatusSessionRepoStub) SetSessionStatus(_ context.Context, _ 
 	return nil
 }
 
-func (r *searchTaskStatusSessionRepoStub) CreateSessionLine(context.Context, string, string, string, string, *string, *float64, *string, *string) (int64, int32, int, error) {
+func (r *searchTaskStatusSessionRepoStub) CreateSessionLine(context.Context, string, string, string, string, string, string, string, string, string, *string, *float64, *string, *string) (int64, int32, int, error) {
 	return 0, 0, 0, nil
 }
 
@@ -159,7 +159,7 @@ func (r *searchTaskStatusSessionRepoStub) DeleteSessionLine(context.Context, str
 	return nil
 }
 
-func (r *searchTaskStatusSessionRepoStub) UpdateSessionLine(context.Context, string, int64, *string, *string, *string, biz.OptionalStringPtr, *float64, *string, *string) (int, error) {
+func (r *searchTaskStatusSessionRepoStub) UpdateSessionLine(context.Context, string, int64, *string, *string, *string, *string, *string, *string, *string, *string, biz.OptionalStringPtr, *float64, *string, *string) (int, error) {
 	return 0, nil
 }
 

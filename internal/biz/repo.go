@@ -169,6 +169,11 @@ type BOMSessionLineView struct {
 	ID                      int64
 	LineNo                  int
 	Mpn                     string
+	UnifiedMpn              string
+	ReferenceDesignator     string
+	SubstituteMpn           string
+	Remark                  string
+	Description             string
 	Mfr                     string
 	ManufacturerCanonicalID *string
 }
@@ -189,9 +194,9 @@ type BOMSessionRepo interface {
 	ReplaceSessionLines(ctx context.Context, sessionID string, lines []BomImportLine, parseMode *string) (nextLineNo int, err error)
 	ListSessionLines(ctx context.Context, sessionID string) ([]BOMSessionLineView, error)
 	SetSessionStatus(ctx context.Context, sessionID, status string) error
-	CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, manufacturerCanonicalID *string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error)
+	CreateSessionLine(ctx context.Context, sessionID, mpn, unifiedMpn, referenceDesignator, substituteMpn, remark, description, mfr, pkg string, manufacturerCanonicalID *string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error)
 	DeleteSessionLine(ctx context.Context, sessionID string, lineID int64) error
-	UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, manufacturerCanonicalID OptionalStringPtr, qty *float64, rawText, extraJSON *string) (newRevision int, err error)
+	UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, unifiedMpn, referenceDesignator, substituteMpn, remark, description, mfr, pkg *string, manufacturerCanonicalID OptionalStringPtr, qty *float64, rawText, extraJSON *string) (newRevision int, err error)
 	TryStartImport(ctx context.Context, sessionID, startedMessage string) (started bool, err error)
 	UpdateImportState(ctx context.Context, sessionID string, patch BOMImportStatePatch) error
 }

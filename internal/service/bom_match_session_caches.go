@@ -21,15 +21,20 @@ func dedupeQuoteCachePairs(lines []data.BomSessionLine, plats []string) []biz.Mp
 	seen := make(map[string]struct{})
 	var out []biz.MpnPlatformPair
 	for _, line := range lines {
-		mk := biz.NormalizeMPNForBOMSearch(line.Mpn)
-		for _, pid := range plats {
-			pid = biz.NormalizePlatformID(pid)
-			k := quoteCachePairKey(mk, pid)
-			if _, ok := seen[k]; ok {
-				continue
+		keys := []string{biz.NormalizeMPNForBOMSearch(line.Mpn)}
+		if sub := biz.NormalizeMPNForBOMSearch(derefStrPtr(line.SubstituteMpn)); sub != "" && sub != keys[0] {
+			keys = append(keys, sub)
+		}
+		for _, mk := range keys {
+			for _, pid := range plats {
+				pid = biz.NormalizePlatformID(pid)
+				k := quoteCachePairKey(mk, pid)
+				if _, ok := seen[k]; ok {
+					continue
+				}
+				seen[k] = struct{}{}
+				out = append(out, biz.MpnPlatformPair{MpnNorm: mk, PlatformID: pid})
 			}
-			seen[k] = struct{}{}
-			out = append(out, biz.MpnPlatformPair{MpnNorm: mk, PlatformID: pid})
 		}
 	}
 	return out

@@ -75,11 +75,16 @@ func (s *BomService) UploadBOM(ctx context.Context, req *v1.UploadBOMRequest) (*
 			q = int32(*ln.Qty)
 		}
 		items = append(items, &v1.ParsedItem{
-			Index:        int32(i + 1),
-			Model:        ln.Mpn,
-			Manufacturer: ln.Mfr,
-			Package:      ln.Package,
-			Quantity:     q,
+			Index:               int32(i + 1),
+			Model:               ln.Mpn,
+			UnifiedModel:        ln.UnifiedMpn,
+			ReferenceDesignator: ln.ReferenceDesignator,
+			SubstituteModel:     ln.SubstituteMpn,
+			Remark:              ln.Remark,
+			Description:         ln.Description,
+			Manufacturer:        ln.Mfr,
+			Package:             ln.Package,
+			Quantity:            q,
 		})
 	}
 	return &v1.UploadBOMReply{

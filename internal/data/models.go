@@ -182,6 +182,11 @@ type BomSessionLine struct {
 	LineNo                  int       `gorm:"column:line_no;not null;uniqueIndex:uk_session_line"`
 	RawText                 *string   `gorm:"column:raw_text;type:text"`
 	Mpn                     string    `gorm:"column:mpn;size:256;not null;index:idx_bom_line_mpn,priority:2"`
+	UnifiedMpn              *string   `gorm:"column:unified_mpn;size:256"`
+	ReferenceDesignator     *string   `gorm:"column:reference_designator;type:text"`
+	SubstituteMpn           *string   `gorm:"column:substitute_mpn;size:256"`
+	Remark                  *string   `gorm:"column:remark;type:text"`
+	Description             *string   `gorm:"column:description;type:text"`
 	Mfr                     *string   `gorm:"column:mfr;size:256"`
 	ManufacturerCanonicalID *string   `gorm:"column:manufacturer_canonical_id;size:128"`
 	Package                 *string   `gorm:"column:package;size:128"`

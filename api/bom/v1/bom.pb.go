@@ -185,16 +185,21 @@ func (x *UploadBOMReply) GetImportMessage() string {
 }
 
 type ParsedItem struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Index         int32                  `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
-	Raw           string                 `protobuf:"bytes,2,opt,name=raw,proto3" json:"raw,omitempty"`
-	Model         string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
-	Manufacturer  string                 `protobuf:"bytes,4,opt,name=manufacturer,proto3" json:"manufacturer,omitempty"`
-	Package       string                 `protobuf:"bytes,5,opt,name=package,proto3" json:"package,omitempty"`
-	Quantity      int32                  `protobuf:"varint,6,opt,name=quantity,proto3" json:"quantity,omitempty"`
-	Params        string                 `protobuf:"bytes,7,opt,name=params,proto3" json:"params,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Index               int32                  `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	Raw                 string                 `protobuf:"bytes,2,opt,name=raw,proto3" json:"raw,omitempty"`
+	Model               string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	Manufacturer        string                 `protobuf:"bytes,4,opt,name=manufacturer,proto3" json:"manufacturer,omitempty"`
+	Package             string                 `protobuf:"bytes,5,opt,name=package,proto3" json:"package,omitempty"`
+	Quantity            int32                  `protobuf:"varint,6,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Params              string                 `protobuf:"bytes,7,opt,name=params,proto3" json:"params,omitempty"`
+	UnifiedModel        string                 `protobuf:"bytes,8,opt,name=unified_model,json=unifiedModel,proto3" json:"unified_model,omitempty"`
+	ReferenceDesignator string                 `protobuf:"bytes,9,opt,name=reference_designator,json=referenceDesignator,proto3" json:"reference_designator,omitempty"`
+	SubstituteModel     string                 `protobuf:"bytes,10,opt,name=substitute_model,json=substituteModel,proto3" json:"substitute_model,omitempty"`
+	Remark              string                 `protobuf:"bytes,11,opt,name=remark,proto3" json:"remark,omitempty"`
+	Description         string                 `protobuf:"bytes,12,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ParsedItem) Reset() {
@@ -272,6 +277,41 @@ func (x *ParsedItem) GetQuantity() int32 {
 func (x *ParsedItem) GetParams() string {
 	if x != nil {
 		return x.Params
+	}
+	return ""
+}
+
+func (x *ParsedItem) GetUnifiedModel() string {
+	if x != nil {
+		return x.UnifiedModel
+	}
+	return ""
+}
+
+func (x *ParsedItem) GetReferenceDesignator() string {
+	if x != nil {
+		return x.ReferenceDesignator
+	}
+	return ""
+}
+
+func (x *ParsedItem) GetSubstituteModel() string {
+	if x != nil {
+		return x.SubstituteModel
+	}
+	return ""
+}
+
+func (x *ParsedItem) GetRemark() string {
+	if x != nil {
+		return x.Remark
+	}
+	return ""
+}
+
+func (x *ParsedItem) GetDescription() string {
+	if x != nil {
+		return x.Description
 	}
 	return ""
 }
@@ -712,8 +752,12 @@ type MatchItem struct {
 	ImportTaxImpTempRate     string `protobuf:"bytes,21,opt,name=import_tax_imp_temp_rate,json=importTaxImpTempRate,proto3" json:"import_tax_imp_temp_rate,omitempty"`
 	// hs_customs_error：分号拼接分项码，如 tax_api_failed;hs_item_missing
 	HsCustomsError string `protobuf:"bytes,22,opt,name=hs_customs_error,json=hsCustomsError,proto3" json:"hs_customs_error,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// original | substitute
+	MatchedBy string `protobuf:"bytes,23,opt,name=matched_by,json=matchedBy,proto3" json:"matched_by,omitempty"`
+	// 实际命中的查询型号（客户原型号或替代型号）
+	MatchedQueryMpn string `protobuf:"bytes,24,opt,name=matched_query_mpn,json=matchedQueryMpn,proto3" json:"matched_query_mpn,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *MatchItem) Reset() {
@@ -896,6 +940,20 @@ func (x *MatchItem) GetImportTaxImpTempRate() string {
 func (x *MatchItem) GetHsCustomsError() string {
 	if x != nil {
 		return x.HsCustomsError
+	}
+	return ""
+}
+
+func (x *MatchItem) GetMatchedBy() string {
+	if x != nil {
+		return x.MatchedBy
+	}
+	return ""
+}
+
+func (x *MatchItem) GetMatchedQueryMpn() string {
+	if x != nil {
+		return x.MatchedQueryMpn
 	}
 	return ""
 }
@@ -3215,6 +3273,12 @@ type BOMLineRow struct {
 	RawQuotePlatformCount    int32                  `protobuf:"varint,13,opt,name=raw_quote_platform_count,json=rawQuotePlatformCount,proto3" json:"raw_quote_platform_count,omitempty"`
 	UsableQuotePlatformCount int32                  `protobuf:"varint,14,opt,name=usable_quote_platform_count,json=usableQuotePlatformCount,proto3" json:"usable_quote_platform_count,omitempty"`
 	ResolutionStatus         string                 `protobuf:"bytes,15,opt,name=resolution_status,json=resolutionStatus,proto3" json:"resolution_status,omitempty"`
+	UnifiedMpn               string                 `protobuf:"bytes,16,opt,name=unified_mpn,json=unifiedMpn,proto3" json:"unified_mpn,omitempty"`
+	ReferenceDesignator      string                 `protobuf:"bytes,17,opt,name=reference_designator,json=referenceDesignator,proto3" json:"reference_designator,omitempty"`
+	SubstituteMpn            string                 `protobuf:"bytes,18,opt,name=substitute_mpn,json=substituteMpn,proto3" json:"substitute_mpn,omitempty"`
+	Remark                   string                 `protobuf:"bytes,19,opt,name=remark,proto3" json:"remark,omitempty"`
+	Description              string                 `protobuf:"bytes,20,opt,name=description,proto3" json:"description,omitempty"`
+	RawText                  string                 `protobuf:"bytes,21,opt,name=raw_text,json=rawText,proto3" json:"raw_text,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -3350,6 +3414,48 @@ func (x *BOMLineRow) GetUsableQuotePlatformCount() int32 {
 func (x *BOMLineRow) GetResolutionStatus() string {
 	if x != nil {
 		return x.ResolutionStatus
+	}
+	return ""
+}
+
+func (x *BOMLineRow) GetUnifiedMpn() string {
+	if x != nil {
+		return x.UnifiedMpn
+	}
+	return ""
+}
+
+func (x *BOMLineRow) GetReferenceDesignator() string {
+	if x != nil {
+		return x.ReferenceDesignator
+	}
+	return ""
+}
+
+func (x *BOMLineRow) GetSubstituteMpn() string {
+	if x != nil {
+		return x.SubstituteMpn
+	}
+	return ""
+}
+
+func (x *BOMLineRow) GetRemark() string {
+	if x != nil {
+		return x.Remark
+	}
+	return ""
+}
+
+func (x *BOMLineRow) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *BOMLineRow) GetRawText() string {
+	if x != nil {
+		return x.RawText
 	}
 	return ""
 }
@@ -4104,16 +4210,21 @@ func (x *GetBOMLinesReply) GetLines() []*BOMLineRow {
 }
 
 type CreateSessionLineRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	Mpn           string                 `protobuf:"bytes,2,opt,name=mpn,proto3" json:"mpn,omitempty"`
-	Mfr           string                 `protobuf:"bytes,3,opt,name=mfr,proto3" json:"mfr,omitempty"`
-	Package       string                 `protobuf:"bytes,4,opt,name=package,proto3" json:"package,omitempty"`
-	Qty           float64                `protobuf:"fixed64,5,opt,name=qty,proto3" json:"qty,omitempty"`
-	Raw           string                 `protobuf:"bytes,6,opt,name=raw,proto3" json:"raw,omitempty"`
-	ExtraJson     string                 `protobuf:"bytes,7,opt,name=extra_json,json=extraJson,proto3" json:"extra_json,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	SessionId           string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Mpn                 string                 `protobuf:"bytes,2,opt,name=mpn,proto3" json:"mpn,omitempty"`
+	Mfr                 string                 `protobuf:"bytes,3,opt,name=mfr,proto3" json:"mfr,omitempty"`
+	Package             string                 `protobuf:"bytes,4,opt,name=package,proto3" json:"package,omitempty"`
+	Qty                 float64                `protobuf:"fixed64,5,opt,name=qty,proto3" json:"qty,omitempty"`
+	Raw                 string                 `protobuf:"bytes,6,opt,name=raw,proto3" json:"raw,omitempty"`
+	ExtraJson           string                 `protobuf:"bytes,7,opt,name=extra_json,json=extraJson,proto3" json:"extra_json,omitempty"`
+	UnifiedMpn          string                 `protobuf:"bytes,8,opt,name=unified_mpn,json=unifiedMpn,proto3" json:"unified_mpn,omitempty"`
+	ReferenceDesignator string                 `protobuf:"bytes,9,opt,name=reference_designator,json=referenceDesignator,proto3" json:"reference_designator,omitempty"`
+	SubstituteMpn       string                 `protobuf:"bytes,10,opt,name=substitute_mpn,json=substituteMpn,proto3" json:"substitute_mpn,omitempty"`
+	Remark              string                 `protobuf:"bytes,11,opt,name=remark,proto3" json:"remark,omitempty"`
+	Description         string                 `protobuf:"bytes,12,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CreateSessionLineRequest) Reset() {
@@ -4195,6 +4306,41 @@ func (x *CreateSessionLineRequest) GetExtraJson() string {
 	return ""
 }
 
+func (x *CreateSessionLineRequest) GetUnifiedMpn() string {
+	if x != nil {
+		return x.UnifiedMpn
+	}
+	return ""
+}
+
+func (x *CreateSessionLineRequest) GetReferenceDesignator() string {
+	if x != nil {
+		return x.ReferenceDesignator
+	}
+	return ""
+}
+
+func (x *CreateSessionLineRequest) GetSubstituteMpn() string {
+	if x != nil {
+		return x.SubstituteMpn
+	}
+	return ""
+}
+
+func (x *CreateSessionLineRequest) GetRemark() string {
+	if x != nil {
+		return x.Remark
+	}
+	return ""
+}
+
+func (x *CreateSessionLineRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 type CreateSessionLineReply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LineId        string                 `protobuf:"bytes,1,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
@@ -4248,17 +4394,22 @@ func (x *CreateSessionLineReply) GetLineNo() int32 {
 }
 
 type PatchSessionLineRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	LineId        string                 `protobuf:"bytes,2,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
-	Mpn           *string                `protobuf:"bytes,3,opt,name=mpn,proto3,oneof" json:"mpn,omitempty"`
-	Mfr           *string                `protobuf:"bytes,4,opt,name=mfr,proto3,oneof" json:"mfr,omitempty"`
-	Package       *string                `protobuf:"bytes,5,opt,name=package,proto3,oneof" json:"package,omitempty"`
-	Qty           *float64               `protobuf:"fixed64,6,opt,name=qty,proto3,oneof" json:"qty,omitempty"`
-	Raw           *string                `protobuf:"bytes,7,opt,name=raw,proto3,oneof" json:"raw,omitempty"`
-	ExtraJson     *string                `protobuf:"bytes,8,opt,name=extra_json,json=extraJson,proto3,oneof" json:"extra_json,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	SessionId           string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	LineId              string                 `protobuf:"bytes,2,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	Mpn                 *string                `protobuf:"bytes,3,opt,name=mpn,proto3,oneof" json:"mpn,omitempty"`
+	Mfr                 *string                `protobuf:"bytes,4,opt,name=mfr,proto3,oneof" json:"mfr,omitempty"`
+	Package             *string                `protobuf:"bytes,5,opt,name=package,proto3,oneof" json:"package,omitempty"`
+	Qty                 *float64               `protobuf:"fixed64,6,opt,name=qty,proto3,oneof" json:"qty,omitempty"`
+	Raw                 *string                `protobuf:"bytes,7,opt,name=raw,proto3,oneof" json:"raw,omitempty"`
+	ExtraJson           *string                `protobuf:"bytes,8,opt,name=extra_json,json=extraJson,proto3,oneof" json:"extra_json,omitempty"`
+	UnifiedMpn          *string                `protobuf:"bytes,9,opt,name=unified_mpn,json=unifiedMpn,proto3,oneof" json:"unified_mpn,omitempty"`
+	ReferenceDesignator *string                `protobuf:"bytes,10,opt,name=reference_designator,json=referenceDesignator,proto3,oneof" json:"reference_designator,omitempty"`
+	SubstituteMpn       *string                `protobuf:"bytes,11,opt,name=substitute_mpn,json=substituteMpn,proto3,oneof" json:"substitute_mpn,omitempty"`
+	Remark              *string                `protobuf:"bytes,12,opt,name=remark,proto3,oneof" json:"remark,omitempty"`
+	Description         *string                `protobuf:"bytes,13,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PatchSessionLineRequest) Reset() {
@@ -4343,6 +4494,41 @@ func (x *PatchSessionLineRequest) GetRaw() string {
 func (x *PatchSessionLineRequest) GetExtraJson() string {
 	if x != nil && x.ExtraJson != nil {
 		return *x.ExtraJson
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetUnifiedMpn() string {
+	if x != nil && x.UnifiedMpn != nil {
+		return *x.UnifiedMpn
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetReferenceDesignator() string {
+	if x != nil && x.ReferenceDesignator != nil {
+		return *x.ReferenceDesignator
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetSubstituteMpn() string {
+	if x != nil && x.SubstituteMpn != nil {
+		return *x.SubstituteMpn
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetRemark() string {
+	if x != nil && x.Remark != nil {
+		return *x.Remark
+	}
+	return ""
+}
+
+func (x *PatchSessionLineRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
@@ -7472,7 +7658,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x05total\x18\x03 \x01(\x05R\x05total\x12\x1a\n" +
 	"\baccepted\x18\x04 \x01(\bR\baccepted\x12#\n" +
 	"\rimport_status\x18\x05 \x01(\tR\fimportStatus\x12%\n" +
-	"\x0eimport_message\x18\x06 \x01(\tR\rimportMessage\"\xbc\x01\n" +
+	"\x0eimport_message\x18\x06 \x01(\tR\rimportMessage\"\xf9\x02\n" +
 	"\n" +
 	"ParsedItem\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x10\n" +
@@ -7481,7 +7667,13 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\fmanufacturer\x18\x04 \x01(\tR\fmanufacturer\x12\x18\n" +
 	"\apackage\x18\x05 \x01(\tR\apackage\x12\x1a\n" +
 	"\bquantity\x18\x06 \x01(\x05R\bquantity\x12\x16\n" +
-	"\x06params\x18\a \x01(\tR\x06params\"J\n" +
+	"\x06params\x18\a \x01(\tR\x06params\x12#\n" +
+	"\runified_model\x18\b \x01(\tR\funifiedModel\x121\n" +
+	"\x14reference_designator\x18\t \x01(\tR\x13referenceDesignator\x12)\n" +
+	"\x10substitute_model\x18\n" +
+	" \x01(\tR\x0fsubstituteModel\x12\x16\n" +
+	"\x06remark\x18\v \x01(\tR\x06remark\x12 \n" +
+	"\vdescription\x18\f \x01(\tR\vdescription\"J\n" +
 	"\x13SearchQuotesRequest\x12\x15\n" +
 	"\x06bom_id\x18\x01 \x01(\tR\x05bomId\x12\x1c\n" +
 	"\tplatforms\x18\x02 \x03(\tR\tplatforms\"L\n" +
@@ -7516,7 +7708,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\bstrategy\x18\x02 \x01(\tR\bstrategy\"`\n" +
 	"\x0eAutoMatchReply\x12+\n" +
 	"\x05items\x18\x01 \x03(\v2\x15.api.bom.v1.MatchItemR\x05items\x12!\n" +
-	"\ftotal_amount\x18\x02 \x01(\x01R\vtotalAmount\"\xca\x06\n" +
+	"\ftotal_amount\x18\x02 \x01(\x01R\vtotalAmount\"\x95\a\n" +
 	"\tMatchItem\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x14\n" +
 	"\x05model\x18\x02 \x01(\tR\x05model\x12\x1a\n" +
@@ -7542,7 +7734,10 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x1cimport_tax_imp_ordinary_rate\x18\x13 \x01(\tR\x18importTaxImpOrdinaryRate\x12>\n" +
 	"\x1cimport_tax_imp_discount_rate\x18\x14 \x01(\tR\x18importTaxImpDiscountRate\x126\n" +
 	"\x18import_tax_imp_temp_rate\x18\x15 \x01(\tR\x14importTaxImpTempRate\x12(\n" +
-	"\x10hs_customs_error\x18\x16 \x01(\tR\x0ehsCustomsError\"&\n" +
+	"\x10hs_customs_error\x18\x16 \x01(\tR\x0ehsCustomsError\x12\x1d\n" +
+	"\n" +
+	"matched_by\x18\x17 \x01(\tR\tmatchedBy\x12*\n" +
+	"\x11matched_query_mpn\x18\x18 \x01(\tR\x0fmatchedQueryMpn\"&\n" +
 	"\rGetBOMRequest\x12\x15\n" +
 	"\x06bom_id\x18\x01 \x01(\tR\x05bomId\"q\n" +
 	"\vGetBOMReply\x12\x15\n" +
@@ -7732,7 +7927,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x17has_strict_blocking_gap\x18\x0e \x01(\bR\x14hasStrictBlockingGap\"3\n" +
 	"\x12GetBOMLinesRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"\xda\x04\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"\xaa\x06\n" +
 	"\n" +
 	"BOMLineRow\x12\x17\n" +
 	"\aline_id\x18\x01 \x01(\tR\x06lineId\x12\x17\n" +
@@ -7750,7 +7945,14 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x10has_usable_quote\x18\f \x01(\bR\x0ehasUsableQuote\x127\n" +
 	"\x18raw_quote_platform_count\x18\r \x01(\x05R\x15rawQuotePlatformCount\x12=\n" +
 	"\x1busable_quote_platform_count\x18\x0e \x01(\x05R\x18usableQuotePlatformCount\x12+\n" +
-	"\x11resolution_status\x18\x0f \x01(\tR\x10resolutionStatus\"\xf1\x01\n" +
+	"\x11resolution_status\x18\x0f \x01(\tR\x10resolutionStatus\x12\x1f\n" +
+	"\vunified_mpn\x18\x10 \x01(\tR\n" +
+	"unifiedMpn\x121\n" +
+	"\x14reference_designator\x18\x11 \x01(\tR\x13referenceDesignator\x12%\n" +
+	"\x0esubstitute_mpn\x18\x12 \x01(\tR\rsubstituteMpn\x12\x16\n" +
+	"\x06remark\x18\x13 \x01(\tR\x06remark\x12 \n" +
+	"\vdescription\x18\x14 \x01(\tR\vdescription\x12\x19\n" +
+	"\braw_text\x18\x15 \x01(\tR\arawText\"\xf1\x01\n" +
 	"\vPlatformGap\x12\x1f\n" +
 	"\vplatform_id\x18\x01 \x01(\tR\n" +
 	"platformId\x12\x14\n" +
@@ -7825,7 +8027,7 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\asummary\x18\x02 \x01(\v2#.api.bom.v1.SearchTaskStatusSummaryR\asummary\x126\n" +
 	"\x05tasks\x18\x03 \x03(\v2 .api.bom.v1.SessionSearchTaskRowR\x05tasks\"@\n" +
 	"\x10GetBOMLinesReply\x12,\n" +
-	"\x05lines\x18\x01 \x03(\v2\x16.api.bom.v1.BOMLineRowR\x05lines\"\xba\x01\n" +
+	"\x05lines\x18\x01 \x03(\v2\x16.api.bom.v1.BOMLineRowR\x05lines\"\xef\x02\n" +
 	"\x18CreateSessionLineRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x10\n" +
@@ -7835,10 +8037,17 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x03qty\x18\x05 \x01(\x01R\x03qty\x12\x10\n" +
 	"\x03raw\x18\x06 \x01(\tR\x03raw\x12\x1d\n" +
 	"\n" +
-	"extra_json\x18\a \x01(\tR\textraJson\"J\n" +
+	"extra_json\x18\a \x01(\tR\textraJson\x12\x1f\n" +
+	"\vunified_mpn\x18\b \x01(\tR\n" +
+	"unifiedMpn\x121\n" +
+	"\x14reference_designator\x18\t \x01(\tR\x13referenceDesignator\x12%\n" +
+	"\x0esubstitute_mpn\x18\n" +
+	" \x01(\tR\rsubstituteMpn\x12\x16\n" +
+	"\x06remark\x18\v \x01(\tR\x06remark\x12 \n" +
+	"\vdescription\x18\f \x01(\tR\vdescription\"J\n" +
 	"\x16CreateSessionLineReply\x12\x17\n" +
 	"\aline_id\x18\x01 \x01(\tR\x06lineId\x12\x17\n" +
-	"\aline_no\x18\x02 \x01(\x05R\x06lineNo\"\xab\x02\n" +
+	"\aline_no\x18\x02 \x01(\x05R\x06lineNo\"\xd0\x04\n" +
 	"\x17PatchSessionLineRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x17\n" +
@@ -7849,14 +8058,27 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\x03qty\x18\x06 \x01(\x01H\x03R\x03qty\x88\x01\x01\x12\x15\n" +
 	"\x03raw\x18\a \x01(\tH\x04R\x03raw\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"extra_json\x18\b \x01(\tH\x05R\textraJson\x88\x01\x01B\x06\n" +
+	"extra_json\x18\b \x01(\tH\x05R\textraJson\x88\x01\x01\x12$\n" +
+	"\vunified_mpn\x18\t \x01(\tH\x06R\n" +
+	"unifiedMpn\x88\x01\x01\x126\n" +
+	"\x14reference_designator\x18\n" +
+	" \x01(\tH\aR\x13referenceDesignator\x88\x01\x01\x12*\n" +
+	"\x0esubstitute_mpn\x18\v \x01(\tH\bR\rsubstituteMpn\x88\x01\x01\x12\x1b\n" +
+	"\x06remark\x18\f \x01(\tH\tR\x06remark\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\r \x01(\tH\n" +
+	"R\vdescription\x88\x01\x01B\x06\n" +
 	"\x04_mpnB\x06\n" +
 	"\x04_mfrB\n" +
 	"\n" +
 	"\b_packageB\x06\n" +
 	"\x04_qtyB\x06\n" +
 	"\x04_rawB\r\n" +
-	"\v_extra_json\"I\n" +
+	"\v_extra_jsonB\x0e\n" +
+	"\f_unified_mpnB\x17\n" +
+	"\x15_reference_designatorB\x11\n" +
+	"\x0f_substitute_mpnB\t\n" +
+	"\a_remarkB\x0e\n" +
+	"\f_description\"I\n" +
 	"\x15PatchSessionLineReply\x12\x17\n" +
 	"\aline_id\x18\x01 \x01(\tR\x06lineId\x12\x17\n" +
 	"\aline_no\x18\x02 \x01(\x05R\x06lineNo\"R\n" +

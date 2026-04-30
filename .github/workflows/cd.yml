@@ -9,6 +9,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      ACR_REGISTRY: crpi-w9bl1lqh2u0svuwc.cn-guangzhou.personal.cr.aliyuncs.com
+      ACR_REPOSITORY: caichip/quotation-system
+      IMAGE_TAG: ${{ github.sha }}
     steps:
       - name: Deploy by SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -16,12 +20,17 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           REPO_URL: ${{ secrets.DEPLOY_REPO_URL }}
           CONFIG_DOCKER_YAML: ${{ secrets.CONFIG_DOCKER_YAML }}
+          ACR_REGISTRY: ${{ env.ACR_REGISTRY }}
+          ACR_REPOSITORY: ${{ env.ACR_REPOSITORY }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: DEPLOY_PATH,REPO_URL,CONFIG_DOCKER_YAML
+          envs: DEPLOY_PATH,REPO_URL,CONFIG_DOCKER_YAML,ACR_REGISTRY,ACR_REPOSITORY,IMAGE_TAG,ACR_USERNAME,ACR_PASSWORD
           script_stop: true
           script: |
             set -e
@@ -41,4 +50,7 @@ jobs:
             ${CONFIG_DOCKER_YAML}
             EOF
 
-            docker compose up -d --build
+            echo "${ACR_PASSWORD}" | docker login --username "${ACR_USERNAME}" --password-stdin "${ACR_REGISTRY}"
+            export SERVER_IMAGE="${ACR_REGISTRY}/${ACR_REPOSITORY}:${IMAGE_TAG}"
+            docker compose pull server
+            docker compose up -d --no-build

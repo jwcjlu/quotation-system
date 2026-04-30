@@ -135,13 +135,13 @@ func (r *stdoutSessionRepoStub) SetSessionStatus(_ context.Context, _ string, st
 	return nil
 }
 
-func (r *stdoutSessionRepoStub) CreateSessionLine(context.Context, string, string, string, string, *string, *float64, *string, *string) (int64, int32, int, error) {
+func (r *stdoutSessionRepoStub) CreateSessionLine(context.Context, string, string, string, string, string, string, string, string, string, *string, *float64, *string, *string) (int64, int32, int, error) {
 	return 0, 0, 0, nil
 }
 
 func (r *stdoutSessionRepoStub) DeleteSessionLine(context.Context, string, int64) error { return nil }
 
-func (r *stdoutSessionRepoStub) UpdateSessionLine(context.Context, string, int64, *string, *string, *string, OptionalStringPtr, *float64, *string, *string) (int, error) {
+func (r *stdoutSessionRepoStub) UpdateSessionLine(context.Context, string, int64, *string, *string, *string, *string, *string, *string, *string, *string, OptionalStringPtr, *float64, *string, *string) (int, error) {
 	return 0, nil
 }
 

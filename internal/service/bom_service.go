@@ -422,19 +422,21 @@ func agentRowToPlatformQuote(platformID string, row biz.AgentQuoteRow, _ int) *v
 	return pq
 }
 
-func noMatchItem(line data.BomSessionLine, qtyI int, mfrMismatch []string) *v1.MatchItem {
+func noMatchItem(line data.BomSessionLine, qtyI int, mfrMismatch []string, matchedBy, matchedQueryMpn string) *v1.MatchItem {
 	_ = mfrMismatch
 	return &v1.MatchItem{
 		Index:              int32(line.LineNo),
 		Model:              line.Mpn,
 		Quantity:           int32(qtyI),
 		MatchStatus:        "no_match",
+		MatchedBy:          matchedBy,
+		MatchedQueryMpn:    matchedQueryMpn,
 		DemandManufacturer: derefStrPtr(line.Mfr),
 		DemandPackage:      derefStrPtr(line.Package),
 	}
 }
 
-func matchItemFromPick(line data.BomSessionLine, qtyI int, pick biz.LineMatchPick, platformID string, mfrMismatch []string) *v1.MatchItem {
+func matchItemFromPick(line data.BomSessionLine, qtyI int, pick biz.LineMatchPick, platformID string, mfrMismatch []string, matchedBy, matchedQueryMpn string) *v1.MatchItem {
 	_ = mfrMismatch
 	subtotal := pick.UnitPriceBase * float64(qtyI)
 	var stock int64
@@ -453,6 +455,8 @@ func matchItemFromPick(line data.BomSessionLine, qtyI int, pick biz.LineMatchPic
 		UnitPrice:          pick.UnitPriceBase,
 		Subtotal:           subtotal,
 		MatchStatus:        "exact",
+		MatchedBy:          matchedBy,
+		MatchedQueryMpn:    matchedQueryMpn,
 		DemandManufacturer: derefStrPtr(line.Mfr),
 		DemandPackage:      derefStrPtr(line.Package),
 	}
@@ -689,6 +693,12 @@ func (s *BomService) GetBOMLines(ctx context.Context, req *v1.GetBOMLinesRequest
 			LineId:                   strconv.FormatInt(row.ID, 10),
 			LineNo:                   int32(row.LineNo),
 			Mpn:                      row.Mpn,
+			UnifiedMpn:               derefStrPtr(row.UnifiedMpn),
+			ReferenceDesignator:      derefStrPtr(row.ReferenceDesignator),
+			SubstituteMpn:            derefStrPtr(row.SubstituteMpn),
+			Remark:                   derefStrPtr(row.Remark),
+			Description:              derefStrPtr(row.Description),
+			RawText:                  derefStrPtr(row.RawText),
 			Mfr:                      derefStrPtr(row.Mfr),
 			Package:                  derefStrPtr(row.Package),
 			Qty:                      derefFloat(row.Qty),
@@ -932,7 +942,22 @@ func (s *BomService) CreateSessionLine(ctx context.Context, req *v1.CreateSessio
 	if err != nil {
 		return nil, err
 	}
-	id, lineNo, rev, err := s.session.CreateSessionLine(ctx, req.GetSessionId(), req.GetMpn(), req.GetMfr(), req.GetPackage(), canon, qty, raw, extra)
+	id, lineNo, rev, err := s.session.CreateSessionLine(
+		ctx,
+		req.GetSessionId(),
+		req.GetMpn(),
+		req.GetUnifiedMpn(),
+		req.GetReferenceDesignator(),
+		req.GetSubstituteMpn(),
+		req.GetRemark(),
+		req.GetDescription(),
+		req.GetMfr(),
+		req.GetPackage(),
+		canon,
+		qty,
+		raw,
+		extra,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -941,9 +966,14 @@ func (s *BomService) CreateSessionLine(ctx context.Context, req *v1.CreateSessio
 		return nil, err
 	}
 	var pairs []biz.MpnPlatformPair
-	mn := biz.NormalizeMPNForBOMSearch(req.GetMpn())
-	for _, p := range view.PlatformIDs {
-		pairs = append(pairs, biz.MpnPlatformPair{MpnNorm: mn, PlatformID: biz.NormalizePlatformID(p)})
+	keys := []string{biz.NormalizeMPNForBOMSearch(req.GetMpn())}
+	if sub := biz.NormalizeMPNForBOMSearch(req.GetSubstituteMpn()); sub != "" && sub != keys[0] {
+		keys = append(keys, sub)
+	}
+	for _, key := range keys {
+		for _, p := range view.PlatformIDs {
+			pairs = append(pairs, biz.MpnPlatformPair{MpnNorm: key, PlatformID: biz.NormalizePlatformID(p)})
+		}
 	}
 	if err := s.search.UpsertPendingTasks(ctx, req.GetSessionId(), view.BizDate, rev, pairs); err != nil {
 		return nil, err
@@ -972,13 +1002,28 @@ func (s *BomService) PatchSessionLine(ctx context.Context, req *v1.PatchSessionL
 			break
 		}
 	}
-	var mpn, mfr, pkg, raw, extra *string
+	var mpn, unifiedMpn, referenceDesignator, substituteMpn, remark, description, mfr, pkg, raw, extra *string
 	var qty *float64
 	if req.Mpn != nil {
 		mpn = req.Mpn
 	}
 	if req.Mfr != nil {
 		mfr = req.Mfr
+	}
+	if req.UnifiedMpn != nil {
+		unifiedMpn = req.UnifiedMpn
+	}
+	if req.ReferenceDesignator != nil {
+		referenceDesignator = req.ReferenceDesignator
+	}
+	if req.SubstituteMpn != nil {
+		substituteMpn = req.SubstituteMpn
+	}
+	if req.Remark != nil {
+		remark = req.Remark
+	}
+	if req.Description != nil {
+		description = req.Description
 	}
 	if req.Package != nil {
 		pkg = req.Package
@@ -1001,7 +1046,7 @@ func (s *BomService) PatchSessionLine(ctx context.Context, req *v1.PatchSessionL
 		}
 		mfrCanon = biz.OptionalStringPtr{Set: true, Value: canon}
 	}
-	rev, err := s.session.UpdateSessionLine(ctx, sid, lid, mpn, mfr, pkg, mfrCanon, qty, raw, extra)
+	rev, err := s.session.UpdateSessionLine(ctx, sid, lid, mpn, unifiedMpn, referenceDesignator, substituteMpn, remark, description, mfr, pkg, mfrCanon, qty, raw, extra)
 	if err != nil {
 		return nil, err
 	}
@@ -1013,12 +1058,48 @@ func (s *BomService) PatchSessionLine(ctx context.Context, req *v1.PatchSessionL
 	if mpn != nil {
 		newMpn = *mpn
 	}
+	oldSub := ""
+	newSub := ""
+	for _, ln := range linesBefore {
+		if ln.ID == lid {
+			oldSub = derefStrPtr(ln.SubstituteMpn)
+			break
+		}
+	}
+	if substituteMpn != nil {
+		newSub = *substituteMpn
+	} else {
+		newSub = oldSub
+	}
 	if biz.NormalizeMPNForBOMSearch(oldMpn) != biz.NormalizeMPNForBOMSearch(newMpn) {
 		_ = s.search.CancelTasksBySessionMpnNorm(ctx, sid, oldMpn)
 		var pairs []biz.MpnPlatformPair
-		mn := biz.NormalizeMPNForBOMSearch(newMpn)
-		for _, p := range view.PlatformIDs {
-			pairs = append(pairs, biz.MpnPlatformPair{MpnNorm: mn, PlatformID: biz.NormalizePlatformID(p)})
+		keys := []string{biz.NormalizeMPNForBOMSearch(newMpn)}
+		if sub := biz.NormalizeMPNForBOMSearch(newSub); sub != "" && sub != keys[0] {
+			keys = append(keys, sub)
+		}
+		for _, key := range keys {
+			for _, p := range view.PlatformIDs {
+				pairs = append(pairs, biz.MpnPlatformPair{MpnNorm: key, PlatformID: biz.NormalizePlatformID(p)})
+			}
+		}
+		if err := s.search.UpsertPendingTasks(ctx, sid, view.BizDate, rev, pairs); err != nil {
+			return nil, err
+		}
+		s.tryMergeDispatchSession(ctx, sid)
+	} else if biz.NormalizeMPNForBOMSearch(oldSub) != biz.NormalizeMPNForBOMSearch(newSub) {
+		if oldSub != "" {
+			_ = s.search.CancelTasksBySessionMpnNorm(ctx, sid, oldSub)
+		}
+		var pairs []biz.MpnPlatformPair
+		keys := []string{biz.NormalizeMPNForBOMSearch(newMpn)}
+		if sub := biz.NormalizeMPNForBOMSearch(newSub); sub != "" && sub != keys[0] {
+			keys = append(keys, sub)
+		}
+		for _, key := range keys {
+			for _, p := range view.PlatformIDs {
+				pairs = append(pairs, biz.MpnPlatformPair{MpnNorm: key, PlatformID: biz.NormalizePlatformID(p)})
+			}
 		}
 		if err := s.search.UpsertPendingTasks(ctx, sid, view.BizDate, rev, pairs); err != nil {
 			return nil, err
@@ -1230,9 +1311,14 @@ func formatOptTimeRFC3339(t *time.Time) string {
 func buildMpnPlatformPairs(lines []biz.BomImportLine, platforms []string) []biz.MpnPlatformPair {
 	var pairs []biz.MpnPlatformPair
 	for _, ln := range lines {
-		mn := biz.NormalizeMPNForBOMSearch(ln.Mpn)
-		for _, p := range platforms {
-			pairs = append(pairs, biz.MpnPlatformPair{MpnNorm: mn, PlatformID: biz.NormalizePlatformID(p)})
+		keys := []string{biz.NormalizeMPNForBOMSearch(ln.Mpn)}
+		if sub := biz.NormalizeMPNForBOMSearch(ln.SubstituteMpn); sub != "" && sub != keys[0] {
+			keys = append(keys, sub)
+		}
+		for _, key := range keys {
+			for _, p := range platforms {
+				pairs = append(pairs, biz.MpnPlatformPair{MpnNorm: key, PlatformID: biz.NormalizePlatformID(p)})
+			}
 		}
 	}
 	return pairs
@@ -1288,7 +1374,7 @@ func (s *BomService) ExportSession(ctx context.Context, req *v1.ExportSessionReq
 	}
 	f := excelize.NewFile()
 	sheet := f.GetSheetName(0)
-	_ = f.SetSheetRow(sheet, "A1", &[]any{"Line No", "Model", "Manufacturer", "Package", "Quantity"})
+	_ = f.SetSheetRow(sheet, "A1", &[]any{"序号", "客户原型号", "统一型号", "品牌", "用量", "描述/规格", "封装", "位号", "替代型号", "备注"})
 	for i, row := range rows {
 		cell, _ := excelize.CoordinatesToCellName(1, i+2)
 		qty := 0.0
@@ -1298,9 +1384,14 @@ func (s *BomService) ExportSession(ctx context.Context, req *v1.ExportSessionReq
 		_ = f.SetSheetRow(sheet, cell, &[]any{
 			row.LineNo,
 			row.Mpn,
+			derefStrPtr(row.UnifiedMpn),
 			derefStrPtr(row.Mfr),
-			derefStrPtr(row.Package),
 			qty,
+			derefStrPtr(row.Description),
+			derefStrPtr(row.Package),
+			derefStrPtr(row.ReferenceDesignator),
+			derefStrPtr(row.SubstituteMpn),
+			derefStrPtr(row.Remark),
 		})
 	}
 	buf, err := f.WriteToBuffer()

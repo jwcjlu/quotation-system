@@ -17,22 +17,32 @@ import (
 var headerAliases = map[string][]string{
 	"line_no": {"行号", "序号", "no", "#", "line"},
 	"mpn": {
-		"型号", "mpn", "料号", "part", "型号*",
+		"型号", "mpn", "料号", "part", "型号*", "客户原型号", "客户型号", "原型号",
 		"part number", "part no", "partno", "pn",
 		"model", "物料编码", "物料代码", "物料号", "规格型号", "品名",
 		"产品型号", "元件型号", "商品编码", "产品编码", "内部料号",
 	},
-	"mfr":      {"厂牌", "制造商", "品牌", "mfr", "manufacturer"},
-	"package":  {"封装", "package"},
-	"qty":      {"数量", "qty", "用量", "quantity"},
-	"params":   {"参数", "规格", "description", "备注", "参数说明"},
-	"raw_text": {"原始文本", "原文"},
+	"mfr":         {"厂牌", "制造商", "品牌", "mfr", "manufacturer"},
+	"package":     {"封装", "package"},
+	"qty":         {"数量", "qty", "用量", "quantity"},
+	"params":      {"参数", "参数说明"},
+	"description": {"描述", "规格", "描述/规格", "description", "desc"},
+	"remark":      {"备注", "remark", "note", "notes"},
+	"unified_mpn": {"统一型号", "标准型号", "规范型号"},
+	"refdes":      {"位号", "位号/位号列表", "refdes", "reference designator"},
+	"substitute":  {"替代型号", "替代料号", "替代型号料号", "substitute", "alternate mpn"},
+	"raw_text":    {"原始文本", "原文"},
 }
 
 // BomImportLine Excel 解析后的一行（待写入 bom_session_line）。
 type BomImportLine struct {
 	LineNo                  int
 	Mpn                     string
+	UnifiedMpn              string
+	ReferenceDesignator     string
+	SubstituteMpn           string
+	Remark                  string
+	Description             string
 	Mfr                     string
 	ManufacturerCanonicalID *string
 	Package                 string
@@ -61,6 +71,11 @@ var columnMappingProtoKeyToLogical = map[string]string{
 	"quantity":     "qty",
 	"qty":          "qty",
 	"params":       "params",
+	"description":  "description",
+	"remark":       "remark",
+	"unified_mpn":  "unified_mpn",
+	"refdes":       "refdes",
+	"substitute":   "substitute",
 	"raw":          "raw_text",
 	"raw_text":     "raw_text",
 }
@@ -303,6 +318,36 @@ func parseDataRow(excelRow int, row []string, colMap map[string]int, seq *int) (
 	if idx, ok := colMap["params"]; ok {
 		if v := cellAt(row, idx); v != "" {
 			extra["params"] = v
+		}
+	}
+	if idx, ok := colMap["description"]; ok {
+		line.Description = cellAt(row, idx)
+		if line.Description != "" {
+			extra["description"] = line.Description
+		}
+	}
+	if idx, ok := colMap["remark"]; ok {
+		line.Remark = cellAt(row, idx)
+		if line.Remark != "" {
+			extra["remark"] = line.Remark
+		}
+	}
+	if idx, ok := colMap["unified_mpn"]; ok {
+		line.UnifiedMpn = cellAt(row, idx)
+		if line.UnifiedMpn != "" {
+			extra["unified_mpn"] = line.UnifiedMpn
+		}
+	}
+	if idx, ok := colMap["refdes"]; ok {
+		line.ReferenceDesignator = cellAt(row, idx)
+		if line.ReferenceDesignator != "" {
+			extra["reference_designator"] = line.ReferenceDesignator
+		}
+	}
+	if idx, ok := colMap["substitute"]; ok {
+		line.SubstituteMpn = cellAt(row, idx)
+		if line.SubstituteMpn != "" {
+			extra["substitute_mpn"] = line.SubstituteMpn
 		}
 	}
 	if len(extra) > 0 {

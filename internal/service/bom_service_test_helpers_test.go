@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -73,6 +74,11 @@ func (s *bomSessionRepoStub) ReplaceSessionLines(ctx context.Context, sessionID 
 			ID:                      int64(idx + 1),
 			LineNo:                  lineNo,
 			Mpn:                     line.Mpn,
+			UnifiedMpn:              stringPtrIfNotEmpty(line.UnifiedMpn),
+			ReferenceDesignator:     stringPtrIfNotEmpty(line.ReferenceDesignator),
+			SubstituteMpn:           stringPtrIfNotEmpty(line.SubstituteMpn),
+			Remark:                  stringPtrIfNotEmpty(line.Remark),
+			Description:             stringPtrIfNotEmpty(line.Description),
 			ManufacturerCanonicalID: line.ManufacturerCanonicalID,
 		})
 	}
@@ -105,7 +111,7 @@ func (s *bomSessionRepoStub) SetSessionStatus(ctx context.Context, sessionID, st
 	return nil
 }
 
-func (s *bomSessionRepoStub) CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, manufacturerCanonicalID *string, qty *float64, rawText, extraJSON *string) (int64, int32, int, error) {
+func (s *bomSessionRepoStub) CreateSessionLine(ctx context.Context, sessionID, mpn, unifiedMpn, referenceDesignator, substituteMpn, remark, description, mfr, pkg string, manufacturerCanonicalID *string, qty *float64, rawText, extraJSON *string) (int64, int32, int, error) {
 	return 0, 0, 0, nil
 }
 
@@ -113,7 +119,7 @@ func (s *bomSessionRepoStub) DeleteSessionLine(ctx context.Context, sessionID st
 	return nil
 }
 
-func (s *bomSessionRepoStub) UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, manufacturerCanonicalID biz.OptionalStringPtr, qty *float64, rawText, extraJSON *string) (int, error) {
+func (s *bomSessionRepoStub) UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, unifiedMpn, referenceDesignator, substituteMpn, remark, description, mfr, pkg *string, manufacturerCanonicalID biz.OptionalStringPtr, qty *float64, rawText, extraJSON *string) (int, error) {
 	return 0, nil
 }
 
@@ -389,6 +395,11 @@ func cloneBOMSessionView(in *biz.BOMSessionView) *biz.BOMSessionView {
 func cloneBomSessionLine(in data.BomSessionLine) data.BomSessionLine {
 	out := in
 	out.RawText = cloneStringPtr(in.RawText)
+	out.UnifiedMpn = cloneStringPtr(in.UnifiedMpn)
+	out.ReferenceDesignator = cloneStringPtr(in.ReferenceDesignator)
+	out.SubstituteMpn = cloneStringPtr(in.SubstituteMpn)
+	out.Remark = cloneStringPtr(in.Remark)
+	out.Description = cloneStringPtr(in.Description)
 	out.Mfr = cloneStringPtr(in.Mfr)
 	out.Package = cloneStringPtr(in.Package)
 	out.Qty = cloneFloat64Ptr(in.Qty)
@@ -420,6 +431,14 @@ func cloneFloat64Ptr(in *float64) *float64 {
 	}
 	out := *in
 	return &out
+}
+
+func stringPtrIfNotEmpty(s string) *string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 func cloneTimePtr(in *time.Time) *time.Time {

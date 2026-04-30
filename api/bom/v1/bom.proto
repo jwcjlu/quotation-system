@@ -304,6 +304,11 @@ message ParsedItem {
   string package = 5;
   int32 quantity = 6;
   string params = 7;
+  string unified_model = 8;
+  string reference_designator = 9;
+  string substitute_model = 10;
+  string remark = 11;
+  string description = 12;
 }
 
 // ========== SearchQuotes ==========
@@ -375,6 +380,10 @@ message MatchItem {
   string import_tax_imp_temp_rate = 21;
   // hs_customs_error：分号拼接分项码，如 tax_api_failed;hs_item_missing
   string hs_customs_error = 22;
+  // original | substitute
+  string matched_by = 23;
+  // 实际命中的查询型号（客户原型号或替代型号）
+  string matched_query_mpn = 24;
 }
 
 // ========== GetBOM ==========
@@ -631,6 +640,12 @@ message BOMLineRow {
   int32 raw_quote_platform_count = 13;
   int32 usable_quote_platform_count = 14;
   string resolution_status = 15;
+  string unified_mpn = 16;
+  string reference_designator = 17;
+  string substitute_mpn = 18;
+  string remark = 19;
+  string description = 20;
+  string raw_text = 21;
 }
 
 message PlatformGap {
@@ -722,6 +737,11 @@ message CreateSessionLineRequest {
   double qty = 5;
   string raw = 6;
   string extra_json = 7;
+  string unified_mpn = 8;
+  string reference_designator = 9;
+  string substitute_mpn = 10;
+  string remark = 11;
+  string description = 12;
 }
 
 message CreateSessionLineReply {
@@ -738,6 +758,11 @@ message PatchSessionLineRequest {
   optional double qty = 6;
   optional string raw = 7;
   optional string extra_json = 8;
+  optional string unified_mpn = 9;
+  optional string reference_designator = 10;
+  optional string substitute_mpn = 11;
+  optional string remark = 12;
+  optional string description = 13;
 }
 
 message PatchSessionLineReply {

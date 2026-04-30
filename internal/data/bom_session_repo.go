@@ -259,6 +259,21 @@ func (r *BomSessionRepo) ReplaceSessionLines(ctx context.Context, sessionID stri
 			Mpn:       strings.TrimSpace(ln.Mpn),
 			CreatedAt: time.Now(),
 		}
+		if ln.UnifiedMpn != "" {
+			line.UnifiedMpn = &ln.UnifiedMpn
+		}
+		if ln.ReferenceDesignator != "" {
+			line.ReferenceDesignator = &ln.ReferenceDesignator
+		}
+		if ln.SubstituteMpn != "" {
+			line.SubstituteMpn = &ln.SubstituteMpn
+		}
+		if ln.Remark != "" {
+			line.Remark = &ln.Remark
+		}
+		if ln.Description != "" {
+			line.Description = &ln.Description
+		}
 		if ln.Mfr != "" {
 			line.Mfr = &ln.Mfr
 		}
@@ -327,6 +342,11 @@ func (r *BomSessionRepo) ListSessionLines(ctx context.Context, sessionID string)
 			ID:                      row.ID,
 			LineNo:                  row.LineNo,
 			Mpn:                     row.Mpn,
+			UnifiedMpn:              derefStr(row.UnifiedMpn),
+			ReferenceDesignator:     derefStr(row.ReferenceDesignator),
+			SubstituteMpn:           derefStr(row.SubstituteMpn),
+			Remark:                  derefStr(row.Remark),
+			Description:             derefStr(row.Description),
 			Mfr:                     derefStr(row.Mfr),
 			ManufacturerCanonicalID: row.ManufacturerCanonicalID,
 		})
@@ -483,7 +503,7 @@ func trimPtr(in *string) *string {
 	return &v
 }
 
-func (r *BomSessionRepo) CreateSessionLine(ctx context.Context, sessionID, mpn, mfr, pkg string, manufacturerCanonicalID *string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error) {
+func (r *BomSessionRepo) CreateSessionLine(ctx context.Context, sessionID, mpn, unifiedMpn, referenceDesignator, substituteMpn, remark, description, mfr, pkg string, manufacturerCanonicalID *string, qty *float64, rawText, extraJSON *string) (lineID int64, lineNo int32, newRevision int, err error) {
 	if !r.DBOk() {
 		return 0, 0, 0, gorm.ErrInvalidDB
 	}
@@ -513,6 +533,21 @@ func (r *BomSessionRepo) CreateSessionLine(ctx context.Context, sessionID, mpn, 
 		LineNo:    nextNo,
 		Mpn:       mpn,
 		CreatedAt: time.Now(),
+	}
+	if unifiedMpn != "" {
+		row.UnifiedMpn = &unifiedMpn
+	}
+	if referenceDesignator != "" {
+		row.ReferenceDesignator = &referenceDesignator
+	}
+	if substituteMpn != "" {
+		row.SubstituteMpn = &substituteMpn
+	}
+	if remark != "" {
+		row.Remark = &remark
+	}
+	if description != "" {
+		row.Description = &description
 	}
 	if mfr != "" {
 		row.Mfr = &mfr
@@ -580,7 +615,7 @@ func (r *BomSessionRepo) DeleteSessionLine(ctx context.Context, sessionID string
 	return tx.Commit().Error
 }
 
-func (r *BomSessionRepo) UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, mfr, pkg *string, manufacturerCanonicalID biz.OptionalStringPtr, qty *float64, rawText, extraJSON *string) (newRevision int, err error) {
+func (r *BomSessionRepo) UpdateSessionLine(ctx context.Context, sessionID string, lineID int64, mpn, unifiedMpn, referenceDesignator, substituteMpn, remark, description, mfr, pkg *string, manufacturerCanonicalID biz.OptionalStringPtr, qty *float64, rawText, extraJSON *string) (newRevision int, err error) {
 	if !r.DBOk() {
 		return 0, gorm.ErrInvalidDB
 	}
@@ -601,6 +636,21 @@ func (r *BomSessionRepo) UpdateSessionLine(ctx context.Context, sessionID string
 	}
 	if mfr != nil {
 		up["mfr"] = mfr
+	}
+	if unifiedMpn != nil {
+		up["unified_mpn"] = unifiedMpn
+	}
+	if referenceDesignator != nil {
+		up["reference_designator"] = referenceDesignator
+	}
+	if substituteMpn != nil {
+		up["substitute_mpn"] = substituteMpn
+	}
+	if remark != nil {
+		up["remark"] = remark
+	}
+	if description != nil {
+		up["description"] = description
 	}
 	if manufacturerCanonicalID.Set {
 		up["manufacturer_canonical_id"] = manufacturerCanonicalID.Value

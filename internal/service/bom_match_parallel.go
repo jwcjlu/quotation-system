@@ -36,11 +36,14 @@ func (s *BomService) matchOneLine(
 	}
 	qtyI := bomLineQtyInt(line.Qty)
 	type pc struct {
-		pid  string
-		pick biz.LineMatchPick
+		pid        string
+		pick       biz.LineMatchPick
+		matchedBy  string
+		queryModel string
 	}
 	var cand []pc
-	mergeKey := biz.NormalizeMPNForBOMSearch(line.Mpn)
+	primaryKey := biz.NormalizeMPNForBOMSearch(line.Mpn)
+	substituteKey := biz.NormalizeMPNForBOMSearch(derefStrPtr(line.SubstituteMpn))
 	mfrSeenLine := make(map[string]struct{})
 	var lineMfrMismatch []string
 	addLineMfr := func(xs []string) {
@@ -62,68 +65,79 @@ func (s *BomService) matchOneLine(
 		}
 		mfrHint = &biz.BomManufacturerResolveHint{CanonID: id, Hit: hit}
 	}
-	for _, pid := range plats {
-		if err := ctx.Err(); err != nil {
-			return nil, 0, err
-		}
-		pid = biz.NormalizePlatformID(pid)
-		snap := cacheMap[quoteCachePairKey(mergeKey, pid)]
-		hit := snap != nil
-		if !hit || !quoteCacheUsable(snap) {
-			if r := quoteCacheUnusableReason(hit, snap); r != "" {
-				oc := ""
-				if snap != nil {
-					oc = strings.TrimSpace(snap.Outcome)
+	runMatch := func(mergeKey string, sourceLabel string) error {
+		for _, pid := range plats {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			pid = biz.NormalizePlatformID(pid)
+			snap := cacheMap[quoteCachePairKey(mergeKey, pid)]
+			hit := snap != nil
+			if !hit || !quoteCacheUsable(snap) {
+				if r := quoteCacheUnusableReason(hit, snap); r != "" {
+					oc := ""
+					if snap != nil {
+						oc = strings.TrimSpace(snap.Outcome)
+					}
+					s.log.Debugf(
+						"bom match skip: session=%s line_no=%d mpn=%q merge_mpn=%q platform=%s reason=%s outcome=%q",
+						sid, line.LineNo, line.Mpn, mergeKey, pid, r, oc,
+					)
 				}
+				continue
+			}
+			rows, rowsOK := parseQuoteRowsForMatch(snap.QuotesJSON)
+			if !rowsOK {
 				s.log.Debugf(
-					"bom match skip: session=%s line_no=%d mpn=%q merge_mpn=%q platform=%s reason=%s outcome=%q",
-					sid, line.LineNo, line.Mpn, mergeKey, pid, r, oc,
+					"bom match skip: session=%s line_no=%d mpn=%q merge_mpn=%q platform=%s reason=quotes_json_invalid_for_match",
+					sid, line.LineNo, line.Mpn, mergeKey, pid,
+				)
+				continue
+			}
+			in := biz.LineMatchInput{
+				BomMpn:           mergeKey,
+				BomPackage:       derefStrPtr(line.Package),
+				BomMfr:           derefStrPtr(line.Mfr),
+				BomQty:           qtyI,
+				PlatformID:       pid,
+				QuoteRows:        rows,
+				BizDate:          view.BizDate,
+				RequestDay:       reqDay,
+				BaseCCY:          baseCCY,
+				RoundingMode:     roundMode,
+				ParseTierStrings: parseTiers,
+				BomMfrHint:       mfrHint,
+			}
+			pick, err := biz.PickBestQuoteForLine(ctx, in, fxCache, aliasCache)
+			if err != nil {
+				return err
+			}
+			addLineMfr(pick.MfrMismatchQuoteManufacturers)
+			if pick.Ok {
+				cand = append(cand, pc{pid: pid, pick: pick, matchedBy: sourceLabel, queryModel: mergeKey})
+			} else {
+				s.log.Debugf(
+					"bom match skip: session=%s line_no=%d mpn=%q merge_mpn=%q platform=%s reason=pick_not_ok pick_reason=%q bom_mfr=%q bom_pkg=%q",
+					sid, line.LineNo, line.Mpn, mergeKey, pid, pick.Reason, derefStrPtr(line.Mfr), derefStrPtr(line.Package),
 				)
 			}
-			continue
 		}
-		rows, rowsOK := parseQuoteRowsForMatch(snap.QuotesJSON)
-		if !rowsOK {
-			s.log.Debugf(
-				"bom match skip: session=%s line_no=%d mpn=%q merge_mpn=%q platform=%s reason=quotes_json_invalid_for_match",
-				sid, line.LineNo, line.Mpn, mergeKey, pid,
-			)
-			continue
-		}
-		in := biz.LineMatchInput{
-			BomMpn:           line.Mpn,
-			BomPackage:       derefStrPtr(line.Package),
-			BomMfr:           derefStrPtr(line.Mfr),
-			BomQty:           qtyI,
-			PlatformID:       pid,
-			QuoteRows:        rows,
-			BizDate:          view.BizDate,
-			RequestDay:       reqDay,
-			BaseCCY:          baseCCY,
-			RoundingMode:     roundMode,
-			ParseTierStrings: parseTiers,
-			BomMfrHint:       mfrHint,
-		}
-		pick, err := biz.PickBestQuoteForLine(ctx, in, fxCache, aliasCache)
-		if err != nil {
+		return nil
+	}
+	if err := runMatch(primaryKey, "original"); err != nil {
+		return nil, 0, err
+	}
+	if len(cand) == 0 && substituteKey != "" && substituteKey != primaryKey {
+		if err := runMatch(substituteKey, "substitute"); err != nil {
 			return nil, 0, err
-		}
-		addLineMfr(pick.MfrMismatchQuoteManufacturers)
-		if pick.Ok {
-			cand = append(cand, pc{pid, pick})
-		} else {
-			s.log.Debugf(
-				"bom match skip: session=%s line_no=%d mpn=%q merge_mpn=%q platform=%s reason=pick_not_ok pick_reason=%q bom_mfr=%q bom_pkg=%q",
-				sid, line.LineNo, line.Mpn, mergeKey, pid, pick.Reason, derefStrPtr(line.Mfr), derefStrPtr(line.Package),
-			)
 		}
 	}
 	if len(cand) == 0 {
 		s.log.Debugf(
 			"bom match line no_match: session=%s line_no=%d mpn=%q merge_mpn=%q qty=%d bom_mfr=%q bom_pkg=%q (no platform produced a candidate after skips above)",
-			sid, line.LineNo, line.Mpn, mergeKey, qtyI, derefStrPtr(line.Mfr), derefStrPtr(line.Package),
+			sid, line.LineNo, line.Mpn, primaryKey, qtyI, derefStrPtr(line.Mfr), derefStrPtr(line.Package),
 		)
-		mi := noMatchItem(line, qtyI, lineMfrMismatch)
+		mi := noMatchItem(line, qtyI, lineMfrMismatch, "original", primaryKey)
 		return mi, 0, nil
 	}
 	bestIdx := 0
@@ -136,7 +150,7 @@ func (s *BomService) matchOneLine(
 		}
 	}
 	ch := cand[bestIdx]
-	mi := matchItemFromPick(line, qtyI, ch.pick, ch.pid, lineMfrMismatch)
+	mi := matchItemFromPick(line, qtyI, ch.pick, ch.pid, lineMfrMismatch, ch.matchedBy, ch.queryModel)
 	return mi, mi.GetSubtotal(), nil
 }
 

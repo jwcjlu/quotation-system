@@ -2,6 +2,7 @@ package biz
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -184,5 +185,43 @@ func TestBomImport_QtyRangeUsesLeftValue(t *testing.T) {
 	}
 	if len(lines) != 1 || lines[0].Qty == nil || *lines[0].Qty != 10000 {
 		t.Fatalf("lines %+v", lines)
+	}
+}
+
+func TestParseBomImportRows_TemplateFields(t *testing.T) {
+	f := excelize.NewFile()
+	sheet := f.GetSheetName(0)
+	_ = f.SetSheetRow(sheet, "A1", &[]any{"客户原型号", "统一型号", "位号", "替代型号", "备注", "描述/规格", "数量"})
+	_ = f.SetSheetRow(sheet, "A2", &[]any{"STM32F103", "STM32F103C8T6", "U1,U2", "GD32F103", "优先原厂", "MCU", 2})
+	_ = f.SetSheetRow(sheet, "A3", &[]any{"LM358", "", "", "", "", "", 1})
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+
+	lines, errs := ParseBomImportRows(&buf, false)
+	if len(errs) != 0 {
+		t.Fatalf("errs: %v", errs)
+	}
+	if len(lines) != 2 {
+		t.Fatalf("lines len %d", len(lines))
+	}
+	if lines[0].Mpn != "STM32F103" || lines[0].UnifiedMpn != "STM32F103C8T6" || lines[0].ReferenceDesignator != "U1,U2" || lines[0].SubstituteMpn != "GD32F103" {
+		t.Fatalf("line0 core fields %+v", lines[0])
+	}
+	if lines[0].Remark != "优先原厂" || lines[0].Description != "MCU" {
+		t.Fatalf("line0 text fields %+v", lines[0])
+	}
+	var extra map[string]string
+	if err := json.Unmarshal(lines[0].ExtraJSON, &extra); err != nil {
+		t.Fatalf("extra json: %v", err)
+	}
+	if extra["substitute_mpn"] != "GD32F103" || extra["description"] != "MCU" {
+		t.Fatalf("extra %+v", extra)
+	}
+	if lines[1].Mpn != "LM358" {
+		t.Fatalf("line1 mpn %+v", lines[1])
 	}
 }

@@ -1,6 +1,6 @@
-truncate bom_match.t_bom_quote_cache;
-truncate bom_match.t_bom_quote_item;
-truncate bom_match.t_bom_search_task;
-truncate bom_match.t_bom_session;
-truncate bom_match.t_bom_session_line;
-truncate bom_match.t_caichip_dispatch_task;
+truncate t_bom_quote_cache;
+truncate t_bom_quote_item;
+truncate t_bom_search_task;
+truncate t_bom_session;
+truncate t_bom_session_line;
+truncate t_caichip_dispatch_task;

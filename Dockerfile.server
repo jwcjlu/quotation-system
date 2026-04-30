@@ -29,7 +29,6 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /out/caichip-server /app/caichip-server
-COPY configs /app/configs
 
 EXPOSE 18080 19090
 

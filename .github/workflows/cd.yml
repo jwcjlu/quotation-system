@@ -1,0 +1,44 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy by SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          REPO_URL: ${{ secrets.DEPLOY_REPO_URL }}
+          CONFIG_DOCKER_YAML: ${{ secrets.CONFIG_DOCKER_YAML }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          envs: DEPLOY_PATH,REPO_URL,CONFIG_DOCKER_YAML
+          script_stop: true
+          script: |
+            set -e
+            mkdir -p "${DEPLOY_PATH}"
+
+            if [ ! -d "${DEPLOY_PATH}/.git" ]; then
+              git clone "${REPO_URL}" "${DEPLOY_PATH}"
+            fi
+
+            cd "${DEPLOY_PATH}"
+            git fetch --all --prune
+            git checkout main
+            git reset --hard origin/main
+
+            mkdir -p "${DEPLOY_PATH}/configs"
+            cat > "${DEPLOY_PATH}/configs/config.docker.yaml" <<'EOF'
+            ${CONFIG_DOCKER_YAML}
+            EOF
+
+            docker compose up -d --build

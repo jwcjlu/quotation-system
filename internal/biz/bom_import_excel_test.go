@@ -225,3 +225,57 @@ func TestParseBomImportRows_TemplateFields(t *testing.T) {
 		t.Fatalf("line1 mpn %+v", lines[1])
 	}
 }
+
+func TestParseBomImportRows_TemplateFieldsCommonVariants(t *testing.T) {
+	f := excelize.NewFile()
+	sheet := f.GetSheetName(0)
+	_ = f.SetSheetRow(sheet, "A1", &[]any{
+		"Part Number",
+		"Standard PN",
+		"MFG",
+		"Description",
+		"Footprint",
+		"Qty",
+		"Designator",
+		"Alt PN",
+		"Note",
+	})
+	_ = f.SetSheetRow(sheet, "A2", &[]any{
+		"STM32F103",
+		"STM32F103C8T6",
+		"ST",
+		"MCU",
+		"LQFP48",
+		2,
+		"U1,U2",
+		"GD32F103",
+		"优先原厂",
+	})
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+
+	lines, errs := ParseBomImportRows(&buf, false)
+	if len(errs) != 0 {
+		t.Fatalf("errs: %v", errs)
+	}
+	if len(lines) != 1 {
+		t.Fatalf("lines len %d", len(lines))
+	}
+	got := lines[0]
+	if got.Mpn != "STM32F103" || got.UnifiedMpn != "STM32F103C8T6" {
+		t.Fatalf("mpn fields %+v", got)
+	}
+	if got.Mfr != "ST" || got.Package != "LQFP48" || got.Qty == nil || *got.Qty != 2 {
+		t.Fatalf("vendor/package/qty %+v", got)
+	}
+	if got.ReferenceDesignator != "U1,U2" || got.SubstituteMpn != "GD32F103" {
+		t.Fatalf("ref/substitute %+v", got)
+	}
+	if got.Remark != "优先原厂" || got.Description != "MCU" {
+		t.Fatalf("remark/description %+v", got)
+	}
+}

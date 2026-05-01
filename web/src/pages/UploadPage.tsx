@@ -10,9 +10,14 @@ const PARSE_MODES = [
 
 const MAPPING_FIELDS = [
   { key: 'model', label: '型号', required: true },
+  { key: 'unified_mpn', label: '统一型号', required: false },
+  { key: 'refdes', label: '位号', required: false },
+  { key: 'substitute', label: '替代型号', required: false },
   { key: 'manufacturer', label: '厂牌', required: false },
   { key: 'package', label: '封装', required: false },
   { key: 'quantity', label: '数量', required: false },
+  { key: 'description', label: '描述/规格', required: false },
+  { key: 'remark', label: '备注', required: false },
   { key: 'params', label: '参数/备注', required: false },
 ] as const
 

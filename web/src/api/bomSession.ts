@@ -212,6 +212,12 @@ export async function getBOMLines(sessionId: string): Promise<GetBOMLinesReply> 
       line_id: (row.line_id ?? row.lineId) as string,
       line_no: num(row.line_no ?? row.lineNo, 0),
       mpn: (row.mpn as string) ?? '',
+      unified_mpn: str(row.unified_mpn ?? row.unifiedMpn) || undefined,
+      reference_designator:
+        str(row.reference_designator ?? row.referenceDesignator) || undefined,
+      substitute_mpn: str(row.substitute_mpn ?? row.substituteMpn) || undefined,
+      remark: str(row.remark) || undefined,
+      description: str(row.description) || undefined,
       mfr: (row.mfr as string) ?? '',
       package: (row.package as string) ?? '',
       qty: num(row.qty, 0),

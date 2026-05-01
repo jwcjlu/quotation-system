@@ -1344,7 +1344,7 @@ func normalizeSessionPlatforms(ids []string) []string {
 func (s *BomService) DownloadTemplate(ctx context.Context, req *v1.DownloadTemplateRequest) (*v1.DownloadTemplateReply, error) {
 	f := excelize.NewFile()
 	sheet := f.GetSheetName(0)
-	_ = f.SetSheetRow(sheet, "A1", &[]any{"Model", "Quantity", "Manufacturer", "Package", "Parameters"})
+	_ = f.SetSheetRow(sheet, "A1", &[]any{"序号", "客户原型号", "统一型号", "品牌", "用量", "描述/规格", "封装", "位号", "替代型号", "备注"})
 	buf, err := f.WriteToBuffer()
 	if err != nil {
 		return nil, err

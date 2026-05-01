@@ -196,6 +196,11 @@ export interface BOMLineRow {
   line_id: string
   line_no: number
   mpn: string
+  unified_mpn?: string
+  reference_designator?: string
+  substitute_mpn?: string
+  remark?: string
+  description?: string
   mfr: string
   package: string
   qty: number

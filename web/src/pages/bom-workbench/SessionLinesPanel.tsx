@@ -80,7 +80,20 @@ export function SessionLinesPanel({ sessionId }: SessionLinesPanelProps) {
       lines.filter((line) => {
         if (mfr && line.mfr !== mfr) return false
         if (availability && (line.availability_status || 'unknown') !== availability) return false
-        return textMatchesKeyword([line.line_no, line.mpn, line.mfr, line.package], keyword)
+        return textMatchesKeyword(
+          [
+            line.line_no,
+            line.mpn,
+            line.unified_mpn,
+            line.reference_designator,
+            line.substitute_mpn,
+            line.description,
+            line.remark,
+            line.mfr,
+            line.package,
+          ],
+          keyword
+        )
       }),
     [availability, keyword, lines, mfr]
   )
@@ -164,11 +177,16 @@ export function SessionLinesPanel({ sessionId }: SessionLinesPanelProps) {
         </div>
       </div>
       <div className="overflow-x-auto rounded-lg border border-[#d7e0ed] bg-white">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[1200px] text-sm">
           <thead className="bg-[#f1f5f9] text-left text-slate-700">
             <tr>
               <th className="px-3 py-2">行号</th>
-              <th className="px-3 py-2">MPN</th>
+              <th className="px-3 py-2">客户原型号</th>
+              <th className="px-3 py-2">统一型号</th>
+              <th className="px-3 py-2">位号</th>
+              <th className="px-3 py-2">替代型号</th>
+              <th className="px-3 py-2">描述/规格</th>
+              <th className="px-3 py-2">备注</th>
               <th className="px-3 py-2">厂家</th>
               <th className="px-3 py-2">数量</th>
               <th className="px-3 py-2">可用性</th>
@@ -178,12 +196,21 @@ export function SessionLinesPanel({ sessionId }: SessionLinesPanelProps) {
           </thead>
           <tbody>
             {paged.rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-slate-500">暂无匹配 BOM 行</td></tr>
+              <tr>
+                <td colSpan={12} className="px-3 py-8 text-center text-slate-500">
+                  暂无匹配 BOM 行
+                </td>
+              </tr>
             ) : (
               paged.rows.map((line) => (
                 <tr key={line.line_id} className="border-t border-[#d9e1ec]">
                   <td className="px-3 py-3">{line.line_no}</td>
                   <td className="px-3 py-3 font-mono">{line.mpn}</td>
+                  <td className="px-3 py-3 font-mono">{line.unified_mpn || '-'}</td>
+                  <td className="px-3 py-3">{line.reference_designator || '-'}</td>
+                  <td className="px-3 py-3 font-mono">{line.substitute_mpn || '-'}</td>
+                  <td className="px-3 py-3">{line.description || '-'}</td>
+                  <td className="px-3 py-3">{line.remark || '-'}</td>
                   <td className="px-3 py-3">{line.mfr || '-'}</td>
                   <td className="px-3 py-3">{line.qty}</td>
                   <td className="px-3 py-3">{statusPill(line.availability_status || line.match_status || '-')}</td>

@@ -126,13 +126,18 @@ func TestSearch_WithStub(t *testing.T) {
 }
 
 func TestSearchBatch_WithStub(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	testDir := filepath.Dir(file)
+	stubPath := filepath.Join(testDir, "testdata", "ickey_stub.py")
+	workDir := filepath.Dir(stubPath)
+	scriptName := filepath.Base(stubPath)
 
 	c := &Client{
 		searchURL:     "https://search.ickey.cn/",
 		timeout:       300,
 		crawlerPath:   "python",
-		crawlerScript: "ickey_crawler.py",
-		workDir:       "D:\\workspace\\caichip",
+		crawlerScript: scriptName,
+		workDir:       workDir,
 	}
 
 	m, err := c.SearchBatch([]platform.SearchRequest{
@@ -145,16 +150,16 @@ func TestSearchBatch_WithStub(t *testing.T) {
 	if len(m) != 2 {
 		t.Fatalf("len(m) = %d, want 2", len(m))
 	}
-	if len(m["SN74HC595PWR"]) != 1 || len(m["ABC123"]) != 1 {
-		t.Errorf("got SN74HC595PWR=%d ABC123=%d", len(m["SN74HC595PWR"]), len(m["ABC123"]))
+	if len(m["SN74HC595PWR"]) != 1 || len(m["CC1310F128RHBR"]) != 1 {
+		t.Errorf("got SN74HC595PWR=%d CC1310F128RHBR=%d", len(m["SN74HC595PWR"]), len(m["CC1310F128RHBR"]))
 	}
 	// quantity=10 取 10+ 档 0.75
 	if m["SN74HC595PWR"][0].UnitPrice != 0.75 {
 		t.Errorf("SN74HC595PWR UnitPrice = %v, want 0.75", m["SN74HC595PWR"][0].UnitPrice)
 	}
 	// quantity=5 取 1+ 档 0.88
-	if m["ABC123"][0].UnitPrice != 0.88 {
-		t.Errorf("ABC123 UnitPrice = %v, want 0.88", m["ABC123"][0].UnitPrice)
+	if m["CC1310F128RHBR"][0].UnitPrice != 0.88 {
+		t.Errorf("CC1310F128RHBR UnitPrice = %v, want 0.88", m["CC1310F128RHBR"][0].UnitPrice)
 	}
 }
 

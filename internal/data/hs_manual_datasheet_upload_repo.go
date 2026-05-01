@@ -129,7 +129,16 @@ func (r *HsManualDatasheetUploadRepo) DeleteExpiredBefore(ctx context.Context, t
 // isManualStagingDatasheetPath 仅允许删除 manual_staging 目录下的暂存 PDF，防误删正式资产。
 func isManualStagingDatasheetPath(p string) bool {
 	s := strings.ToLower(filepath.ToSlash(filepath.Clean(p)))
-	return strings.Contains(s, "/manual_staging/") && strings.HasSuffix(s, ".pdf")
+	if !strings.HasSuffix(s, ".pdf") {
+		return false
+	}
+	// 按路径段匹配 manual_staging，避免仅依赖 "/" 拼接形式（Windows/Linux 与 Clean 结果一致）。
+	for _, seg := range strings.Split(s, "/") {
+		if seg == "manual_staging" {
+			return true
+		}
+	}
+	return false
 }
 
 var _ biz.HsManualDatasheetUploadRepo = (*HsManualDatasheetUploadRepo)(nil)

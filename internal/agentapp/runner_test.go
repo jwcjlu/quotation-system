@@ -127,7 +127,8 @@ func TestRunTask_Skipped(t *testing.T) {
 		IdempotencyKey: "",
 		TraceId:        "",
 	}, "python", log)
-	if st != "skipped" || code != nil || msg != "missing script_id/version" {
+	// dataDir 下无对应 script 包时，先于「缺 script_id」分支命中 findVersionRoot 失败。
+	if st != "skipped" || code != nil || msg != "script package directory not found" {
 		t.Fatalf("got %v %v %q,%v", st, code, msg, stdout)
 	}
 

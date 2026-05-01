@@ -4,7 +4,7 @@ import (
 	"caichip/internal/conf"
 	"caichip/pkg/pdftext"
 	"context"
-	"fmt"
+	"os"
 	"testing"
 )
 
@@ -180,14 +180,34 @@ base_url: "https://api.deepseek.com/v1"   # 可选，代理/Azure 网关
 model: "deepseek-chat"
 */
 func TestLLMExtractClient_Extract(t *testing.T) {
+	if os.Getenv("CAICHIP_HS_LLM_EXTRACT_INTEGRATION") == "" {
+		t.Skip("set CAICHIP_HS_LLM_EXTRACT_INTEGRATION=1 and OPENAI_API_KEY + HS_LLM_EXTRACT_PDF to run")
+	}
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey == "" {
+		t.Skip("OPENAI_API_KEY not set")
+	}
+	filePath := os.Getenv("HS_LLM_EXTRACT_PDF")
+	if filePath == "" {
+		t.Skip("HS_LLM_EXTRACT_PDF not set")
+	}
+	baseURL := os.Getenv("OPENAI_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://api.openai.com/v1"
+	}
+	model := os.Getenv("OPENAI_MODEL")
+	if model == "" {
+		model = "gpt-4o-mini"
+	}
 	aiChat := NewOpenAIChat(&conf.Bootstrap{
 		Openai: &conf.OpenAI{
-			ApiKey:  "sk-cebf97382d7a4b0f85c60edf2fbcfa9e",
-			BaseUrl: "https://api.deepseek.com/v1",
-			Model:   "deepseek-chat"}})
+			ApiKey:  apiKey,
+			BaseUrl: baseURL,
+			Model:   model,
+		},
+	})
 	client := NewHsLLMExtractClient(aiChat)
 
-	filePath := "D://960b8eab58f119ac5f30d3a0a28c754f.pdf"
 	// 只取 PDF 正文前 10000 字符，避免把样式/对象元数据喂给 LLM。
 	const maxLen = 10000
 	pdfText, err := pdftext.ReadBodyHeadFromFile(filePath, maxLen)
@@ -197,7 +217,9 @@ func TestLLMExtractClient_Extract(t *testing.T) {
 	t.Logf("Read PDF body text: %s, size=%d chars", filePath, len([]rune(pdfText)))
 	result, err := client.Extract(context.WithoutCancel(context.Background()), pdfText)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
-	fmt.Println(result)
+	if result == nil {
+		t.Fatal("expected non-nil extract result")
+	}
 }

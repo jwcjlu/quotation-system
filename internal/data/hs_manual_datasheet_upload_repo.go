@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -128,11 +129,16 @@ func (r *HsManualDatasheetUploadRepo) DeleteExpiredBefore(ctx context.Context, t
 
 // isManualStagingDatasheetPath 仅允许删除 manual_staging 目录下的暂存 PDF，防误删正式资产。
 func isManualStagingDatasheetPath(p string) bool {
-	s := strings.ToLower(filepath.ToSlash(filepath.Clean(p)))
+	if p == "" {
+		return false
+	}
+	// 非 Windows 上 filepath.Clean 不会把 `\` 当分隔符，来自 Windows 的路径会先被当成单个「文件名」。
+	// 先统一成 `/` 再用 path.Clean（仅处理正斜杠路径），才能在 Linux 上正确分段校验。
+	unified := filepath.ToSlash(strings.ReplaceAll(p, `\`, `/`))
+	s := strings.ToLower(path.Clean(unified))
 	if !strings.HasSuffix(s, ".pdf") {
 		return false
 	}
-	// 按路径段匹配 manual_staging，避免仅依赖 "/" 拼接形式（Windows/Linux 与 Clean 结果一致）。
 	for _, seg := range strings.Split(s, "/") {
 		if seg == "manual_staging" {
 			return true

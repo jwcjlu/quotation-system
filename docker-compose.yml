@@ -55,9 +55,7 @@ services:
       - ./logs:/app/logs
 
   web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
+    image: ${WEB_IMAGE:-caichip-web:latest}
     container_name: caichip-web
     restart: unless-stopped
     depends_on:

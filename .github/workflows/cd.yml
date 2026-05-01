@@ -55,5 +55,6 @@ jobs:
 
             echo "${ACR_PASSWORD}" | docker login --username "${ACR_USERNAME}" --password-stdin "${ACR_REGISTRY}"
             export SERVER_IMAGE="${ACR_REGISTRY}/${ACR_REPOSITORY}:${IMAGE_TAG}"
-            docker compose pull server
+            export WEB_IMAGE="${ACR_REGISTRY}/${ACR_REPOSITORY}:web-${IMAGE_TAG}"
+            docker compose pull server web
             docker compose up -d --no-build

@@ -151,3 +151,90 @@ func (s *BomService) GetMatchSourceDetail(ctx context.Context, req *v1.GetMatchS
 		BomDemandManufacturer: derefStrPtr(line.Mfr),
 	}, nil
 }
+
+// GetBomLineQuoteItems 返回会话行原始需求与 t_bom_quote_item 明细（经 t_bom_quote_cache 按合并键+平台关联）。
+func (s *BomService) GetBomLineQuoteItems(ctx context.Context, req *v1.GetBomLineQuoteItemsRequest) (*v1.GetBomLineQuoteItemsReply, error) {
+	if !s.dbOK() {
+		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
+	}
+	sid, err := parseBomSessionID(req.GetBomId())
+	if err != nil {
+		return nil, err
+	}
+	wantLine := int(req.GetLineNo())
+	if wantLine <= 0 {
+		return nil, kerrors.BadRequest("BAD_LINE_NO", "line_no must be positive")
+	}
+	view, lines, plats, err := s.loadSessionLinesAndPlatforms(ctx, sid, nil)
+	if err != nil {
+		return nil, err
+	}
+	var line *data.BomSessionLine
+	for i := range lines {
+		if lines[i].LineNo == wantLine {
+			line = &lines[i]
+			break
+		}
+	}
+	if line == nil {
+		return nil, kerrors.NotFound("LINE_NOT_FOUND", "session line not found for line_no")
+	}
+	mergeKey := biz.NormalizeMPNForBOMSearch(line.Mpn)
+	items, err := s.search.ListBomQuoteItemsForSessionLineRead(ctx, sid, line.ID, view.BizDate, mergeKey, plats)
+	if err != nil {
+		return nil, err
+	}
+	demand := &v1.BomLineDemandSnapshot{
+		LineNo:             int32(line.LineNo),
+		LineDbId:           line.ID,
+		RawText:            derefStrPtr(line.RawText),
+		Mpn:                line.Mpn,
+		UnifiedMpn:         derefStrPtr(line.UnifiedMpn),
+		ReferenceDesignator: derefStrPtr(line.ReferenceDesignator),
+		SubstituteMpn:      derefStrPtr(line.SubstituteMpn),
+		Remark:             derefStrPtr(line.Remark),
+		Description:        derefStrPtr(line.Description),
+		DemandManufacturer: derefStrPtr(line.Mfr),
+		ExtraJson:          string(line.ExtraJSON),
+	}
+	if line.ManufacturerCanonicalID != nil {
+		demand.ManufacturerCanonicalId = strings.TrimSpace(*line.ManufacturerCanonicalID)
+	}
+	if line.Package != nil {
+		demand.DemandPackage = strings.TrimSpace(*line.Package)
+	}
+	if line.Qty != nil {
+		demand.Quantity = *line.Qty
+	}
+	outItems := make([]*v1.BomQuoteItemRead, 0, len(items))
+	for i := range items {
+		it := &items[i]
+		outItems = append(outItems, &v1.BomQuoteItemRead{
+			Platform:                 it.PlatformID,
+			QuoteId:                  it.QuoteID,
+			ItemId:                   it.ItemID,
+			Model:                    it.Model,
+			Manufacturer:             it.Manufacturer,
+			ManufacturerCanonicalId: it.ManufacturerCanonicalID,
+			Package:                  it.Package,
+			Stock:                    it.Stock,
+			Desc:                     it.Desc,
+			Moq:                      it.MOQ,
+			LeadTime:                 it.LeadTime,
+			PriceTiers:               it.PriceTiers,
+			HkPrice:                  it.HKPrice,
+			MainlandPrice:            it.MainlandPrice,
+			QueryModel:               it.QueryModel,
+			DatasheetUrl:             it.DatasheetURL,
+			SourceType:               it.SourceType,
+			SessionId:                it.SessionID,
+			LineId:                   it.LineID,
+		})
+	}
+	return &v1.GetBomLineQuoteItemsReply{
+		BizDate:  view.BizDate.Format("2006-01-02"),
+		MergeMpn: mergeKey,
+		Demand:   demand,
+		Items:    outItems,
+	}, nil
+}

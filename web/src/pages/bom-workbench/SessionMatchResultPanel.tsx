@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { autoMatch, type MatchItem } from '../../api'
+import { SessionLineDemandQuoteItemsModal } from './SessionLineDemandQuoteItemsModal'
 import {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_OPTIONS,
@@ -28,6 +29,8 @@ export function SessionMatchResultPanel({
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
+  const [lineDetailOpen, setLineDetailOpen] = useState(false)
+  const [lineDetailLineNo, setLineDetailLineNo] = useState<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -102,11 +105,9 @@ export function SessionMatchResultPanel({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h4 className="font-semibold text-slate-900">匹配结果</h4>
-            <p className="mt-1 text-sm text-slate-500">查看候选报价、供应商、税率和匹配状态</p>
+            <p className="mt-1 text-sm text-slate-500">双击行可查看该行原始需求与 t_bom_quote_item 明细</p>
           </div>
-          <div className="text-sm text-slate-500">
-            {pageSummary(paged.page, paged.totalPages, paged.total)}
-          </div>
+          <div className="text-sm text-slate-500">{pageSummary(paged.page, paged.totalPages, paged.total)}</div>
         </div>
         <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_10rem_8rem]">
           <input
@@ -164,7 +165,15 @@ export function SessionMatchResultPanel({
               </tr>
             ) : (
               paged.rows.map((item) => (
-                <tr key={`${item.index}-${item.model}-${item.platform}`} className="border-t border-[#d9e1ec]">
+                <tr
+                  key={`${item.index}-${item.model}-${item.platform}`}
+                  className="cursor-pointer border-t border-[#d9e1ec] hover:bg-slate-50"
+                  onDoubleClick={() => {
+                    setLineDetailLineNo(item.index)
+                    setLineDetailOpen(true)
+                  }}
+                  title="双击查看该行原始需求与报价子表明细"
+                >
                   <td className="px-3 py-2">{item.index}</td>
                   <td className="px-3 py-2 font-mono">{item.model}</td>
                   <td className="px-3 py-2 font-mono">{item.matched_model || '-'}</td>
@@ -178,7 +187,10 @@ export function SessionMatchResultPanel({
                   <td className="px-3 py-2">
                     <button
                       type="button"
-                      onClick={() => onNavigateToHsResolve?.(item.model, item.manufacturer)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onNavigateToHsResolve?.(item.model, item.manufacturer)
+                      }}
                       className="text-sm font-medium text-blue-600 hover:underline"
                     >
                       HS
@@ -208,6 +220,16 @@ export function SessionMatchResultPanel({
           下一页
         </button>
       </div>
+      {lineDetailOpen && lineDetailLineNo != null ? (
+        <SessionLineDemandQuoteItemsModal
+          bomId={bomId}
+          lineNo={lineDetailLineNo}
+          onClose={() => {
+            setLineDetailOpen(false)
+            setLineDetailLineNo(null)
+          }}
+        />
+      ) : null}
     </section>
   )
 }

@@ -30,6 +30,7 @@ const OperationBomServiceDownloadTemplate = "/api.bom.v1.BomService/DownloadTemp
 const OperationBomServiceExportSession = "/api.bom.v1.BomService/ExportSession"
 const OperationBomServiceGetBOM = "/api.bom.v1.BomService/GetBOM"
 const OperationBomServiceGetBOMLines = "/api.bom.v1.BomService/GetBOMLines"
+const OperationBomServiceGetBomLineQuoteItems = "/api.bom.v1.BomService/GetBomLineQuoteItems"
 const OperationBomServiceGetMatchResult = "/api.bom.v1.BomService/GetMatchResult"
 const OperationBomServiceGetMatchRun = "/api.bom.v1.BomService/GetMatchRun"
 const OperationBomServiceGetMatchSourceDetail = "/api.bom.v1.BomService/GetMatchSourceDetail"
@@ -70,6 +71,8 @@ type BomServiceHTTPServer interface {
 	// GetBOM 获取 BOM 详情（含解析结果）
 	GetBOM(context.Context, *GetBOMRequest) (*GetBOMReply, error)
 	GetBOMLines(context.Context, *GetBOMLinesRequest) (*GetBOMLinesReply, error)
+	// GetBomLineQuoteItems 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+	GetBomLineQuoteItems(context.Context, *GetBomLineQuoteItemsRequest) (*GetBomLineQuoteItemsReply, error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error)
 	GetMatchRun(context.Context, *GetMatchRunRequest) (*GetMatchRunReply, error)
@@ -120,6 +123,7 @@ func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r.GET("/api/v1/bom/{bom_id}/match", _BomService_GetMatchResult0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match-sources", _BomService_ListMatchSources0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match-sources/{line_no}/{platform}", _BomService_GetMatchSourceDetail0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom/{bom_id}/lines/{line_no}/quote-items", _BomService_GetBomLineQuoteItems0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom-sessions", _BomService_CreateSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions/{session_id}", _BomService_GetSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions", _BomService_ListSessions0_HTTP_Handler(srv))
@@ -403,6 +407,28 @@ func _BomService_GetMatchSourceDetail0_HTTP_Handler(srv BomServiceHTTPServer) fu
 			return err
 		}
 		reply := out.(*GetMatchSourceDetailReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_GetBomLineQuoteItems0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetBomLineQuoteItemsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceGetBomLineQuoteItems)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetBomLineQuoteItems(ctx, req.(*GetBomLineQuoteItemsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetBomLineQuoteItemsReply)
 		return ctx.Result(200, reply)
 	}
 }
@@ -910,6 +936,8 @@ type BomServiceHTTPClient interface {
 	// GetBOM 获取 BOM 详情（含解析结果）
 	GetBOM(ctx context.Context, req *GetBOMRequest, opts ...http.CallOption) (rsp *GetBOMReply, err error)
 	GetBOMLines(ctx context.Context, req *GetBOMLinesRequest, opts ...http.CallOption) (rsp *GetBOMLinesReply, err error)
+	// GetBomLineQuoteItems 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+	GetBomLineQuoteItems(ctx context.Context, req *GetBomLineQuoteItemsRequest, opts ...http.CallOption) (rsp *GetBomLineQuoteItemsReply, err error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(ctx context.Context, req *GetMatchResultRequest, opts ...http.CallOption) (rsp *GetMatchResultReply, err error)
 	GetMatchRun(ctx context.Context, req *GetMatchRunRequest, opts ...http.CallOption) (rsp *GetMatchRunReply, err error)
@@ -1094,6 +1122,20 @@ func (c *BomServiceHTTPClientImpl) GetBOMLines(ctx context.Context, in *GetBOMLi
 	pattern := "/api/v1/bom-sessions/{session_id}/lines"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationBomServiceGetBOMLines))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetBomLineQuoteItems 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+func (c *BomServiceHTTPClientImpl) GetBomLineQuoteItems(ctx context.Context, in *GetBomLineQuoteItemsRequest, opts ...http.CallOption) (*GetBomLineQuoteItemsReply, error) {
+	var out GetBomLineQuoteItemsReply
+	pattern := "/api/v1/bom/{bom_id}/lines/{line_no}/quote-items"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceGetBomLineQuoteItems))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {

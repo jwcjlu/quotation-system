@@ -1,0 +1,1362 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BOM 配单 · 易用审查原型（评审稿）</title>
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --panel: #ffffff;
+      --line: #d8e0ea;
+      --muted: #64748b;
+      --text: #0f172a;
+      --nav: #0f172a;
+      --blue: #2563eb;
+      --amber: #d97706;
+      --green: #059669;
+      --red: #dc2626;
+      --violet: #7c3aed;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      scroll-behavior: smooth;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    .page { min-height: 100vh; }
+    .top {
+      background: var(--nav);
+      color: #fff;
+      padding: 16px 24px 14px;
+      border-bottom: 1px solid #111827;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .top-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .brand { color: #93c5fd; font-size: 11px; font-weight: 700; letter-spacing: .1em; }
+    h1 { margin: 2px 0 4px; font-size: 22px; font-weight: 800; }
+    .sub { margin: 0; color: #cbd5e1; font-size: 12px; max-width: 640px; line-height: 1.5; }
+    .proto-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .proto-nav a {
+      border-radius: 7px;
+      padding: 7px 11px;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .proto-nav a:hover { background: #334155; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 18px 24px 48px; }
+    .review-note {
+      margin-bottom: 16px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      color: #1e3a8a;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .review-note strong { color: #1e40af; }
+    section {
+      margin-bottom: 28px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+    }
+    .sec-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fafc;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .sec-head h2 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: 0; }
+    .sec-tag {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .sec-body { padding: 16px 18px 18px; }
+    .grid-kpi {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    .kpi {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: #fff;
+    }
+    .kpi .lab { font-size: 11px; color: var(--muted); font-weight: 700; }
+    .kpi .val { font-size: 22px; font-weight: 800; margin-top: 4px; }
+    .kpi .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .risk-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge.blue { background: #dbeafe; color: #1d4ed8; }
+    .badge.amber { background: #fef3c7; color: #b45309; }
+    .badge.green { background: #dcfce7; color: #047857; }
+    .badge.red { background: #fee2e2; color: #b91c1c; }
+    .badge.violet { background: #ede9fe; color: #5b21b6; }
+    .layout-split {
+      display: grid;
+      grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
+      gap: 0;
+      min-height: 420px;
+    }
+    @media (max-width: 900px) {
+      .layout-split { grid-template-columns: 1fr; }
+    }
+    .queue {
+      border-right: 1px solid var(--line);
+      background: #fafbfc;
+      padding: 12px;
+      min-width: 0;
+    }
+    @media (max-width: 900px) {
+      .queue { border-right: 0; border-bottom: 1px solid var(--line); }
+    }
+    .queue h3 { margin: 0 0 10px; font-size: 13px; color: var(--muted); font-weight: 800; }
+    .q-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .chip {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+    }
+    .chip.on { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; }
+    .q-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 10px;
+      margin-bottom: 8px;
+      background: #fff;
+      cursor: default;
+    }
+    .q-item.active { border-color: #93c5fd; box-shadow: inset 3px 0 0 var(--blue); background: #eff6ff; }
+    .q-item .row1 { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 800; }
+    .q-item .row2 { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+    .detail { padding: 14px 16px; min-width: 0; }
+    .detail h3 { margin: 0 0 8px; font-size: 15px; font-weight: 800; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+    .explain {
+      border: 1px dashed #c4d4ec;
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .explain .title { font-weight: 800; margin-bottom: 6px; color: #334155; }
+    .bar-row { display: grid; grid-template-columns: 72px 1fr 36px; gap: 8px; align-items: center; margin: 6px 0; font-size: 11px; }
+    .bar { height: 8px; border-radius: 99px; background: #e2e8f0; overflow: hidden; }
+    .bar > i { display: block; height: 100%; border-radius: 99px; background: var(--blue); }
+    .bar.amber > i { background: var(--amber); }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid var(--line); padding: 8px 9px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; font-weight: 800; color: #475569; white-space: nowrap; }
+    tr.pick { background: #eff6ff; }
+    tr.pick td:first-child { font-weight: 800; color: #1d4ed8; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .btn {
+      border: 0;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #fff;
+      padding: 8px 12px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    .btn.secondary { background: #fff; color: #334155; border: 1px solid var(--line); }
+    .btn.primary { background: var(--blue); }
+    .policy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .policy-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      background: #fff;
+    }
+    .policy-card.selected { border-color: var(--blue); background: #eff6ff; }
+    .policy-card strong { display: block; font-size: 13px; margin-bottom: 6px; }
+    .policy-card p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.45; }
+    .slider-demo { margin-top: 10px; }
+    .slider-demo label { font-size: 11px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px; }
+    .fake-slider { height: 6px; border-radius: 99px; background: linear-gradient(90deg, #e2e8f0, #2563eb); opacity: .85; }
+    .footnote {
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .lab-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .lab-toolbar .field {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      background: #fff;
+      color: var(--text);
+    }
+    .lab-toolbar label { font-size: 11px; font-weight: 800; color: var(--muted); margin-right: 4px; }
+    .table-wrap {
+      overflow: auto;
+      max-height: 440px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .table-wrap table { font-size: 11px; }
+    .table-wrap th { position: sticky; top: 0; z-index: 1; }
+    tr.lab-pick { background: #eff6ff; }
+    tr.dim { opacity: 0.52; }
+    .score-cell { font-weight: 800; color: #475569; white-space: nowrap; }
+    .mode-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      background: #f1f5f9;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 12px;
+    }
+    .mode-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 800;
+      border: 2px solid var(--line);
+      background: #fff;
+      color: #475569;
+    }
+    .mode-pill.on { border-color: var(--blue); background: #eff6ff; color: #1d4ed8; }
+    .scenario-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 14px;
+      background: #fff;
+    }
+    .scenario-card h4 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 800;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .scenario-card .tag { font-size: 10px; font-weight: 800; color: var(--muted); }
+    .gap-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .mini-note {
+      font-size: 11px;
+      color: var(--muted);
+      margin: 0 0 10px;
+      line-height: 1.5;
+    }
+    .combo-table td { font-size: 11px; }
+    tr.row-gap { background: #fffbeb; }
+    tr.row-nodata { background: #fef2f2; }
+    .flow-hint {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 11px;
+      color: #475569;
+    }
+    .flow-hint div {
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #fafafa;
+    }
+    .llm-panel {
+      border: 1px solid #c7d2fe;
+      background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-top: 12px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .llm-panel .meta {
+      font-size: 10px;
+      color: #64748b;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      margin-bottom: 8px;
+    }
+    .llm-panel strong { color: #3730a3; }
+    .master-map {
+      border: 1px solid var(--line);
+      background: #fafbfc;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 22px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+    }
+    .master-map .sec-head { margin: 0; }
+    .master-map .map-body {
+      padding: 12px 14px 18px;
+      overflow: auto;
+      background: linear-gradient(180deg, #f8fafc 0%, #fff 40%);
+    }
+    .master-map svg {
+      display: block;
+      width: 100%;
+      min-width: 720px;
+      height: auto;
+      max-height: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="top">
+      <div class="top-inner">
+        <div>
+          <div class="brand">评审用静态原型 · 非最终实现</div>
+          <h1>BOM 自动配单 — 采购易用与审查流</h1>
+          <p class="sub">整单驾驶舱 → 配单/审查 → 人因队列 / 货源缺口 / 行内实验室 → HS → 策略 → <strong>厂牌档位 + LLM 第二意见（§7.1）</strong> → 覆盖与审计。单文件 HTML，浏览器直接打开即可投屏。</p>
+          <nav class="proto-nav" aria-label="章节跳转">
+            <a href="#master-map" style="background:#1e3a8a;border:1px solid #3b82f6;">⓪ 全景图</a>
+            <a href="#summary">① 整单摘要</a>
+            <a href="#modes">② 配单/审查</a>
+            <a href="#queue">③ 审查队列</a>
+            <a href="#gaps">④ 货源缺口</a>
+            <a href="#lab">⑤ 行内实验室</a>
+            <a href="#hs">⑥ HS 批量</a>
+            <a href="#policy">⑦ 策略预设</a>
+            <a href="#brand-llm">⑧ 厂牌与 LLM</a>
+            <a href="#audit">⑨ 覆盖与审计</a>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div class="review-note">
+        <strong>评审说明：</strong>「无数据」「库存不足」与「平局/价差」分流：摘要 KPI 与 <strong>④ 货源缺口</strong> 专屏处理货源类异常；<strong>③ 审查队列</strong> 偏人因决策。<strong>⑧ 厂牌与 LLM</strong> 对应规格 <strong>§7.1</strong>：规则主路径 + 模型第二意见 + 档位合并 + 留痕，避免「未清洗厂牌但最低价」静默进默认可推荐池。<strong>⑨</strong> 为人工覆盖与审计导出。下方 <a href="#master-map" style="color:#1d4ed8;font-weight:700;">⓪ 全景图</a> 为整页原型关系一图总览。
+      </div>
+
+      <!-- ⓪ 原型全景图（SVG） -->
+      <div class="master-map" id="master-map">
+        <div class="sec-head">
+          <h2 style="margin:0;font-size:16px;font-weight:800;">BOM 配单 / 审查原型 — 全景关系图</h2>
+          <span class="sec-tag">⓪ 一图总览 · 点击顶部导航进各屏静态稿</span>
+        </div>
+        <div class="map-body">
+          <svg viewBox="0 0 1100 860" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="BOM 原型屏幕与数据流关系图">
+            <title>BOM 配单审查原型全景</title>
+            <defs>
+              <marker id="m-arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                <polygon points="0 0, 10 3, 0 6" fill="#64748b"/>
+              </marker>
+              <marker id="m-arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                <polygon points="0 0, 10 3, 0 6" fill="#2563eb"/>
+              </marker>
+              <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+                <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.12"/>
+              </filter>
+            </defs>
+
+            <!-- 图例 -->
+            <g transform="translate(820, 24)">
+              <rect x="0" y="0" width="268" height="112" rx="10" fill="#fff" stroke="#d8e0ea"/>
+              <text x="14" y="26" font-size="13" font-weight="700" fill="#0f172a">图例</text>
+              <rect x="14" y="38" width="14" height="14" rx="3" fill="#dcfce7" stroke="#059669"/>
+              <text x="36" y="50" font-size="11" fill="#334155">主路径 / 日常配单</text>
+              <rect x="14" y="60" width="14" height="14" rx="3" fill="#fef3c7" stroke="#d97706"/>
+              <text x="36" y="72" font-size="11" fill="#334155">例外 / 人因 / 待确认</text>
+              <rect x="14" y="82" width="14" height="14" rx="3" fill="#ede9fe" stroke="#7c3aed"/>
+              <text x="36" y="94" font-size="11" fill="#334155">合规 / 可信 / 审计</text>
+            </g>
+
+            <!-- ① 整单摘要 -->
+            <g filter="url(#shadow)">
+              <rect x="340" y="24" width="420" height="64" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+              <text x="550" y="52" text-anchor="middle" font-size="15" font-weight="800" fill="#1e3a8a">① 整单摘要（驾驶舱）· Screen A</text>
+              <text x="550" y="72" text-anchor="middle" font-size="11" fill="#475569">KPI · 货源缺口计数 · 宽松已准备 · 跳转队列 / 缺口 / HS</text>
+            </g>
+            <line x1="550" y1="88" x2="550" y2="128" stroke="#2563eb" stroke-width="2" marker-end="url(#m-arrow-blue)"/>
+
+            <!-- ② 模式 -->
+            <g filter="url(#shadow)">
+              <rect x="260" y="128" width="580" height="52" rx="10" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+              <text x="550" y="152" text-anchor="middle" font-size="14" font-weight="800" fill="#047857">② 配单模式 / 审查模式 · Screen A′</text>
+              <text x="550" y="168" text-anchor="middle" font-size="10" fill="#166534">配单：全表快确认 · 审查：队列 + 例外 + 留痕（非每行必审）</text>
+            </g>
+
+            <line x1="550" y1="180" x2="550" y2="208" stroke="#64748b" stroke-width="2" marker-end="url(#m-arrow)"/>
+
+            <!-- 分叉 hub -->
+            <circle cx="550" cy="218" r="6" fill="#64748b"/>
+            <line x1="550" y1="218" x2="200" y2="218" stroke="#64748b" stroke-width="2"/>
+            <line x1="550" y1="218" x2="550" y2="248" stroke="#64748b" stroke-width="2"/>
+            <line x1="550" y1="218" x2="900" y2="218" stroke="#64748b" stroke-width="2"/>
+            <line x1="200" y1="218" x2="200" y2="248" stroke="#64748b" stroke-width="2" marker-end="url(#m-arrow)"/>
+            <line x1="550" y1="224" x2="550" y2="248" stroke="#64748b" stroke-width="2" marker-end="url(#m-arrow)"/>
+            <line x1="900" y1="218" x2="900" y2="248" stroke="#64748b" stroke-width="2" marker-end="url(#m-arrow)"/>
+
+            <!-- ③ 审查队列 -->
+            <g filter="url(#shadow)">
+              <rect x="40" y="248" width="320" height="100" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+              <text x="200" y="278" text-anchor="middle" font-size="14" font-weight="800" fill="#92400e">③ 审查队列 + Top-N · B</text>
+              <text x="200" y="298" text-anchor="middle" font-size="10" fill="#78350f">平局 · 价差 · 硬约束 · 缺 HS · 厂牌待核验</text>
+              <text x="200" y="318" text-anchor="middle" font-size="10" fill="#78350f">可合并 +④ 货源类进同一队列筛选</text>
+            </g>
+
+            <!-- ④ 货源缺口 -->
+            <g filter="url(#shadow)">
+              <rect x="390" y="248" width="320" height="100" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+              <text x="550" y="278" text-anchor="middle" font-size="14" font-weight="800" fill="#92400e">④ 货源缺口工作台 · C</text>
+              <text x="550" y="298" text-anchor="middle" font-size="10" fill="#78350f">无数据 · 库存不足 · 凑量待确认 · 批量导出</text>
+              <text x="550" y="318" text-anchor="middle" font-size="10" fill="#78350f">从 ① KPI 或摘要按钮直达</text>
+            </g>
+
+            <!-- ⑤ 实验室 -->
+            <g filter="url(#shadow)">
+              <rect x="740" y="248" width="320" height="100" rx="12" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+              <text x="900" y="278" text-anchor="middle" font-size="14" font-weight="800" fill="#047857">⑤ 行内实验室（全量）· D</text>
+              <text x="900" y="298" text-anchor="middle" font-size="10" fill="#166534">过滤 · 排序 · 排除 · 与 ③ 往返</text>
+            </g>
+
+            <!-- ③ ↔ ⑤ -->
+            <path d="M 360 298 Q 550 360 840 298" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <text x="550" y="355" text-anchor="middle" font-size="10" fill="#64748b">深挖 ↔ 返回 Top-N</text>
+
+            <!-- 从①到④ 快捷 -->
+            <path d="M 420 88 Q 380 160 550 248" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4 3"/>
+            <text x="380" y="168" font-size="9" fill="#94a3b8">摘要 KPI</text>
+
+            <!-- ⑥ ⑦ 行 -->
+            <line x1="200" y1="348" x2="200" y2="388" stroke="#64748b" stroke-width="1.5" marker-end="url(#m-arrow)"/>
+            <line x1="550" y1="348" x2="550" y2="388" stroke="#64748b" stroke-width="1.5" marker-end="url(#m-arrow)"/>
+            <line x1="900" y1="348" x2="900" y2="388" stroke="#64748b" stroke-width="1.5" marker-end="url(#m-arrow)"/>
+
+            <g filter="url(#shadow)">
+              <rect x="60" y="388" width="280" height="72" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+              <text x="200" y="418" text-anchor="middle" font-size="13" font-weight="800" fill="#5b21b6">⑥ HS 批量 · E</text>
+              <text x="200" y="438" text-anchor="middle" font-size="10" fill="#6d28d9">税则联想 · 批量应用 · 不打断主配单</text>
+            </g>
+            <g filter="url(#shadow)">
+              <rect x="410" y="388" width="280" height="72" rx="10" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+              <text x="550" y="418" text-anchor="middle" font-size="13" font-weight="800" fill="#047857">⑦ 策略预设 · F</text>
+              <text x="550" y="438" text-anchor="middle" font-size="10" fill="#166534">改权重 → 短名单与解释联动重算</text>
+            </g>
+
+            <!-- ⑦ → ③ -->
+            <path d="M 550 460 Q 700 500 320 248" fill="none" stroke="#2563eb" stroke-width="1.5" marker-end="url(#m-arrow-blue)"/>
+            <text x="680" y="498" font-size="10" fill="#2563eb" font-weight="700">策略变更 → 队列/推荐刷新</text>
+
+            <!-- ⑧ -->
+            <line x1="550" y1="460" x2="550" y2="508" stroke="#64748b" stroke-width="2" marker-end="url(#m-arrow)"/>
+            <g filter="url(#shadow)">
+              <rect x="310" y="508" width="480" height="88" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+              <text x="550" y="540" text-anchor="middle" font-size="14" font-weight="800" fill="#5b21b6">⑧ 厂牌档位 + LLM 第二意见 · H · §7.1</text>
+              <text x="550" y="560" text-anchor="middle" font-size="10" fill="#5b21b6">规则主路径 · 触发式 LLM · 档位合并 · 不进默认可推（C 档）</text>
+              <text x="550" y="578" text-anchor="middle" font-size="10" fill="#6d28d9">影响 ③ 中「厂牌待核验」与 Top-N 组成</text>
+            </g>
+
+            <!-- ⑧ → ③ -->
+            <path d="M 310 552 Q 120 520 200 348" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#m-arrow)"/>
+
+            <!-- ⑨ -->
+            <line x1="550" y1="596" x2="550" y2="628" stroke="#64748b" stroke-width="2" marker-end="url(#m-arrow)"/>
+            <g filter="url(#shadow)">
+              <rect x="310" y="628" width="480" height="76" rx="12" fill="#f1f5f9" stroke="#334155" stroke-width="2"/>
+              <text x="550" y="658" text-anchor="middle" font-size="14" font-weight="800" fill="#0f172a">⑨ 人工覆盖 + 审计导出 · I</text>
+              <text x="550" y="678" text-anchor="middle" font-size="10" fill="#475569">覆盖留痕 · 审计包（含 llm_brand_suggestion 全字段）</text>
+            </g>
+
+            <!-- 各屏 → ⑨ -->
+            <path d="M 200 460 L 200 666 Q 200 700 310 666" fill="none" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4 3"/>
+            <path d="M 900 460 L 900 666 Q 900 700 790 666" fill="none" stroke="#cbd5e1" stroke-width="1" stroke-dasharray="4 3"/>
+            <text x="900" y="640" text-anchor="end" font-size="9" fill="#94a3b8">各屏动作汇总导出</text>
+
+            <!-- 底部：数据层 -->
+            <rect x="40" y="738" width="1020" height="96" rx="12" fill="#fff" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <text x="550" y="768" text-anchor="middle" font-size="12" font-weight="800" fill="#334155">后端事实来源（与规格对齐 · 示意）</text>
+            <text x="550" y="790" text-anchor="middle" font-size="10" fill="#64748b">bom_session / session_line · bom_search_task（终态）· t_bom_quote_cache + t_bom_quote_item · mpn_norm / biz_date / mfr_norm · llm_brand_suggestion</text>
+            <text x="550" y="812" text-anchor="middle" font-size="10" fill="#64748b">搜索清洗与合并调度见设计文档 §3.5 · §7.1；本图为采购侧消费流，非 ER 图</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ① 整单摘要 -->
+      <section id="summary">
+        <div class="sec-head">
+          <h2>整单摘要（驾驶舱）</h2>
+          <span class="sec-tag">Screen A · 10 秒扫单</span>
+        </div>
+        <div class="sec-body">
+          <p class="mini-note" style="margin-top:0;">
+            会话 <span class="mono">S-20260503-0142</span> · 业务日 <strong>2026-05-03</strong> · 就绪策略 <span class="badge green">宽松已准备</span>
+            （全部平台×行终态齐全即可配单；<strong>不</strong>要求每行必有报价）
+          </p>
+          <div class="grid-kpi">
+            <div class="kpi">
+              <div class="lab">BOM 行数</div>
+              <div class="val">48</div>
+              <div class="hint">可满量满足 <strong>36</strong> · 货源缺口 <strong>6</strong> · 人因待审 <strong>9</strong></div>
+            </div>
+            <div class="kpi">
+              <div class="lab">货源缺口（可点）</div>
+              <div class="val" style="font-size:18px;color:var(--amber);">6</div>
+              <div class="hint">无数据 <strong>2</strong> · 库存不足 <strong>3</strong> · 待凑量确认 <strong>1</strong></div>
+            </div>
+            <div class="kpi">
+              <div class="lab">预估行总价（税前）</div>
+              <div class="val">¥ 182k</div>
+              <div class="hint">满量方案 ¥ 189k · 当前接受欠料后 ¥ 176k</div>
+            </div>
+            <div class="kpi">
+              <div class="lab">当前策略</div>
+              <div class="val" style="font-size:15px;">低价优先</div>
+              <div class="hint">v3 · 应用时间 10:12</div>
+            </div>
+            <div class="kpi">
+              <div class="lab">数据就绪</div>
+              <div class="val" style="color:var(--green);">已准备</div>
+              <div class="hint">5 平台 × 48 行任务均已终态</div>
+            </div>
+            <div class="kpi">
+              <div class="lab">平台覆盖（示意）</div>
+              <div class="val" style="font-size:14px;">5 / 5</div>
+              <div class="hint">手动跳过 HQChip：0 行</div>
+            </div>
+          </div>
+          <div class="risk-row">
+            <span class="badge red">无匹配报价：2 行</span>
+            <span class="badge amber">库存不足 / 欠料：3 行</span>
+            <span class="badge amber">HS 缺失 7 行</span>
+            <span class="badge violet">跨平台价差 &gt;15%：4 行</span>
+            <span class="badge blue">多候选平局：9 行</span>
+            <span class="badge red">硬约束疑义：1 行</span>
+            <span class="badge green">可导出询价包 / 欠料清单</span>
+          </div>
+          <div class="flow-hint">
+            <div>① 先看摘要 KPI，点「货源缺口」处理无数据与欠料</div>
+            <div>② 人因队列处理平局、价差、硬约束与 HS 提醒</div>
+            <div>③ 深挖进实验室；④ 批量 HS；⑤ 导出审计</div>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn primary">进入人因审查队列（9）</button>
+            <a href="#gaps" class="btn secondary" style="text-decoration:none;display:inline-flex;align-items:center;">打开货源缺口（6）</a>
+            <a href="#hs" class="btn secondary" style="text-decoration:none;display:inline-flex;align-items:center;">仅看 HS 缺口（7）</a>
+            <button type="button" class="btn secondary">导出审计快照（含评分条）</button>
+            <button type="button" class="btn secondary">导出欠料 + 无数据询价表</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ② 配单 / 审查模式 -->
+      <section id="modes">
+        <div class="sec-head">
+          <h2>配单模式与审查模式</h2>
+          <span class="sec-tag">Screen A′ · 同一数据两套入口</span>
+        </div>
+        <div class="sec-body">
+          <div class="mode-bar">
+            <span class="mode-pill on">配单模式：默认列表 + 行卡 Top-N · 目标最快落选用</span>
+            <span class="mode-pill">审查模式：仅队列 + 例外 + 覆盖留痕 · 目标可签字</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>模式</th>
+                <th>默认列表</th>
+                <th>强调信息</th>
+                <th>典型动作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>配单</strong></td>
+                <td>全表 48 行，缺口行置顶或钉条</td>
+                <td>推荐选用、缺口数量、一键凑量、改策略即时重算短名单</td>
+                <td>确认行、接受部分数量、发起替代料 / 重搜</td>
+              </tr>
+              <tr>
+                <td><strong>审查</strong></td>
+                <td>合并队列（人因 9 + 可选勾选货源 6）</td>
+                <td>评分拆解、与次优对比、人工覆盖原因码、业务日/缓存来源</td>
+                <td>批量通过低风险、退回补材料、导出审计包</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="mini-note" style="margin-bottom:0;">绿场实现建议：后端会话字段 <span class="mono">readiness_mode=lenient|strict</span> 与行级 <span class="mono">supply_outcome</span>（如 <span class="mono">ok | no_quote | short_stock | combo_pending</span>）一次建模，前端按模式切换默认路由即可。</p>
+        </div>
+      </section>
+
+      <!-- ③ 审查队列 + 行内 -->
+      <section id="queue">
+        <div class="sec-head">
+          <h2>审查队列 + 行内 Top-N</h2>
+          <span class="sec-tag">Screen B · 人因主路径</span>
+        </div>
+        <div class="sec-body" style="padding:0;">
+          <div class="layout-split">
+            <aside class="queue">
+              <h3>队列（可合并人因 + 货源）</h3>
+              <div class="q-filters">
+                <span class="chip on">人因 9</span>
+                <span class="chip">平局</span>
+                <span class="chip">价差</span>
+                <span class="chip">硬约束</span>
+                <span class="chip">缺 HS</span>
+                <span class="chip">+ 货源 6</span>
+              </div>
+              <div class="q-item active">
+                <div class="row1"><span class="mono">L12 · STM32F103RCT6</span><span class="badge amber">平局</span></div>
+                <div class="row2">命中 42 条 → Top 4 · 需人选或改策略</div>
+              </div>
+              <div class="q-item">
+                <div class="row1"><span class="mono">L07 · TPS62130RGTR</span><span class="badge violet">价差</span></div>
+                <div class="row2">立创 vs 云汉 价差 18% · 需说明取舍</div>
+              </div>
+              <div class="q-item">
+                <div class="row1"><span class="mono">L33 · W25Q128JVSIQ</span><span class="badge red">无数据</span></div>
+                <div class="row2">5 平台均无可用报价 · 建议换词/替代料</div>
+              </div>
+              <div class="q-item">
+                <div class="row1"><span class="mono">L08 · CL10A106KP8NNNC</span><span class="badge amber">缺货</span></div>
+                <div class="row2">有报价可采 6k · 需求 10k · 待凑量或欠料</div>
+              </div>
+              <div class="q-item">
+                <div class="row1"><span class="mono">L19 · B5819W</span><span class="badge green">凑量</span></div>
+                <div class="row2">双供方组合可满量 · 待确认方案</div>
+              </div>
+              <div class="q-item">
+                <div class="row1"><span class="mono">L05 · GRM188…</span><span class="badge blue">缺 HS</span></div>
+                <div class="row2">选用已定 · HS 空</div>
+              </div>
+              <div class="q-item">
+                <div class="row1"><span class="mono">… 其余队列行</span><span class="badge blue">滚动</span></div>
+                <div class="row2">单击切换右侧详情</div>
+              </div>
+            </aside>
+            <div class="detail">
+              <h3>当前选中 · 行 <span class="mono">L12</span> · <span class="mono">STM32F103RCT6</span> · 需求 <strong>200</strong> pcs</h3>
+              <p class="mini-note">硬约束已通过：封装 LQFP64、厂牌 ST、MOQ≤需求。报价业务日 <strong>2026-05-03</strong> · 缓存键 <span class="mono">mpn_norm+platform+biz_date</span>（示意）。</p>
+              <div class="explain">
+                <div class="title">为什么当前推荐 A？（可解释）</div>
+                <div>生效策略：<strong>低价优先</strong>（硬过滤后）。与第二名 B 相比：<strong>单价低 3.2%</strong>；<strong>可售库存少 220</strong>（仍 ≥ 需求+MOQ）。若改为「备货优先」，推荐将变为 B。</div>
+                <div style="margin-top:10px;font-weight:800;font-size:11px;color:#64748b;">归一化得分（示意）</div>
+                <div class="bar-row"><span>价格</span><span class="bar"><i style="width:92%"></i></span><span>92</span></div>
+                <div class="bar-row"><span>库存</span><span class="bar amber"><i style="width:61%"></i></span><span>61</span></div>
+                <div class="bar-row"><span>交期</span><span class="bar"><i style="width:78%"></i></span><span>78</span></div>
+                <div class="bar-row"><span>渠道</span><span class="bar"><i style="width:88%"></i></span><span>88</span></div>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>选用</th>
+                    <th>平台</th>
+                    <th>供应商 / 备注</th>
+                    <th>单价</th>
+                    <th>库存</th>
+                    <th>交期</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="pick">
+                    <td>● 推荐</td>
+                    <td>立创</td>
+                    <td>自营 · LQFP64</td>
+                    <td>¥ 18.60</td>
+                    <td>1.2k</td>
+                    <td>现货</td>
+                  </tr>
+                  <tr>
+                    <td>○</td>
+                    <td>云汉</td>
+                    <td>授权渠道 A</td>
+                    <td>¥ 19.22</td>
+                    <td>3.4k</td>
+                    <td>2–3 天</td>
+                  </tr>
+                  <tr>
+                    <td>○</td>
+                    <td>ICGOO</td>
+                    <td>…</td>
+                    <td>¥ 19.05</td>
+                    <td>800</td>
+                    <td>现货</td>
+                  </tr>
+                  <tr>
+                    <td colspan="6" style="background:#f8fafc;color:#64748b;font-size:11px;">其余 38 条命中已折叠 · <a href="#lab" style="color:var(--blue);font-weight:700;">打开行内实验室（全量 42 条）</a></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="btn-row">
+                <button type="button" class="btn primary">确认本行选用</button>
+                <button type="button" class="btn secondary">改用 B 并记录原因</button>
+                <button type="button" class="btn secondary">标记需线下询价</button>
+              </div>
+
+              <h3 style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line);font-size:14px;">并列场景示意（同一屏滚动浏览 · 评审用）</h3>
+              <p class="mini-note">下列为「无数据」「库存不足 + 凑量」静态稿；真实产品可改为 Tab 或路由切换。</p>
+
+              <div class="scenario-card">
+                <h4><span>场景 B · 行 <span class="mono">L33</span> · <span class="mono">W25Q128JVSIQ</span> · 需求 500</span><span class="badge red">无匹配报价</span></h4>
+                <p class="mini-note">5 平台任务均为终态：<strong>2×no_result</strong>、<strong>2×有链接无库存</strong>、<strong>1×failed_terminal</strong>。与「搜索未完成」区分，避免显示空白表格。</p>
+                <div class="explain" style="margin-bottom:10px;">
+                  <div class="title">系统结论</div>
+                  <div>当前 MPN 在勾选平台内<strong>无可采报价</strong>。可尝试：修正 MPN / 指定替代料号 / 扩大平台 / 标记本行「线下询价」并从会话金额中排除或挂起。</div>
+                </div>
+                <div class="gap-actions">
+                  <button type="button" class="btn secondary">编辑搜索词重搜</button>
+                  <button type="button" class="btn secondary">指定替代 MPN</button>
+                  <button type="button" class="btn secondary">本行跳过配单（必选原因）</button>
+                  <a href="#gaps" class="btn secondary" style="text-decoration:none;display:inline-flex;align-items:center;">在货源缺口表定位</a>
+                </div>
+              </div>
+
+              <div class="scenario-card">
+                <h4><span>场景 C · 行 <span class="mono">L08</span> · <span class="mono">CL10A106KP8NNNC</span> · 需求 10,000</span><span class="badge amber">库存不足</span></h4>
+                <p class="mini-note">单条最优价库存仅 <strong>6,000</strong>，不足整单需求。以下为<strong>多供方凑满量</strong>示意（审查时必须可见拆分）。</p>
+                <table class="combo-table">
+                  <thead>
+                    <tr>
+                      <th>方案</th>
+                      <th>平台</th>
+                      <th>选用条</th>
+                      <th>本行分配量</th>
+                      <th>单价</th>
+                      <th>小计</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="row-gap">
+                      <td rowspan="2">组合①（推荐）</td>
+                      <td>立创</td>
+                      <td>自营 0603 X5R 10µF</td>
+                      <td>6,000</td>
+                      <td>¥ 0.082</td>
+                      <td>¥ 492</td>
+                    </tr>
+                    <tr class="row-gap">
+                      <td>云汉</td>
+                      <td>授权 A 同参</td>
+                      <td>4,000</td>
+                      <td>¥ 0.091</td>
+                      <td>¥ 364</td>
+                    </tr>
+                    <tr>
+                      <td>备选</td>
+                      <td colspan="4">接受欠料 6,000，差额 4,000 挂欠料表</td>
+                      <td>需原因码</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="btn-row">
+                  <button type="button" class="btn primary">确认组合①</button>
+                  <button type="button" class="btn secondary">改用备选欠料</button>
+                  <button type="button" class="btn secondary">仅重搜本平台</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ④ 货源缺口工作台 -->
+      <section id="gaps">
+        <div class="sec-head">
+          <h2>货源缺口工作台</h2>
+          <span class="sec-tag">Screen C · 无数据 / 欠料 / 凑量</span>
+        </div>
+        <div class="sec-body">
+          <p class="mini-note" style="margin-top:0;">
+            与摘要 KPI 同源：此处为采购<strong>批量处理</strong>入口（导出询价、批量重搜、批量接受欠料）。不替代「人因队列」里的价差/平局细审。
+          </p>
+          <div class="lab-toolbar">
+            <span class="chip on">全部 6</span>
+            <span class="chip">无数据 2</span>
+            <span class="chip">库存不足 3</span>
+            <span class="chip">凑量待确认 1</span>
+            <span class="field" style="flex:1;min-width:160px;"><label>搜索</label>MPN / 行号</span>
+            <button type="button" class="btn secondary" style="padding:6px 10px;">批量导出选中</button>
+          </div>
+          <div class="table-wrap" style="max-height:320px;">
+            <table>
+              <thead>
+                <tr>
+                  <th><input type="checkbox" checked disabled></th>
+                  <th>行</th>
+                  <th>MPN</th>
+                  <th>需求</th>
+                  <th>缺口类型</th>
+                  <th>可采量</th>
+                  <th>缺口数</th>
+                  <th>平台摘要</th>
+                  <th>建议动作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="row-nodata">
+                  <td>☑</td>
+                  <td class="mono">L33</td>
+                  <td class="mono">W25Q128JVSIQ</td>
+                  <td>500</td>
+                  <td><span class="badge red">无数据</span></td>
+                  <td>—</td>
+                  <td>500</td>
+                  <td>全终态无可用条</td>
+                  <td>替代料 / 线下询价</td>
+                </tr>
+                <tr class="row-nodata">
+                  <td>☑</td>
+                  <td class="mono">L41</td>
+                  <td class="mono">CUSTOM-XYZ-01</td>
+                  <td>120</td>
+                  <td><span class="badge red">无数据</span></td>
+                  <td>—</td>
+                  <td>120</td>
+                  <td>客户自编型号</td>
+                  <td>人工建联采购</td>
+                </tr>
+                <tr class="row-gap">
+                  <td>☑</td>
+                  <td class="mono">L08</td>
+                  <td class="mono">CL10A106KP8NNNC</td>
+                  <td>10,000</td>
+                  <td><span class="badge amber">库存不足</span></td>
+                  <td>6,000</td>
+                  <td>4,000</td>
+                  <td>立创单条最大</td>
+                  <td>凑量 / 欠料</td>
+                </tr>
+                <tr class="row-gap">
+                  <td>☑</td>
+                  <td class="mono">L15</td>
+                  <td class="mono">SS34</td>
+                  <td>8,000</td>
+                  <td><span class="badge amber">库存不足</span></td>
+                  <td>5,500</td>
+                  <td>2,500</td>
+                  <td>多平台均不足</td>
+                  <td>组合方案</td>
+                </tr>
+                <tr class="row-gap">
+                  <td>☐</td>
+                  <td class="mono">L22</td>
+                  <td class="mono">GRM32ER71J106KA12L</td>
+                  <td>2,000</td>
+                  <td><span class="badge amber">库存不足</span></td>
+                  <td>1,200</td>
+                  <td>800</td>
+                  <td>HQChip 无货，他站有</td>
+                  <td>换平台优先</td>
+                </tr>
+                <tr>
+                  <td>☑</td>
+                  <td class="mono">L19</td>
+                  <td class="mono">B5819W</td>
+                  <td>3,000</td>
+                  <td><span class="badge green">凑量待确认</span></td>
+                  <td>3,000</td>
+                  <td>0</td>
+                  <td>双供方已算满</td>
+                  <td>确认组合方案</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn primary">对选中行批量「生成询价行」</button>
+            <button type="button" class="btn secondary">批量标记线下跟进</button>
+            <button type="button" class="btn secondary">批量发起重搜（仅无数据）</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑤ 行内实验室 -->
+      <section id="lab">
+        <div class="sec-head">
+          <h2>行内实验室（全量命中）</h2>
+          <span class="sec-tag">Screen D · 深挖时再进</span>
+        </div>
+        <div class="sec-body">
+          <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">
+            行 <strong class="mono">L12</strong> · <strong class="mono">STM32F103RCT6</strong> · 共 <strong>42</strong> 条缓存报价。
+            灰行 = 未通过硬约束或已手动排除；蓝行 = 当前策略下系统推荐。
+          </p>
+          <div class="lab-toolbar">
+            <span class="chip on">全部平台</span>
+            <span class="chip">立创</span>
+            <span class="chip">云汉</span>
+            <span class="chip">ICGOO</span>
+            <span class="field" style="min-width:140px;"><label>厂牌</label>ST / 兼容</span>
+            <span class="field"><label>排序</label>综合分 ↓</span>
+            <span class="chip on">仅硬约束通过</span>
+            <span class="field" style="flex:1;min-width:160px;"><label>关键词</label>LQFP64</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>标记</th>
+                  <th>综合分</th>
+                  <th>平台</th>
+                  <th>供应商</th>
+                  <th>封装</th>
+                  <th>单价</th>
+                  <th>库存</th>
+                  <th>MOQ</th>
+                  <th>交期</th>
+                  <th>备注</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lab-pick">
+                  <td>推荐</td>
+                  <td class="score-cell">86</td>
+                  <td>立创</td>
+                  <td>自营</td>
+                  <td>LQFP64</td>
+                  <td>¥ 18.60</td>
+                  <td>1200</td>
+                  <td>1</td>
+                  <td>现货</td>
+                  <td>与 BOM 封装一致</td>
+                </tr>
+                <tr>
+                  <td>—</td>
+                  <td class="score-cell">82</td>
+                  <td>云汉</td>
+                  <td>授权 A</td>
+                  <td>LQFP64</td>
+                  <td>¥ 19.22</td>
+                  <td>3400</td>
+                  <td>1</td>
+                  <td>2–3 天</td>
+                  <td>库存更充裕</td>
+                </tr>
+                <tr>
+                  <td>—</td>
+                  <td class="score-cell">81</td>
+                  <td>ICGOO</td>
+                  <td>…</td>
+                  <td>LQFP64</td>
+                  <td>¥ 19.05</td>
+                  <td>800</td>
+                  <td>5</td>
+                  <td>现货</td>
+                  <td>MOQ 略高</td>
+                </tr>
+                <tr class="dim">
+                  <td>排除</td>
+                  <td class="score-cell">—</td>
+                  <td>FindChips</td>
+                  <td>贸易商 X</td>
+                  <td>LQFP64</td>
+                  <td>¥ 17.20</td>
+                  <td>50</td>
+                  <td>1</td>
+                  <td>现货</td>
+                  <td>库存不足 MOQ×用量</td>
+                </tr>
+                <tr class="dim">
+                  <td>排除</td>
+                  <td class="score-cell">—</td>
+                  <td>立创</td>
+                  <td>自营</td>
+                  <td>LQFP48</td>
+                  <td>¥ 16.10</td>
+                  <td>900</td>
+                  <td>1</td>
+                  <td>现货</td>
+                  <td>封装与 BOM 不符</td>
+                </tr>
+                <tr>
+                  <td>—</td>
+                  <td class="score-cell">74</td>
+                  <td>HQChip</td>
+                  <td>…</td>
+                  <td>LQFP64</td>
+                  <td>¥ 20.10</td>
+                  <td>600</td>
+                  <td>1</td>
+                  <td>5 天</td>
+                  <td>交期较长</td>
+                </tr>
+                <tr>
+                  <td>—</td>
+                  <td class="score-cell">71</td>
+                  <td>云汉</td>
+                  <td>授权 B</td>
+                  <td>LQFP64</td>
+                  <td>¥ 19.88</td>
+                  <td>2100</td>
+                  <td>10</td>
+                  <td>现货</td>
+                  <td>MOQ 抬升行价</td>
+                </tr>
+                <tr>
+                  <td>—</td>
+                  <td class="score-cell">68</td>
+                  <td>立创</td>
+                  <td>第三方</td>
+                  <td>LQFP64</td>
+                  <td>¥ 18.90</td>
+                  <td>400</td>
+                  <td>1</td>
+                  <td>现货</td>
+                  <td>非首选渠道策略降权</td>
+                </tr>
+                <tr>
+                  <td colspan="10" style="background:#f8fafc;color:#64748b;font-size:11px;text-align:center;">… 表中省略若干行，评审时假定可纵向滚动浏览全部 42 条 …</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn primary">将选中行设为本行报价</button>
+            <button type="button" class="btn secondary">排除选中（写入原因）</button>
+            <button type="button" class="btn secondary">导出本行原始命中 CSV</button>
+            <a href="#queue" class="btn secondary" style="text-decoration:none;display:inline-flex;align-items:center;">返回 Top-N 审查</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑥ HS 批量 -->
+      <section id="hs">
+        <div class="sec-head">
+          <h2>HS 编码 · 列级批量</h2>
+          <span class="sec-tag">Screen E · 少打断主路径</span>
+        </div>
+        <div class="sec-body">
+          <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">筛选「HS 为空 / 低置信」→ 支持粘贴列、小 CSV 导入、税则联想（示意）。同会话同 MPN 族可「一键继承上次人工确认」。</p>
+          <div class="lab-toolbar" style="margin-bottom:12px;">
+            <span class="chip on">HS 待填 7</span>
+            <span class="chip">低置信 2</span>
+            <span class="chip">与报关历史冲突 0</span>
+            <button type="button" class="btn secondary" style="padding:6px 10px;">粘贴 TSV</button>
+            <button type="button" class="btn secondary" style="padding:6px 10px;">导入 CSV</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" checked disabled> 行</th>
+                <th>MPN</th>
+                <th>品名/用途（示意）</th>
+                <th>HS（可编辑）</th>
+                <th>置信 / 来源</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>L05</td>
+                <td class="mono">GRM188R71H104KA93D</td>
+                <td>片状多层陶瓷电容</td>
+                <td><input type="text" placeholder="8532241000" style="width:100%;max-width:200px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:monospace;font-size:12px;"></td>
+                <td><span class="badge amber">历史同品 78%</span></td>
+              </tr>
+              <tr>
+                <td>L09</td>
+                <td class="mono">STM32F030F4P6</td>
+                <td>MCU</td>
+                <td><input type="text" placeholder="8542319099" style="width:100%;max-width:200px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:monospace;font-size:12px;"></td>
+                <td><span class="badge blue">税则联想 62%</span></td>
+              </tr>
+              <tr>
+                <td>L17</td>
+                <td class="mono">SS34</td>
+                <td>肖特基二极管</td>
+                <td><input type="text" value="8541100000" style="width:100%;max-width:200px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:monospace;font-size:12px;"></td>
+                <td><span class="badge green">人工已确认</span></td>
+              </tr>
+              <tr>
+                <td>L22</td>
+                <td class="mono">744043120</td>
+                <td>功率电感</td>
+                <td><input type="text" placeholder="空" style="width:100%;max-width:200px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-family:monospace;font-size:12px;"></td>
+                <td><span class="badge red">待人工</span></td>
+              </tr>
+              <tr>
+                <td colspan="5" style="background:#f8fafc;color:#64748b;font-size:11px;">… 另 3 行略；支持多选后批量填入同一 HS 前缀（绿场 API 一次设计）</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="btn-row">
+            <button type="button" class="btn primary">应用本页修改</button>
+            <button type="button" class="btn secondary">对选中行继承上一确认 HS</button>
+            <button type="button" class="btn secondary">对选中应用税则联想首选</button>
+            <button type="button" class="btn secondary">导出 HS 待填表</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ⑦ 策略预设 -->
+      <section id="policy">
+        <div class="sec-head">
+          <h2>策略预设与软目标权重</h2>
+          <span class="sec-tag">Screen F · 与解释联动</span>
+        </div>
+        <div class="sec-body">
+          <div class="policy-grid">
+            <div class="policy-card selected">
+              <strong>低价优先（默认）</strong>
+              <p>价 &gt; 库存 &gt; 交期。平局进审查队列。</p>
+              <div class="slider-demo">
+                <label>价格权重（高 → 更敏感于单价）</label>
+                <div class="fake-slider"></div>
+              </div>
+            </div>
+            <div class="policy-card">
+              <strong>备货优先</strong>
+              <p>库存与 MOQ 友好度优先，适合缺料风险期。</p>
+            </div>
+            <div class="policy-card">
+              <strong>交期优先</strong>
+              <p>现货与短交期加权提高，可容忍小幅涨价。</p>
+            </div>
+            <div class="policy-card">
+              <strong>自定义…</strong>
+              <p>保存为命名预设，写入审计：谁、何时、用于哪张会话。</p>
+            </div>
+          </div>
+          <p class="footnote">与《<a href="../specs/2026-03-27-bom-sourcing-design.md" style="color:var(--blue);font-weight:700;">2026-03-27-bom-sourcing-design</a>》对齐：含 <strong>§7.1 厂牌归一与 LLM 第二意见</strong>；搜索任务终态、<span class="mono">bom_quote_cache</span> 与业务日为后端事实来源；本页为绿场采购侧全链路静态稿。</p>
+        </div>
+      </section>
+
+      <!-- ⑧ 厂牌档位与 LLM 第二意见 -->
+      <section id="brand-llm">
+        <div class="sec-head">
+          <h2>厂牌档位与 LLM 第二意见</h2>
+          <span class="sec-tag">Screen H · 规格 §7.1</span>
+        </div>
+        <div class="sec-body">
+          <p class="mini-note" style="margin-top:0;">
+            <strong>主路径（确定性）：</strong>词表 + 规则归一得到 <span class="mono">mfr_norm</span>。BOM 行指定厂牌时，报价归一后与行要求<strong>不一致</strong> → <strong>不进</strong>默认可推荐池（仍可在实验室全量中查看）。<br>
+            <strong>LLM：</strong>仅在厂牌空、清洗失败、<strong>最低价但疑似错配</strong>等条件触发；结果写入 <span class="mono">llm_brand_suggestion</span>。<strong>合并：</strong>仅规则高置信，或模型高置信且与规则一致时，才自动上调「厂牌可信度档位」并参与默认推荐；否则 <span class="badge amber">待人工</span> 或排除自动推荐。<strong>留痕：</strong>见下表字段。
+          </p>
+
+          <h3 style="margin:18px 0 8px;font-size:14px;">档位示意（采购一眼）</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>档位</th>
+                <th>条件（简化）</th>
+                <th>默认可推荐池</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge green">A</span></td>
+                <td>规则归一高置信，且与 BOM 厂牌一致（或未指定厂牌且规则可比对）</td>
+                <td>可参与 · 可一键确认（若其他硬约束通过）</td>
+              </tr>
+              <tr>
+                <td><span class="badge amber">B</span></td>
+                <td>规则中置信；或 LLM 高置信且 <strong>与规则 <span class="mono">mfr_norm</span> 一致</strong></td>
+                <td>可参与排序 · 建议抽检 / 进队列由策略定</td>
+              </tr>
+              <tr>
+                <td><span class="badge red">C</span></td>
+                <td>厂牌空/清洗失败；或 LLM 与规则冲突；或 BOM 指定厂牌与报价不一致</td>
+                <td><strong>排除</strong>自动推荐 · 须人工点选或纠错后重算</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin:18px 0 8px;font-size:14px;">行内示意 · 最低价命中但厂牌待核验（触发 LLM）</h3>
+          <div class="scenario-card" style="margin-bottom:0;">
+            <h4 style="margin:0 0 8px;font-size:13px;">
+              <span>行 <span class="mono">L14</span> · BOM 厂牌 <strong>ST</strong> · 需求 500</span>
+              <span class="badge red">最低价 · 厂牌 C 档</span>
+            </h4>
+            <p class="mini-note">平台原始「厂牌」列为空，标题含多供应商字符串；规则归一 <strong>失败</strong>。系统<strong>未</strong>将该条放入默认可推荐 Top-N，并触发 LLM 第二意见。</p>
+            <table style="margin-bottom:10px;">
+              <thead>
+                <tr>
+                  <th>选用</th>
+                  <th>平台</th>
+                  <th>单价</th>
+                  <th>库存</th>
+                  <th>规则 <span class="mono">mfr_norm</span></th>
+                  <th>档位</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="row-nodata">
+                  <td>（不默认勾选）</td>
+                  <td>某平台</td>
+                  <td>¥ 12.10</td>
+                  <td>2k</td>
+                  <td>— 未解析</td>
+                  <td><span class="badge red">C</span></td>
+                </tr>
+                <tr>
+                  <td>● 次低价</td>
+                  <td>立创</td>
+                  <td>¥ 12.88</td>
+                  <td>1.1k</td>
+                  <td><strong>ST</strong></td>
+                  <td><span class="badge green">A</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="llm-panel">
+              <div class="meta">llm_brand_suggestion · quote_item_id=qi-8f2a… · model=gpt-x · model_version=2026-05-01 · input_digest=sha256:9c1e…（标题+MPN 截断）</div>
+              <div><strong>suggested_mfr_norm：</strong>STMicroelectronics（映射 ST） &nbsp;·&nbsp; <strong>confidence：</strong>0.86</div>
+              <div style="margin-top:6px;"><strong>rationale（示意）：</strong>标题中「STM」「LQFP」与 MPN 前缀一致，与云汉常见挂料格式吻合；建议与规则表 ST 对齐后重算档位。</div>
+            </div>
+            <div class="btn-row" style="margin-top:12px;">
+              <button type="button" class="btn primary">采纳 LLM 建议并写回审计（示意）</button>
+              <button type="button" class="btn secondary">忽略 · 保持 C 档 / 改选手动选次低价</button>
+              <button type="button" class="btn secondary">触发仅本行重搜</button>
+            </div>
+            <p class="mini-note" style="margin-bottom:0;">采购「采纳」后落库：<span class="mono">adopted=true</span>、操作人、时间；若与后续规则复核仍不一致则保留冲突标记供导出。</p>
+          </div>
+
+          <h3 style="margin:22px 0 8px;font-size:14px;"><span class="mono">llm_brand_suggestion</span> 持久化字段（审计 / 导出）</h3>
+          <div class="table-wrap" style="max-height:240px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>字段</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="mono">quote_item_id</td><td>关联报价明细</td></tr>
+                <tr><td class="mono">input_digest</td><td>输入摘要（标题/MPN 等，可哈希）</td></tr>
+                <tr><td class="mono">model_id</td><td>模型标识</td></tr>
+                <tr><td class="mono">model_version</td><td>模型版本（可复现）</td></tr>
+                <tr><td class="mono">suggested_mfr_norm</td><td>建议归一厂牌</td></tr>
+                <tr><td class="mono">confidence</td><td>置信度 0–1 或枚举</td></tr>
+                <tr><td class="mono">rationale</td><td>简要理由（展示用）</td></tr>
+                <tr><td class="mono">raw_response_json</td><td>原始输出（可选，合规存储）</td></tr>
+                <tr><td class="mono">adopted</td><td>采购是否采纳</td></tr>
+                <tr><td class="mono">adopted_by / adopted_at</td><td>操作人、时间</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="mini-note" style="margin:12px 0 0;">LLM 超时/失败<strong>不阻塞</strong>搜索任务终态；无 suggestion 时仅按规则路径判定档位。</p>
+        </div>
+      </section>
+
+      <!-- ⑨ 人工覆盖与审计导出 -->
+      <section id="audit">
+        <div class="sec-head">
+          <h2>人工覆盖留痕 · 审计导出字段</h2>
+          <span class="sec-tag">Screen I · 可签字</span>
+        </div>
+        <div class="sec-body">
+          <p class="mini-note" style="margin-top:0;">任何「非系统推荐」的终选必须落库以下字段（示意表）；导出审计包时与评分条、业务日、平台任务终态一并输出。</p>
+          <table>
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>行</th>
+                <th>操作人</th>
+                <th>系统推荐 → 实际选用</th>
+                <th>原因码</th>
+                <th>备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2026-05-03 11:02</td>
+                <td class="mono">L07</td>
+                <td>zhangsan</td>
+                <td>立创 ¥1.02 → 云汉 ¥1.08</td>
+                <td><span class="badge violet">渠道合规</span></td>
+                <td>客户指定授权渠道</td>
+              </tr>
+              <tr>
+                <td>2026-05-03 11:18</td>
+                <td class="mono">L08</td>
+                <td>zhangsan</td>
+                <td>单供方 → <strong>组合①</strong>（立创+云汉）</td>
+                <td><span class="badge green">凑满量</span></td>
+                <td>见货源缺口表拆分</td>
+              </tr>
+              <tr>
+                <td>2026-05-03 11:40</td>
+                <td class="mono">L29</td>
+                <td>lisi</td>
+                <td>推荐 A → 手工选 C</td>
+                <td><span class="badge amber">交期优先</span></td>
+                <td>产线 48h 内要现货</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="explain" style="margin-top:14px;">
+            <div class="title">审计包建议最小字段（导出 JSON/PDF/Excel）</div>
+            <div><strong>会话级：</strong>session_id、biz_date、readiness_mode、platform_ids、策略模板 id 与版本。<strong>行级：</strong>mpn、需求数、supply_outcome、最终选用（可多子行）、各子行 platform、quote_id、单价、数量、抓取时间、<strong>厂牌档位与 <span class="mono">llm_brand_suggestion</span> 全字段</strong>。<strong>解释：</strong>硬过滤命中说明、各维度得分、与次优对比摘要。<strong>覆盖：</strong>上表全列。</div>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn primary">导出本会话审计包（示意）</button>
+            <button type="button" class="btn secondary">仅导出覆盖记录</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

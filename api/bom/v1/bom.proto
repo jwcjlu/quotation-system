@@ -94,6 +94,13 @@ service BomService {
       get: "/api/v1/bom/{bom_id}/match-sources/{line_no}/{platform}"
     };
   }
+
+  // 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+  rpc GetBomLineQuoteItems(GetBomLineQuoteItemsRequest) returns (GetBomLineQuoteItemsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/{bom_id}/lines/{line_no}/quote-items"
+    };
+  }
   // ---------- BOM 会话（货源搜索 / 轮询就绪，见 docs/BOM货源搜索-接口清单.md）----------
 
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply) {
@@ -464,6 +471,57 @@ message GetMatchSourceDetailReply {
   string bom_demand_mpn = 9;
   string bom_demand_package = 10;
   string bom_demand_manufacturer = 11;
+}
+
+message GetBomLineQuoteItemsRequest {
+  string bom_id = 1;
+  int32 line_no = 2;
+}
+
+message BomLineDemandSnapshot {
+  int32 line_no = 1;
+  int64 line_db_id = 2;
+  string raw_text = 3;
+  string mpn = 4;
+  string unified_mpn = 5;
+  string reference_designator = 6;
+  string substitute_mpn = 7;
+  string remark = 8;
+  string description = 9;
+  string demand_manufacturer = 10;
+  string manufacturer_canonical_id = 11;
+  string demand_package = 12;
+  double quantity = 13;
+  string extra_json = 14;
+}
+
+message BomQuoteItemRead {
+  string platform = 1;
+  uint64 quote_id = 2;
+  uint64 item_id = 3;
+  string model = 4;
+  string manufacturer = 5;
+  string manufacturer_canonical_id = 6;
+  string package = 7;
+  string stock = 8;
+  string desc = 9;
+  string moq = 10;
+  string lead_time = 11;
+  string price_tiers = 12;
+  string hk_price = 13;
+  string mainland_price = 14;
+  string query_model = 15;
+  string datasheet_url = 16;
+  string source_type = 17;
+  string session_id = 18;
+  int64 line_id = 19;
+}
+
+message GetBomLineQuoteItemsReply {
+  string biz_date = 1;
+  string merge_mpn = 2;
+  BomLineDemandSnapshot demand = 3;
+  repeated BomQuoteItemRead items = 4;
 }
 
 // ========== 厂牌别名 ==========

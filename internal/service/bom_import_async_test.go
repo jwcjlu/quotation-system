@@ -23,7 +23,7 @@ func TestMatchReadinessError_BlocksWhenImportParsing(t *testing.T) {
 		ImportStatus:  biz.BOMImportStatusParsing,
 		PlatformIDs:   []string{"digikey"},
 		ReadinessMode: biz.ReadinessLenient,
-	}, nil)
+	}, nil, true)
 	if err == nil {
 		t.Fatalf("expected BOM_NOT_READY when import is parsing")
 	}

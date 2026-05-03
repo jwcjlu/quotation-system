@@ -85,6 +85,9 @@ export function ManufacturerAliasReviewPanel({
                     {row.kind === 'demand' ? '\u9700\u6c42\u5382\u724c' : '\u62a5\u4ef7\u5382\u724c'} {' | '}
                     {'\u884c'} {row.lineIndexes.join(', ')} {' | '} {row.demandHint || '-'}
                   </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {'canonical_id: '} {value || row.recommendedCanonicalId || '-'}
+                  </div>
                 </div>
                 <select
                   value={value}
@@ -94,7 +97,7 @@ export function ManufacturerAliasReviewPanel({
                   <option value="">{'\u9009\u62e9\u6807\u51c6\u5382\u724c'}</option>
                   {canonicalRows.map((canonical) => (
                     <option key={canonical.canonical_id} value={canonical.canonical_id}>
-                      {canonical.display_name}
+                      {canonical.display_name} ({canonical.canonical_id})
                     </option>
                   ))}
                 </select>

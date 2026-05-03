@@ -22,6 +22,8 @@ import {
   textMatchesKeyword,
 } from './sessionPanelUtils'
 
+const RETRYABLE_STATUS_FILTER_VALUE = '__retryable__'
+
 function pendingRowsFromCandidates(items: ManufacturerAliasCandidate[]): PendingMfrRow[] {
   return items.map((item) => ({
     kind: item.kind,
@@ -47,6 +49,7 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
   const [keyword, setKeyword] = useState('')
   const [platform, setPlatform] = useState('')
   const [status, setStatus] = useState('')
+  const [cardQuickFilter, setCardQuickFilter] = useState<'retryable' | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
 
@@ -96,6 +99,7 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
     return tasks.filter((task) => {
       if (platform && task.platform_id !== platform) return false
       if (status && task.search_ui_state !== status) return false
+      if (cardQuickFilter === 'retryable' && !task.retryable) return false
       return textMatchesKeyword(
         [
           task.line_no,
@@ -109,7 +113,7 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
         keyword
       )
     })
-  }, [keyword, platform, searchTasks?.tasks, status])
+  }, [cardQuickFilter, keyword, platform, searchTasks?.tasks, status])
   const pagedTasks = paginateRows(filteredTasks, page, pageSize)
   const platformOptions = useMemo(
     () => Array.from(new Set((searchTasks?.tasks ?? []).map((task) => task.platform_id).filter(Boolean))).sort(),
@@ -134,7 +138,35 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
 
   useEffect(() => {
     setPage(1)
-  }, [keyword, platform, status, pageSize])
+  }, [cardQuickFilter, keyword, platform, status, pageSize])
+
+  const quickFilterValue = useMemo<
+    SessionSearchTaskRow['search_ui_state'] | 'retryable' | null
+  >(() => {
+    if (cardQuickFilter === 'retryable') return 'retryable'
+    if (!status) return null
+    return status as SessionSearchTaskRow['search_ui_state']
+  }, [cardQuickFilter, status])
+  const statusSelectValue = cardQuickFilter === 'retryable' ? RETRYABLE_STATUS_FILTER_VALUE : status
+
+  const handleCardQuickFilterChange = useCallback(
+    (value: SessionSearchTaskRow['search_ui_state'] | 'retryable' | null) => {
+      setPage(1)
+      if (value === null) {
+        setCardQuickFilter(null)
+        setStatus('')
+        return
+      }
+      if (value === 'retryable') {
+        setCardQuickFilter('retryable')
+        setStatus('')
+        return
+      }
+      setCardQuickFilter(null)
+      setStatus(value)
+    },
+    []
+  )
 
   const retryTask = async (task: SessionSearchTaskRow) => {
     setRetrying(true)
@@ -231,9 +263,22 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
             ))}
           </select>
           <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="h-8 rounded-md border border-[#d7e0ed] px-3 text-sm"
+            value={statusSelectValue}
+            onChange={(event) => {
+              const value = event.target.value
+              if (value === RETRYABLE_STATUS_FILTER_VALUE) {
+                setCardQuickFilter('retryable')
+                setStatus('')
+                return
+              }
+              setCardQuickFilter(null)
+              setStatus(value)
+            }}
+            className={`h-8 rounded-md border px-3 text-sm ${
+              statusSelectValue
+                ? 'border-blue-400 bg-blue-50 text-blue-700'
+                : 'border-[#d7e0ed] bg-white text-slate-900'
+            }`}
           >
             <option value="">全部状态</option>
             <option value="pending">待搜索</option>
@@ -242,6 +287,7 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
             <option value="no_data">无数据</option>
             <option value="failed">失败</option>
             <option value="missing">缺任务</option>
+            <option value={RETRYABLE_STATUS_FILTER_VALUE}>可重试</option>
           </select>
           <select
             value={pageSize}
@@ -279,6 +325,8 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
         onRefresh={() => void loadSearchTasks()}
         onRetryBatch={() => void retryBatch()}
         onRetryTask={(task) => void retryTask(task)}
+        quickFilterValue={quickFilterValue}
+        onQuickFilterChange={handleCardQuickFilterChange}
       />
       <div className="flex justify-end gap-2">
         <button

@@ -31,6 +31,7 @@ const (
 	BomService_GetMatchResult_FullMethodName                         = "/api.bom.v1.BomService/GetMatchResult"
 	BomService_ListMatchSources_FullMethodName                       = "/api.bom.v1.BomService/ListMatchSources"
 	BomService_GetMatchSourceDetail_FullMethodName                   = "/api.bom.v1.BomService/GetMatchSourceDetail"
+	BomService_GetBomLineQuoteItems_FullMethodName                   = "/api.bom.v1.BomService/GetBomLineQuoteItems"
 	BomService_CreateSession_FullMethodName                          = "/api.bom.v1.BomService/CreateSession"
 	BomService_GetSession_FullMethodName                             = "/api.bom.v1.BomService/GetSession"
 	BomService_ListSessions_FullMethodName                           = "/api.bom.v1.BomService/ListSessions"
@@ -81,6 +82,8 @@ type BomServiceClient interface {
 	ListMatchSources(ctx context.Context, in *ListMatchSourcesRequest, opts ...grpc.CallOption) (*ListMatchSourcesReply, error)
 	// 单行单平台：原始 quotes_json / no_mpn_detail（与 web/src/api/bomMatchExtras.ts 对齐）
 	GetMatchSourceDetail(ctx context.Context, in *GetMatchSourceDetailRequest, opts ...grpc.CallOption) (*GetMatchSourceDetailReply, error)
+	// 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+	GetBomLineQuoteItems(ctx context.Context, in *GetBomLineQuoteItemsRequest, opts ...grpc.CallOption) (*GetBomLineQuoteItemsReply, error)
 	CreateSession(ctx context.Context, in *CreateSessionRequest, opts ...grpc.CallOption) (*CreateSessionReply, error)
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionReply, error)
 	// 会话列表（分页、筛选）
@@ -234,6 +237,16 @@ func (c *bomServiceClient) GetMatchSourceDetail(ctx context.Context, in *GetMatc
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetMatchSourceDetailReply)
 	err := c.cc.Invoke(ctx, BomService_GetMatchSourceDetail_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) GetBomLineQuoteItems(ctx context.Context, in *GetBomLineQuoteItemsRequest, opts ...grpc.CallOption) (*GetBomLineQuoteItemsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBomLineQuoteItemsReply)
+	err := c.cc.Invoke(ctx, BomService_GetBomLineQuoteItems_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -477,6 +490,8 @@ type BomServiceServer interface {
 	ListMatchSources(context.Context, *ListMatchSourcesRequest) (*ListMatchSourcesReply, error)
 	// 单行单平台：原始 quotes_json / no_mpn_detail（与 web/src/api/bomMatchExtras.ts 对齐）
 	GetMatchSourceDetail(context.Context, *GetMatchSourceDetailRequest) (*GetMatchSourceDetailReply, error)
+	// 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+	GetBomLineQuoteItems(context.Context, *GetBomLineQuoteItemsRequest) (*GetBomLineQuoteItemsReply, error)
 	CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionReply, error)
 	// 会话列表（分页、筛选）
@@ -551,6 +566,9 @@ func (UnimplementedBomServiceServer) ListMatchSources(context.Context, *ListMatc
 }
 func (UnimplementedBomServiceServer) GetMatchSourceDetail(context.Context, *GetMatchSourceDetailRequest) (*GetMatchSourceDetailReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMatchSourceDetail not implemented")
+}
+func (UnimplementedBomServiceServer) GetBomLineQuoteItems(context.Context, *GetBomLineQuoteItemsRequest) (*GetBomLineQuoteItemsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetBomLineQuoteItems not implemented")
 }
 func (UnimplementedBomServiceServer) CreateSession(context.Context, *CreateSessionRequest) (*CreateSessionReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateSession not implemented")
@@ -848,6 +866,24 @@ func _BomService_GetMatchSourceDetail_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BomServiceServer).GetMatchSourceDetail(ctx, req.(*GetMatchSourceDetailRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_GetBomLineQuoteItems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBomLineQuoteItemsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).GetBomLineQuoteItems(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_GetBomLineQuoteItems_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).GetBomLineQuoteItems(ctx, req.(*GetBomLineQuoteItemsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1284,6 +1320,10 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetMatchSourceDetail",
 			Handler:    _BomService_GetMatchSourceDetail_Handler,
+		},
+		{
+			MethodName: "GetBomLineQuoteItems",
+			Handler:    _BomService_GetBomLineQuoteItems_Handler,
 		},
 		{
 			MethodName: "CreateSession",

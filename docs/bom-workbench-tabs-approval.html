@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BOM 工作台改造后预览</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6fa;
+        --panel: #fff;
+        --ink: #172033;
+        --muted: #5b6678;
+        --line: #d9e1ec;
+        --blue: #2457c5;
+        --green: #12805c;
+        --amber: #a76505;
+        --red: #b42318;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Microsoft YaHei", sans-serif;
+        line-height: 1.5;
+      }
+
+      main {
+        max-width: 1260px;
+        margin: 0 auto;
+        padding: 26px 20px 48px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        margin-bottom: 8px;
+        font-size: 30px;
+        line-height: 1.18;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin-bottom: 14px;
+        font-size: 21px;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        margin-bottom: 8px;
+        font-size: 15px;
+        letter-spacing: 0;
+      }
+
+      .hero {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .hero p {
+        max-width: 760px;
+        margin-bottom: 0;
+        color: var(--muted);
+      }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .badge {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        padding: 5px 9px;
+        color: #43506a;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .mock-shell {
+        overflow: hidden;
+        border: 1px solid #cbd6e5;
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 18px 42px rgba(23, 32, 51, 0.12);
+      }
+
+      .app-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border-bottom: 1px solid #101927;
+        background: #121c2d;
+        padding: 14px 18px;
+        color: #fff;
+      }
+
+      .brand {
+        min-width: 0;
+      }
+
+      .brand strong {
+        display: block;
+        font-size: 18px;
+      }
+
+      .brand span {
+        color: #a9b7cf;
+        font-size: 12px;
+      }
+
+      .top-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+
+      .top-nav span {
+        border-radius: 6px;
+        padding: 6px 10px;
+        color: #c7d3e8;
+        font-size: 13px;
+      }
+
+      .top-nav .active {
+        background: #fff;
+        color: #111827;
+      }
+
+      .workbench {
+        display: grid;
+        grid-template-columns: 310px minmax(0, 1fr);
+        min-height: 650px;
+        background: #f8fafc;
+      }
+
+      .session-list {
+        border-right: 1px solid var(--line);
+        background: #fff;
+        padding: 16px;
+      }
+
+      .side-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .side-head p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .primary-btn,
+      .light-btn {
+        border: 0;
+        border-radius: 6px;
+        padding: 8px 11px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .primary-btn {
+        background: #1f2a3d;
+        color: #fff;
+      }
+
+      .light-btn {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: #334155;
+      }
+
+      .filters {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .input-like {
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        padding: 8px 10px;
+        color: #768195;
+        font-size: 13px;
+      }
+
+      .session-card {
+        margin-bottom: 8px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fff;
+        padding: 11px;
+      }
+
+      .session-card.active {
+        border-color: #8fb2ff;
+        background: #eef4ff;
+      }
+
+      .session-card strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 14px;
+      }
+
+      .session-card span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .workspace {
+        min-width: 0;
+        padding: 18px;
+      }
+
+      .workspace-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .workspace-head p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-bottom: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 8px;
+      }
+
+      .tabs label {
+        cursor: pointer;
+        border-radius: 6px;
+        padding: 8px 11px;
+        color: #59657a;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .tab-radio {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #tab-overview:checked ~ .tabs label[for="tab-overview"],
+      #tab-lines:checked ~ .tabs label[for="tab-lines"],
+      #tab-search:checked ~ .tabs label[for="tab-search"],
+      #tab-gaps:checked ~ .tabs label[for="tab-gaps"],
+      #tab-maintenance:checked ~ .tabs label[for="tab-maintenance"],
+      #tab-match:checked ~ .tabs label[for="tab-match"] {
+        background: #111827;
+        color: #fff;
+      }
+
+      .tab-panel {
+        display: none;
+      }
+
+      #tab-overview:checked ~ .panels .overview-panel,
+      #tab-lines:checked ~ .panels .lines-panel,
+      #tab-search:checked ~ .panels .search-panel,
+      #tab-gaps:checked ~ .panels .gaps-panel,
+      #tab-maintenance:checked ~ .panels .maintenance-panel,
+      #tab-match:checked ~ .panels .match-panel {
+        display: block;
+      }
+
+      .panel-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .panel-card,
+      .table-card,
+      .form-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 14px;
+      }
+
+      .panel-card p,
+      .form-card p {
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .metric {
+        font-size: 26px;
+        font-weight: 800;
+      }
+
+      .metric.green {
+        color: var(--green);
+      }
+
+      .metric.amber {
+        color: var(--amber);
+      }
+
+      .metric.blue {
+        color: var(--blue);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 9px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f1f5f9;
+        color: #4a5569;
+        font-size: 12px;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .status {
+        display: inline-flex;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .status.good {
+        background: #e8f7f0;
+        color: var(--green);
+      }
+
+      .status.warn {
+        background: #fff2d8;
+        color: var(--amber);
+      }
+
+      .status.bad {
+        background: #fff0ef;
+        color: var(--red);
+      }
+
+      .status.info {
+        background: #eaf1ff;
+        color: var(--blue);
+      }
+
+      .action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .note {
+        margin-top: 12px;
+        border: 1px solid #f0d19b;
+        border-radius: 7px;
+        background: #fff7e8;
+        padding: 11px;
+        color: #7a4a06;
+        font-size: 13px;
+      }
+
+      .below {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 18px;
+      }
+
+      .explain {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 18px;
+      }
+
+      .explain p,
+      .explain li {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      code {
+        border-radius: 4px;
+        background: #eef3fb;
+        padding: 1px 5px;
+        color: #24405f;
+        font-family: "Cascadia Code", Consolas, monospace;
+        font-size: 0.92em;
+      }
+
+      @media (max-width: 980px) {
+        main {
+          padding: 18px 12px 36px;
+        }
+
+        .workbench,
+        .below,
+        .panel-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .app-topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .session-list {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div>
+          <h1>BOM 工作台改造后页面预览</h1>
+          <p>
+            下面是按重构方案做出的静态预览。重点看右侧工作区：每个 Tab 只保留一个明确任务，不再把完整详情页重复塞进多个 Tab。
+          </p>
+        </div>
+        <div class="badge-row">
+          <span class="badge">静态 mockup</span>
+          <span class="badge">可点击 Tab</span>
+          <span class="badge">不连接后端</span>
+        </div>
+      </header>
+
+      <section class="mock-shell" aria-label="改造后 BOM 工作台预览">
+        <div class="app-topbar">
+          <div class="brand">
+            <strong>CAICHIP BOM 配单系统</strong>
+            <span>集中管理 BOM 会话、搜索清洗、缺口处理和匹配结果</span>
+          </div>
+          <nav class="top-nav" aria-label="顶部导航示意">
+            <span>使用指南</span>
+            <span class="active">BOM 工作台</span>
+            <span>HS 型号解析</span>
+            <span>Agent 运维</span>
+          </nav>
+        </div>
+
+        <div class="workbench">
+          <aside class="session-list" aria-label="会话列表预览">
+            <div class="side-head">
+              <div>
+                <h3>BOM 会话</h3>
+                <p>左侧只负责查找和选择会话</p>
+              </div>
+              <button class="primary-btn" type="button">上传 BOM</button>
+            </div>
+            <div class="filters">
+              <div class="input-like">状态：data_ready</div>
+              <div class="input-like">日期：2026-04-26</div>
+              <div class="input-like">标题 / 客户搜索</div>
+            </div>
+            <div class="session-card active">
+              <strong>Alpha 采购 BOM</strong>
+              <span>data_ready | 48 行 | 更新 11:08</span>
+            </div>
+            <div class="session-card">
+              <strong>华东客户电源板</strong>
+              <span>searching | 126 行 | 更新 10:42</span>
+            </div>
+            <div class="session-card">
+              <strong>传感器样品单</strong>
+              <span>parsing | 32 行 | 更新 09:51</span>
+            </div>
+          </aside>
+
+          <section class="workspace" aria-label="工作区预览">
+            <div class="workspace-head">
+              <div>
+                <h2>会话工作区</h2>
+                <p>Alpha 采购 BOM / session-20260426-001</p>
+              </div>
+              <button class="light-btn" type="button">返回会话列表</button>
+            </div>
+
+            <input class="tab-radio" type="radio" name="preview-tab" id="tab-overview" checked />
+            <input class="tab-radio" type="radio" name="preview-tab" id="tab-lines" />
+            <input class="tab-radio" type="radio" name="preview-tab" id="tab-search" />
+            <input class="tab-radio" type="radio" name="preview-tab" id="tab-gaps" />
+            <input class="tab-radio" type="radio" name="preview-tab" id="tab-maintenance" />
+            <input class="tab-radio" type="radio" name="preview-tab" id="tab-match" />
+
+            <div class="tabs" role="tablist" aria-label="改造后 Tab 预览">
+              <label for="tab-overview">概览</label>
+              <label for="tab-lines">BOM 行</label>
+              <label for="tab-search">搜索清洗</label>
+              <label for="tab-gaps">缺口处理</label>
+              <label for="tab-maintenance">维护</label>
+              <label for="tab-match">匹配结果</label>
+            </div>
+
+            <div class="panels">
+              <div class="tab-panel overview-panel">
+                <div class="panel-grid">
+                  <article class="panel-card">
+                    <h3>导入状态</h3>
+                    <div class="metric green">ready</div>
+                    <p>只展示会话摘要和下一步状态，不出现 BOM 行大表。</p>
+                  </article>
+                  <article class="panel-card">
+                    <h3>BOM 行数</h3>
+                    <div class="metric blue">48</div>
+                    <p>点击 BOM 行 Tab 后才加载完整行数据。</p>
+                  </article>
+                  <article class="panel-card">
+                    <h3>待处理缺口</h3>
+                    <div class="metric amber">6</div>
+                    <p>点击缺口处理 Tab 后再看人工报价与替代料。</p>
+                  </article>
+                </div>
+                <div class="note">概览的目标是“看状态、选下一步”，不是把所有功能塞在首屏。</div>
+              </div>
+
+              <div class="tab-panel lines-panel">
+                <div class="table-card">
+                  <h3>BOM 行管理</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>行号</th>
+                        <th>MPN</th>
+                        <th>厂家</th>
+                        <th>数量</th>
+                        <th>可用性</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>1</td>
+                        <td>TPS5430DDA</td>
+                        <td>TI</td>
+                        <td>1200</td>
+                        <td><span class="status good">ready</span></td>
+                        <td>编辑</td>
+                      </tr>
+                      <tr>
+                        <td>2</td>
+                        <td>VDRS10P300BSE</td>
+                        <td>Vishay</td>
+                        <td>800</td>
+                        <td><span class="status warn">no_data</span></td>
+                        <td>编辑</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div class="action-row">
+                    <button class="primary-btn" type="button">新增 BOM 行</button>
+                    <button class="light-btn" type="button">刷新行数据</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tab-panel search-panel">
+                <div class="panel-grid">
+                  <article class="panel-card">
+                    <h3>搜索任务</h3>
+                    <div class="metric blue">192</div>
+                    <p>按平台展开的搜索任务状态。</p>
+                  </article>
+                  <article class="panel-card">
+                    <h3>可重试</h3>
+                    <div class="metric amber">11</div>
+                    <p>只重试异常任务，不重复处理 no_data。</p>
+                  </article>
+                  <article class="panel-card">
+                    <h3>厂家别名</h3>
+                    <div class="metric green">3</div>
+                    <p>待确认 alias 与 canonical 对齐。</p>
+                  </article>
+                </div>
+                <div class="table-card" style="margin-top: 12px">
+                  <h3>搜索清洗列表</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>MPN</th>
+                        <th>平台</th>
+                        <th>搜索状态</th>
+                        <th>Agent 状态</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>TPS5430DDA</td>
+                        <td>hqchip</td>
+                        <td><span class="status good">succeeded</span></td>
+                        <td>finished</td>
+                        <td>查看</td>
+                      </tr>
+                      <tr>
+                        <td>NO-DATA-001</td>
+                        <td>digikey</td>
+                        <td><span class="status bad">failed</span></td>
+                        <td>failed</td>
+                        <td>重试</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tab-panel gaps-panel">
+                <div class="table-card">
+                  <h3>缺口处理</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>行号</th>
+                        <th>MPN</th>
+                        <th>缺口原因</th>
+                        <th>处理建议</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>2</td>
+                        <td>VDRS10P300BSE</td>
+                        <td>所有平台无可用报价</td>
+                        <td>补人工报价或选择替代料</td>
+                        <td>处理</td>
+                      </tr>
+                      <tr>
+                        <td>17</td>
+                        <td>LM2596S-ADJ</td>
+                        <td>厂家不一致</td>
+                        <td>确认厂家 alias</td>
+                        <td>处理</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div class="action-row">
+                    <button class="primary-btn" type="button">保存匹配 run</button>
+                    <button class="light-btn" type="button">刷新缺口</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tab-panel maintenance-panel">
+                <div class="panel-grid">
+                  <article class="form-card">
+                    <h3>单据信息</h3>
+                    <div class="input-like">标题：Alpha 采购 BOM</div>
+                    <div class="input-like">客户：Alpha Electronics</div>
+                    <div class="action-row">
+                      <button class="primary-btn" type="button">保存单据信息</button>
+                    </div>
+                  </article>
+                  <article class="form-card">
+                    <h3>平台选择</h3>
+                    <p>digikey、mouser、hqchip、icgoo</p>
+                    <div class="action-row">
+                      <button class="primary-btn" type="button">保存平台</button>
+                    </div>
+                  </article>
+                  <article class="form-card">
+                    <h3>导出</h3>
+                    <p>维护类操作独立放置，避免和 BOM 行处理混在一起。</p>
+                    <div class="action-row">
+                      <button class="light-btn" type="button">导出 XLSX</button>
+                      <button class="light-btn" type="button">导出 CSV</button>
+                    </div>
+                  </article>
+                </div>
+              </div>
+
+              <div class="tab-panel match-panel">
+                <div class="panel-grid">
+                  <article class="panel-card">
+                    <h3>匹配状态</h3>
+                    <div class="metric green">data_ready</div>
+                    <p>只有会话准备好后才启用本 Tab。</p>
+                  </article>
+                  <article class="panel-card">
+                    <h3>已匹配行</h3>
+                    <div class="metric blue">42</div>
+                    <p>复用现有匹配结果能力。</p>
+                  </article>
+                  <article class="panel-card">
+                    <h3>未解决</h3>
+                    <div class="metric amber">6</div>
+                    <p>跳回缺口处理继续补齐。</p>
+                  </article>
+                </div>
+                <div class="table-card" style="margin-top: 12px">
+                  <h3>匹配结果摘要</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>MPN</th>
+                        <th>推荐供应</th>
+                        <th>单价</th>
+                        <th>HS 动作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>TPS5430DDA</td>
+                        <td>HQChip / TI</td>
+                        <td>¥ 4.21</td>
+                        <td>解析 HS</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="below" aria-label="审批说明">
+        <article class="explain">
+          <h2>审批要点</h2>
+          <ul>
+            <li>Tab 不再共用完整详情页，每个 Tab 都是单一职责面板。</li>
+            <li>概览只看状态，不承载表格和维护表单。</li>
+            <li>BOM 行、搜索清洗、缺口处理、维护、匹配结果各自按需加载。</li>
+            <li>移动端仍保留“返回会话列表”的主路径。</li>
+          </ul>
+        </article>
+        <article class="explain">
+          <h2>实施范围</h2>
+          <ul>
+            <li>调整 <code>SessionWorkspace</code> 的 Tab 映射。</li>
+            <li>拆分 <code>SourcingSessionPage</code> 中的 BOM 行、缺口、维护面板。</li>
+            <li>保留现有 API 和业务规则，先解决前端结构与体验问题。</li>
+            <li>补充测试验证 Tab 内容不重复、请求按需触发。</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

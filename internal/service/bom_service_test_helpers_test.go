@@ -296,6 +296,10 @@ func (s *bomSearchTaskRepoStub) UpsertManualQuote(ctx context.Context, gapID uin
 	return nil
 }
 
+func (s *bomSearchTaskRepoStub) ListBomQuoteItemsForSessionLineRead(context.Context, string, int64, time.Time, string, []string) ([]biz.BomQuoteItemReadRow, error) {
+	return nil, nil
+}
+
 type bomLineGapRepoStub struct {
 	gaps        []biz.BOMLineGap
 	updated     []uint64

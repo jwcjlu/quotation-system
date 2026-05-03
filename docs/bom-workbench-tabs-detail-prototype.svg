@@ -1,0 +1,473 @@
+<svg width="1440" height="4200" viewBox="0 0 1440 4200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bg { fill: #f4f6fa; }
+    .shell { fill: #fff; stroke: #cbd6e5; }
+    .top { fill: #111b2b; }
+    .sidebar { fill: #fff; }
+    .work { fill: #f8fafc; }
+    .card { fill: #fff; stroke: #d7e0ed; }
+    .softBlue { fill: #eef4ff; stroke: #8fb2ff; }
+    .softAmber { fill: #fff7e8; stroke: #f0c77d; }
+    .softGreen { fill: #e8f7f0; }
+    .softRed { fill: #fff0ef; }
+    .input { fill: #fff; stroke: #d7e0ed; }
+    .darkBtn { fill: #1f2a3d; }
+    .activeTab { fill: #111827; }
+    .muted { fill: #536076; font: 13px "Microsoft YaHei", Arial, sans-serif; }
+    .small { fill: #64748b; font: 12px "Microsoft YaHei", Arial, sans-serif; }
+    .label { fill: #334155; font: 13px "Microsoft YaHei", Arial, sans-serif; font-weight: 700; }
+    .title { fill: #0f172a; font: 24px "Microsoft YaHei", Arial, sans-serif; font-weight: 700; }
+    .h1 { fill: #0f172a; font: 30px "Microsoft YaHei", Arial, sans-serif; font-weight: 700; }
+    .h2 { fill: #0f172a; font: 18px "Microsoft YaHei", Arial, sans-serif; font-weight: 700; }
+    .h3 { fill: #0f172a; font: 15px "Microsoft YaHei", Arial, sans-serif; font-weight: 700; }
+    .white { fill: #fff; font: 13px "Microsoft YaHei", Arial, sans-serif; font-weight: 700; }
+    .navText { fill: #d6e0f2; font: 13px "Microsoft YaHei", Arial, sans-serif; }
+    .metricBlue { fill: #2457c5; font: 30px Arial, sans-serif; font-weight: 700; }
+    .metricGreen { fill: #12805c; font: 30px Arial, sans-serif; font-weight: 700; }
+    .metricAmber { fill: #a76505; font: 30px Arial, sans-serif; font-weight: 700; }
+    .tableHead { fill: #f1f5f9; }
+    .line { stroke: #d9e1ec; }
+    .greenText { fill: #12805c; font: 12px Arial, sans-serif; font-weight: 700; }
+    .amberText { fill: #a76505; font: 12px Arial, sans-serif; font-weight: 700; }
+    .redText { fill: #b42318; font: 12px Arial, sans-serif; font-weight: 700; }
+    .blueText { fill: #2457c5; font: 12px Arial, sans-serif; font-weight: 700; }
+  </style>
+
+  <rect width="1440" height="4200" class="bg"/>
+  <text x="72" y="52" class="h1">BOM 工作台 Tab 详细原型图</text>
+  <text x="72" y="84" class="muted">五个详细画板分别展示：BOM 行、搜索清洗、缺口处理、维护、匹配结果。每个画板右侧只承载当前 Tab 的任务。</text>
+
+  <!-- BOM 行 -->
+  <g transform="translate(72,120)">
+    <text x="0" y="-20" class="h2">01 / BOM 行</text>
+    <rect width="1296" height="720" rx="8" class="shell"/>
+    <rect width="1296" height="78" rx="8" class="top"/>
+    <rect y="70" width="1296" height="8" class="top"/>
+    <text x="24" y="34" fill="#fff" font-family="Microsoft YaHei, Arial, sans-serif" font-size="21" font-weight="700">CAICHIP BOM 配单系统</text>
+    <text x="24" y="58" fill="#aab8ce" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">BOM 行只处理物料明细，不混入缺口和维护表单</text>
+    <text x="892" y="48" class="navText">使用指南</text>
+    <rect x="964" y="22" width="110" height="34" rx="6" fill="#fff"/>
+    <text x="985" y="44" fill="#111827" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">BOM 工作台</text>
+    <text x="1090" y="48" class="navText">HS 型号解析</text>
+    <text x="1218" y="48" class="navText">Agent 运维</text>
+    <rect y="78" width="310" height="642" class="sidebar"/>
+    <line x1="310" y1="78" x2="310" y2="720" class="line"/>
+    <text x="24" y="120" class="h3">BOM 会话</text>
+    <rect x="206" y="98" width="78" height="48" rx="6" class="darkBtn"/>
+    <text x="218" y="128" class="white">上传 BOM</text>
+    <rect x="24" y="168" width="260" height="36" rx="6" class="input"/>
+    <text x="40" y="191" class="small">状态：data_ready</text>
+    <rect x="24" y="216" width="260" height="36" rx="6" class="input"/>
+    <text x="40" y="239" class="small">标题 / 客户搜索</text>
+    <rect x="24" y="278" width="260" height="74" rx="7" class="softBlue"/>
+    <text x="40" y="305" class="h3">Alpha 采购 BOM</text>
+    <text x="40" y="330" class="small">data_ready | 48 行 | 更新 11:08</text>
+    <rect x="24" y="364" width="260" height="74" rx="7" class="card"/>
+    <text x="40" y="391" class="h3">华东客户电源板</text>
+    <text x="40" y="416" class="small">searching | 126 行 | 更新 10:42</text>
+    <rect x="310" y="78" width="986" height="642" class="work"/>
+    <text x="338" y="122" class="title">会话工作区</text>
+    <text x="338" y="152" class="muted">Alpha 采购 BOM / session-20260426-001</text>
+    <rect x="338" y="180" width="918" height="54" rx="8" class="card"/>
+    <text x="354" y="213" class="label">概览</text>
+    <rect x="414" y="190" width="74" height="34" rx="6" class="activeTab"/>
+    <text x="430" y="212" class="white">BOM 行</text>
+    <text x="510" y="213" class="label">搜索清洗</text>
+    <text x="608" y="213" class="label">缺口处理</text>
+    <text x="708" y="213" class="label">维护</text>
+    <text x="774" y="213" class="label">匹配结果</text>
+    <rect x="338" y="252" width="276" height="96" rx="8" class="card"/>
+    <text x="354" y="282" class="h3">行数据概况</text>
+    <text x="354" y="324" class="metricBlue">48</text>
+    <text x="412" y="324" class="muted">行 BOM 明细</text>
+    <rect x="630" y="252" width="276" height="96" rx="8" class="card"/>
+    <text x="646" y="282" class="h3">搜索覆盖</text>
+    <text x="646" y="324" class="metricGreen">92%</text>
+    <text x="724" y="324" class="muted">任务已生成</text>
+    <rect x="922" y="252" width="334" height="96" rx="8" class="softAmber"/>
+    <text x="938" y="282" class="h3">可用性提醒</text>
+    <text x="938" y="314" class="muted">6 行缺少可用报价，可跳转缺口处理。</text>
+    <rect x="338" y="364" width="918" height="48" rx="8" class="card"/>
+    <text x="354" y="394" class="label">搜索 / 筛选 / 分页</text>
+    <rect x="456" y="374" width="156" height="28" rx="5" class="input"/>
+    <text x="470" y="393" class="small">MPN / 行号</text>
+    <rect x="624" y="374" width="110" height="28" rx="5" class="input"/>
+    <text x="638" y="393" class="small">厂家</text>
+    <rect x="746" y="374" width="118" height="28" rx="5" class="input"/>
+    <text x="760" y="393" class="small">可用性：全部</text>
+    <rect x="876" y="374" width="104" height="28" rx="5" class="input"/>
+    <text x="890" y="393" class="small">每页 50</text>
+    <rect x="996" y="374" width="76" height="28" rx="5" fill="#2457c5"/>
+    <text x="1020" y="393" class="white">搜索</text>
+    <rect x="1086" y="374" width="88" height="28" rx="5" fill="#12805c"/>
+    <text x="1110" y="393" class="white">新增行</text>
+    <rect x="338" y="428" width="918" height="230" rx="8" class="card"/>
+    <rect x="338" y="428" width="918" height="40" rx="8" class="tableHead"/>
+    <text x="354" y="453" class="label">行号</text>
+    <text x="430" y="453" class="label">MPN</text>
+    <text x="608" y="453" class="label">厂家</text>
+    <text x="714" y="453" class="label">数量</text>
+    <text x="808" y="453" class="label">可用性</text>
+    <text x="952" y="453" class="label">平台缺口</text>
+    <text x="1156" y="453" class="label">操作</text>
+    <line x1="338" y1="510" x2="1256" y2="510" class="line"/>
+    <line x1="338" y1="552" x2="1256" y2="552" class="line"/>
+    <line x1="338" y1="594" x2="1256" y2="594" class="line"/>
+    <text x="354" y="493" class="muted">1</text>
+    <text x="430" y="493" class="muted">TPS5430DDA</text>
+    <text x="608" y="493" class="muted">TI</text>
+    <text x="714" y="493" class="muted">1200</text>
+    <rect x="808" y="476" width="70" height="24" rx="12" class="softGreen"/>
+    <text x="824" y="492" class="greenText">ready</text>
+    <text x="952" y="493" class="small">-</text>
+    <text x="1156" y="493" fill="#2457c5" font-family="Arial" font-size="13">编辑</text>
+    <text x="354" y="535" class="muted">2</text>
+    <text x="430" y="535" class="muted">VDRS10P300BSE</text>
+    <text x="608" y="535" class="muted">Vishay</text>
+    <text x="714" y="535" class="muted">800</text>
+    <rect x="808" y="518" width="78" height="24" rx="12" fill="#fff2d8"/>
+    <text x="824" y="534" class="amberText">no_data</text>
+    <text x="952" y="535" class="small">digikey / mouser 无数据</text>
+    <text x="1156" y="535" fill="#2457c5" font-family="Arial" font-size="13">编辑</text>
+    <text x="354" y="577" class="muted">3</text>
+    <text x="430" y="577" class="muted">LM2596S-ADJ</text>
+    <text x="608" y="577" class="muted">未知</text>
+    <text x="714" y="577" class="muted">500</text>
+    <rect x="808" y="560" width="118" height="24" rx="12" fill="#fff2d8"/>
+    <text x="824" y="576" class="amberText">mfr_mismatch</text>
+    <text x="952" y="577" class="small">厂家待确认</text>
+    <text x="1156" y="577" fill="#2457c5" font-family="Arial" font-size="13">编辑</text>
+    <text x="958" y="636" class="small">共 48 行</text>
+    <rect x="1030" y="618" width="56" height="28" rx="5" class="input"/>
+    <text x="1046" y="637" class="label">上一页</text>
+    <rect x="1098" y="618" width="54" height="28" rx="5" class="softBlue"/>
+    <text x="1116" y="637" class="label">1</text>
+    <rect x="1164" y="618" width="56" height="28" rx="5" class="input"/>
+    <text x="1180" y="637" class="label">下一页</text>
+  </g>
+
+  <!-- 搜索清洗 -->
+  <g transform="translate(72,930)">
+    <text x="0" y="-20" class="h2">02 / 搜索清洗</text>
+    <rect width="1296" height="720" rx="8" class="shell"/>
+    <rect width="1296" height="78" rx="8" class="top"/>
+    <text x="24" y="34" fill="#fff" font-family="Microsoft YaHei, Arial, sans-serif" font-size="21" font-weight="700">CAICHIP BOM 配单系统</text>
+    <text x="24" y="58" fill="#aab8ce" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">搜索清洗只处理任务状态、重试和厂家别名</text>
+    <rect y="78" width="310" height="642" class="sidebar"/>
+    <line x1="310" y1="78" x2="310" y2="720" class="line"/>
+    <text x="24" y="120" class="h3">BOM 会话</text>
+    <rect x="24" y="150" width="260" height="36" rx="6" class="input"/>
+    <text x="40" y="173" class="small">状态：searching / data_ready</text>
+    <rect x="24" y="210" width="260" height="74" rx="7" class="softBlue"/>
+    <text x="40" y="237" class="h3">Alpha 采购 BOM</text>
+    <text x="40" y="262" class="small">data_ready | 192 个搜索任务</text>
+    <rect x="310" y="78" width="986" height="642" class="work"/>
+    <text x="338" y="122" class="title">会话工作区</text>
+    <text x="338" y="152" class="muted">Alpha 采购 BOM / 搜索清洗</text>
+    <rect x="338" y="180" width="918" height="54" rx="8" class="card"/>
+    <text x="354" y="213" class="label">概览</text>
+    <text x="430" y="213" class="label">BOM 行</text>
+    <rect x="506" y="190" width="88" height="34" rx="6" class="activeTab"/>
+    <text x="522" y="212" class="white">搜索清洗</text>
+    <text x="616" y="213" class="label">缺口处理</text>
+    <text x="716" y="213" class="label">维护</text>
+    <text x="782" y="213" class="label">匹配结果</text>
+    <rect x="338" y="252" width="214" height="92" rx="8" class="card"/>
+    <text x="354" y="281" class="h3">总任务</text>
+    <text x="354" y="322" class="metricBlue">192</text>
+    <rect x="566" y="252" width="214" height="92" rx="8" class="card"/>
+    <text x="582" y="281" class="h3">成功</text>
+    <text x="582" y="322" class="metricGreen">171</text>
+    <rect x="794" y="252" width="214" height="92" rx="8" class="card"/>
+    <text x="810" y="281" class="h3">可重试异常</text>
+    <text x="810" y="322" class="metricAmber">11</text>
+    <rect x="1022" y="252" width="234" height="92" rx="8" class="card"/>
+    <text x="1038" y="281" class="h3">厂家别名待审</text>
+    <text x="1038" y="322" class="metricBlue">3</text>
+    <rect x="338" y="360" width="918" height="48" rx="8" class="card"/>
+    <rect x="354" y="370" width="108" height="28" rx="5" class="input"/>
+    <text x="370" y="389" class="small">平台：全部</text>
+    <rect x="474" y="370" width="118" height="28" rx="5" class="input"/>
+    <text x="490" y="389" class="small">状态：异常</text>
+    <rect x="604" y="370" width="150" height="28" rx="5" class="input"/>
+    <text x="620" y="389" class="small">MPN / Agent 搜索</text>
+    <rect x="766" y="370" width="94" height="28" rx="5" class="input"/>
+    <text x="782" y="389" class="small">每页 50</text>
+    <rect x="996" y="370" width="106" height="28" rx="5" fill="#2457c5"/>
+    <text x="1018" y="389" class="white">批量重试</text>
+    <rect x="1114" y="370" width="84" height="28" rx="5" class="darkBtn"/>
+    <text x="1138" y="389" class="white">刷新</text>
+    <rect x="338" y="424" width="918" height="184" rx="8" class="card"/>
+    <rect x="338" y="424" width="918" height="38" rx="8" class="tableHead"/>
+    <text x="354" y="448" class="label">MPN</text>
+    <text x="520" y="448" class="label">平台</text>
+    <text x="620" y="448" class="label">搜索状态</text>
+    <text x="760" y="448" class="label">Agent 状态</text>
+    <text x="910" y="448" class="label">更新时间</text>
+    <text x="1120" y="448" class="label">操作</text>
+    <line x1="338" y1="506" x2="1256" y2="506" class="line"/>
+    <line x1="338" y1="550" x2="1256" y2="550" class="line"/>
+    <text x="354" y="489" class="muted">TPS5430DDA</text>
+    <text x="520" y="489" class="muted">hqchip</text>
+    <rect x="620" y="472" width="86" height="24" rx="12" class="softGreen"/>
+    <text x="636" y="488" class="greenText">succeeded</text>
+    <text x="760" y="489" class="muted">finished</text>
+    <text x="910" y="489" class="small">11:02</text>
+    <text x="1120" y="489" fill="#2457c5" font-family="Arial" font-size="13">查看</text>
+    <text x="354" y="533" class="muted">NO-DATA-001</text>
+    <text x="520" y="533" class="muted">digikey</text>
+    <rect x="620" y="516" width="68" height="24" rx="12" class="softRed"/>
+    <text x="636" y="532" class="redText">failed</text>
+    <text x="760" y="533" class="muted">failed</text>
+    <text x="910" y="533" class="small">timeout</text>
+    <text x="1120" y="533" fill="#2457c5" font-family="Arial" font-size="13">重试</text>
+    <text x="930" y="588" class="small">共 192 个任务</text>
+    <rect x="1032" y="570" width="54" height="28" rx="5" class="input"/>
+    <text x="1046" y="589" class="label">上页</text>
+    <rect x="1098" y="570" width="54" height="28" rx="5" class="softBlue"/>
+    <text x="1114" y="589" class="label">1/4</text>
+    <rect x="1164" y="570" width="54" height="28" rx="5" class="input"/>
+    <text x="1178" y="589" class="label">下页</text>
+    <rect x="338" y="624" width="918" height="66" rx="8" class="softAmber"/>
+    <text x="354" y="652" class="h3">厂家别名审核</text>
+    <text x="354" y="678" class="muted">TI / Texas Instruments / TEXAS INST → 建议合并到 canonical：Texas Instruments</text>
+    <rect x="1088" y="644" width="74" height="28" rx="5" fill="#12805c"/>
+    <text x="1112" y="663" class="white">通过</text>
+    <rect x="1174" y="644" width="58" height="28" rx="5" class="input"/>
+    <text x="1191" y="663" class="label">忽略</text>
+  </g>
+
+  <!-- 缺口处理 -->
+  <g transform="translate(72,1740)">
+    <text x="0" y="-20" class="h2">03 / 缺口处理</text>
+    <rect width="1296" height="720" rx="8" class="shell"/>
+    <rect width="1296" height="78" rx="8" class="top"/>
+    <text x="24" y="34" fill="#fff" font-family="Microsoft YaHei, Arial, sans-serif" font-size="21" font-weight="700">CAICHIP BOM 配单系统</text>
+    <text x="24" y="58" fill="#aab8ce" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">缺口处理聚焦人工报价、替代料和匹配 run 保存</text>
+    <rect y="78" width="310" height="642" class="sidebar"/>
+    <line x1="310" y1="78" x2="310" y2="720" class="line"/>
+    <text x="24" y="120" class="h3">BOM 会话</text>
+    <rect x="24" y="160" width="260" height="74" rx="7" class="softBlue"/>
+    <text x="40" y="187" class="h3">Alpha 采购 BOM</text>
+    <text x="40" y="212" class="small">待处理缺口 6</text>
+    <rect x="310" y="78" width="986" height="642" class="work"/>
+    <text x="338" y="122" class="title">会话工作区</text>
+    <text x="338" y="152" class="muted">Alpha 采购 BOM / 缺口处理</text>
+    <rect x="338" y="180" width="918" height="54" rx="8" class="card"/>
+    <text x="354" y="213" class="label">概览</text>
+    <text x="430" y="213" class="label">BOM 行</text>
+    <text x="510" y="213" class="label">搜索清洗</text>
+    <rect x="608" y="190" width="88" height="34" rx="6" class="activeTab"/>
+    <text x="624" y="212" class="white">缺口处理</text>
+    <text x="718" y="213" class="label">维护</text>
+    <text x="784" y="213" class="label">匹配结果</text>
+    <rect x="338" y="252" width="280" height="88" rx="8" class="card"/>
+    <text x="354" y="280" class="h3">开放缺口</text>
+    <text x="354" y="320" class="metricAmber">6</text>
+    <rect x="634" y="252" width="280" height="88" rx="8" class="card"/>
+    <text x="650" y="280" class="h3">人工报价已补</text>
+    <text x="650" y="320" class="metricGreen">2</text>
+    <rect x="930" y="252" width="326" height="88" rx="8" class="card"/>
+    <text x="946" y="280" class="h3">最近匹配 run</text>
+    <text x="946" y="314" class="muted">V3 / unresolved 6 / total ¥12,843.60</text>
+    <rect x="946" y="324" width="94" height="26" rx="5" class="input"/>
+    <text x="958" y="342" class="small">状态：open</text>
+    <rect x="1052" y="324" width="106" height="26" rx="5" class="input"/>
+    <text x="1064" y="342" class="small">类型：全部</text>
+    <rect x="1170" y="324" width="72" height="26" rx="5" fill="#2457c5"/>
+    <text x="1192" y="342" class="white">筛选</text>
+    <rect x="338" y="358" width="440" height="244" rx="8" class="card"/>
+    <text x="354" y="388" class="h3">缺口 #2 / VDRS10P300BSE</text>
+    <text x="354" y="416" class="muted">原因：所有选中平台返回 no_data</text>
+    <text x="354" y="446" class="label">人工报价</text>
+    <rect x="354" y="460" width="128" height="30" rx="5" class="input"/>
+    <text x="368" y="480" class="small">型号 *</text>
+    <rect x="494" y="460" width="128" height="30" rx="5" class="input"/>
+    <text x="508" y="480" class="small">厂家</text>
+    <rect x="634" y="460" width="116" height="30" rx="5" class="input"/>
+    <text x="648" y="480" class="small">库存</text>
+    <rect x="354" y="504" width="396" height="34" rx="5" class="input"/>
+    <text x="368" y="526" class="small">阶梯价 / 备注</text>
+    <rect x="354" y="552" width="110" height="30" rx="5" fill="#12805c"/>
+    <text x="384" y="572" class="white">保存报价</text>
+    <rect x="796" y="358" width="460" height="244" rx="8" class="card"/>
+    <text x="812" y="388" class="h3">替代料建议</text>
+    <text x="812" y="416" class="muted">系统建议：VDRS10P300BSC / 同系列耐压替代</text>
+    <rect x="812" y="440" width="420" height="42" rx="6" class="softBlue"/>
+    <text x="828" y="466" class="muted">替代 MPN：VDRS10P300BSC，库存 2400，最低价 ¥0.37</text>
+    <rect x="812" y="502" width="180" height="32" rx="5" class="input"/>
+    <text x="826" y="523" class="small">替代原因</text>
+    <rect x="1008" y="502" width="118" height="32" rx="5" fill="#2457c5"/>
+    <text x="1032" y="523" class="white">选择替代料</text>
+    <rect x="338" y="622" width="918" height="56" rx="8" class="softAmber"/>
+    <text x="354" y="656" class="muted">保存匹配 run 前，缺口处理 Tab 会提示仍未解决的行，避免用户误以为匹配结果已经完整。</text>
+    <text x="880" y="656" class="small">共 6 条 / 第 1 页</text>
+    <rect x="1110" y="636" width="118" height="28" rx="5" class="darkBtn"/>
+    <text x="1133" y="655" class="white">保存 run</text>
+  </g>
+
+  <!-- 维护 -->
+  <g transform="translate(72,2550)">
+    <text x="0" y="-20" class="h2">04 / 维护</text>
+    <rect width="1296" height="720" rx="8" class="shell"/>
+    <rect width="1296" height="78" rx="8" class="top"/>
+    <text x="24" y="34" fill="#fff" font-family="Microsoft YaHei, Arial, sans-serif" font-size="21" font-weight="700">CAICHIP BOM 配单系统</text>
+    <text x="24" y="58" fill="#aab8ce" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">维护只放单据信息、平台选择、导出等配置类操作</text>
+    <rect y="78" width="310" height="642" class="sidebar"/>
+    <line x1="310" y1="78" x2="310" y2="720" class="line"/>
+    <text x="24" y="120" class="h3">BOM 会话</text>
+    <rect x="24" y="160" width="260" height="74" rx="7" class="softBlue"/>
+    <text x="40" y="187" class="h3">Alpha 采购 BOM</text>
+    <text x="40" y="212" class="small">客户：Alpha Electronics</text>
+    <rect x="310" y="78" width="986" height="642" class="work"/>
+    <text x="338" y="122" class="title">会话工作区</text>
+    <text x="338" y="152" class="muted">Alpha 采购 BOM / 维护</text>
+    <rect x="338" y="180" width="918" height="54" rx="8" class="card"/>
+    <text x="354" y="213" class="label">概览</text>
+    <text x="430" y="213" class="label">BOM 行</text>
+    <text x="510" y="213" class="label">搜索清洗</text>
+    <text x="608" y="213" class="label">缺口处理</text>
+    <rect x="708" y="190" width="62" height="34" rx="6" class="activeTab"/>
+    <text x="724" y="212" class="white">维护</text>
+    <text x="792" y="213" class="label">匹配结果</text>
+    <rect x="338" y="252" width="440" height="260" rx="8" class="card"/>
+    <text x="354" y="284" class="h3">单据信息</text>
+    <text x="354" y="316" class="label">标题</text>
+    <rect x="354" y="326" width="390" height="34" rx="5" class="input"/>
+    <text x="370" y="348" class="small">Alpha 采购 BOM</text>
+    <text x="354" y="386" class="label">客户</text>
+    <rect x="354" y="396" width="180" height="34" rx="5" class="input"/>
+    <text x="370" y="418" class="small">Alpha Electronics</text>
+    <rect x="548" y="396" width="196" height="34" rx="5" class="input"/>
+    <text x="564" y="418" class="small">联系人 / 电话</text>
+    <rect x="354" y="452" width="118" height="34" rx="5" fill="#12805c"/>
+    <text x="384" y="474" class="white">保存信息</text>
+    <rect x="796" y="252" width="460" height="260" rx="8" class="card"/>
+    <text x="812" y="284" class="h3">平台选择</text>
+    <rect x="812" y="312" width="94" height="34" rx="17" class="softBlue"/>
+    <text x="836" y="334" class="label">hqchip</text>
+    <rect x="918" y="312" width="94" height="34" rx="17" class="softBlue"/>
+    <text x="940" y="334" class="label">icgoo</text>
+    <rect x="1024" y="312" width="94" height="34" rx="17" class="softBlue"/>
+    <text x="1044" y="334" class="label">digikey</text>
+    <rect x="812" y="362" width="94" height="34" rx="17" class="card"/>
+    <text x="836" y="384" class="label">mouser</text>
+    <text x="812" y="430" class="muted">selection_revision：12，保存时校验版本，避免并发覆盖。</text>
+    <rect x="812" y="392" width="164" height="28" rx="5" class="input"/>
+    <text x="826" y="411" class="small">搜索平台：hq / mouser</text>
+    <rect x="812" y="452" width="118" height="34" rx="5" fill="#2457c5"/>
+    <text x="840" y="474" class="white">保存平台</text>
+    <rect x="338" y="532" width="440" height="132" rx="8" class="card"/>
+    <text x="354" y="564" class="h3">导出</text>
+    <text x="354" y="592" class="muted">导出操作不再和 BOM 行编辑混在一起。</text>
+    <rect x="354" y="616" width="94" height="32" rx="5" class="darkBtn"/>
+    <text x="376" y="637" class="white">XLSX</text>
+    <rect x="460" y="616" width="84" height="32" rx="5" class="input"/>
+    <text x="484" y="637" class="label">CSV</text>
+    <rect x="796" y="532" width="460" height="132" rx="8" class="softAmber"/>
+    <text x="812" y="564" class="h3">维护提示</text>
+    <text x="812" y="592" class="muted">平台选择变更会影响后续搜索任务覆盖，需要用户明确保存。</text>
+    <text x="812" y="620" class="muted">该 Tab 不展示搜索任务表，也不展示缺口处理表单。</text>
+  </g>
+
+  <!-- 匹配结果 -->
+  <g transform="translate(72,3360)">
+    <text x="0" y="-20" class="h2">05 / 匹配结果</text>
+    <rect width="1296" height="720" rx="8" class="shell"/>
+    <rect width="1296" height="78" rx="8" class="top"/>
+    <text x="24" y="34" fill="#fff" font-family="Microsoft YaHei, Arial, sans-serif" font-size="21" font-weight="700">CAICHIP BOM 配单系统</text>
+    <text x="24" y="58" fill="#aab8ce" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">匹配结果只在 data_ready 后查看最终配单与 HS 跳转</text>
+    <rect y="78" width="310" height="642" class="sidebar"/>
+    <line x1="310" y1="78" x2="310" y2="720" class="line"/>
+    <text x="24" y="120" class="h3">BOM 会话</text>
+    <rect x="24" y="160" width="260" height="74" rx="7" class="softBlue"/>
+    <text x="40" y="187" class="h3">Alpha 采购 BOM</text>
+    <text x="40" y="212" class="small">data_ready | run V3</text>
+    <rect x="310" y="78" width="986" height="642" class="work"/>
+    <text x="338" y="122" class="title">会话工作区</text>
+    <text x="338" y="152" class="muted">Alpha 采购 BOM / 匹配结果</text>
+    <rect x="338" y="180" width="918" height="54" rx="8" class="card"/>
+    <text x="354" y="213" class="label">概览</text>
+    <text x="430" y="213" class="label">BOM 行</text>
+    <text x="510" y="213" class="label">搜索清洗</text>
+    <text x="608" y="213" class="label">缺口处理</text>
+    <text x="708" y="213" class="label">维护</text>
+    <rect x="774" y="190" width="88" height="34" rx="6" class="activeTab"/>
+    <text x="790" y="212" class="white">匹配结果</text>
+    <rect x="338" y="252" width="214" height="92" rx="8" class="card"/>
+    <text x="354" y="281" class="h3">匹配状态</text>
+    <text x="354" y="322" class="metricGreen">ready</text>
+    <rect x="566" y="252" width="214" height="92" rx="8" class="card"/>
+    <text x="582" y="281" class="h3">已匹配行</text>
+    <text x="582" y="322" class="metricBlue">42</text>
+    <rect x="794" y="252" width="214" height="92" rx="8" class="card"/>
+    <text x="810" y="281" class="h3">未解决</text>
+    <text x="810" y="322" class="metricAmber">6</text>
+    <rect x="1022" y="252" width="234" height="92" rx="8" class="card"/>
+    <text x="1038" y="281" class="h3">总金额</text>
+    <text x="1038" y="318" fill="#0f172a" font-family="Arial" font-size="24" font-weight="700">¥12,843.60</text>
+    <rect x="338" y="350" width="918" height="38" rx="7" class="card"/>
+    <rect x="354" y="356" width="150" height="26" rx="5" class="input"/>
+    <text x="368" y="374" class="small">MPN / 供应商搜索</text>
+    <rect x="516" y="356" width="118" height="26" rx="5" class="input"/>
+    <text x="530" y="374" class="small">状态：全部</text>
+    <rect x="646" y="356" width="94" height="26" rx="5" class="input"/>
+    <text x="660" y="374" class="small">每页 50</text>
+    <rect x="752" y="356" width="74" height="26" rx="5" fill="#2457c5"/>
+    <text x="774" y="374" class="white">搜索</text>
+    <rect x="338" y="398" width="918" height="198" rx="8" class="card"/>
+    <rect x="338" y="398" width="918" height="38" rx="8" class="tableHead"/>
+    <text x="354" y="422" class="label">行号</text>
+    <text x="430" y="422" class="label">需求 MPN</text>
+    <text x="610" y="422" class="label">推荐供应</text>
+    <text x="792" y="422" class="label">库存</text>
+    <text x="884" y="422" class="label">单价</text>
+    <text x="982" y="422" class="label">匹配状态</text>
+    <text x="1124" y="422" class="label">HS 动作</text>
+    <line x1="338" y1="478" x2="1256" y2="478" class="line"/>
+    <line x1="338" y1="520" x2="1256" y2="520" class="line"/>
+    <line x1="338" y1="562" x2="1256" y2="562" class="line"/>
+    <text x="354" y="461" class="muted">1</text>
+    <text x="430" y="461" class="muted">TPS5430DDA</text>
+    <text x="610" y="461" class="muted">HQChip / TI</text>
+    <text x="792" y="461" class="muted">5300</text>
+    <text x="884" y="461" class="muted">¥4.21</text>
+    <rect x="982" y="444" width="72" height="24" rx="12" class="softGreen"/>
+    <text x="998" y="460" class="greenText">matched</text>
+    <text x="1124" y="461" fill="#2457c5" font-family="Arial" font-size="13">解析 HS</text>
+    <text x="354" y="503" class="muted">2</text>
+    <text x="430" y="503" class="muted">VDRS10P300BSE</text>
+    <text x="610" y="503" class="muted">人工报价</text>
+    <text x="792" y="503" class="muted">1200</text>
+    <text x="884" y="503" class="muted">¥0.44</text>
+    <rect x="982" y="486" width="106" height="24" rx="12" fill="#fff2d8"/>
+    <text x="998" y="502" class="amberText">manual_quote</text>
+    <text x="1124" y="503" fill="#2457c5" font-family="Arial" font-size="13">解析 HS</text>
+    <text x="354" y="545" class="muted">17</text>
+    <text x="430" y="545" class="muted">LM2596S-ADJ</text>
+    <text x="610" y="545" class="muted">待补缺口</text>
+    <text x="792" y="545" class="muted">-</text>
+    <text x="884" y="545" class="muted">-</text>
+    <rect x="982" y="528" width="92" height="24" rx="12" class="softRed"/>
+    <text x="998" y="544" class="redText">unresolved</text>
+    <text x="1124" y="545" fill="#a76505" font-family="Arial" font-size="13">去处理</text>
+    <text x="970" y="584" class="small">共 48 行 / 第 1 页</text>
+    <rect x="1088" y="568" width="54" height="24" rx="5" class="input"/>
+    <text x="1102" y="584" class="label">上页</text>
+    <rect x="1152" y="568" width="54" height="24" rx="5" class="input"/>
+    <text x="1166" y="584" class="label">下页</text>
+    <rect x="338" y="616" width="440" height="66" rx="8" class="softAmber"/>
+    <text x="354" y="644" class="h3">未解决提示</text>
+    <text x="354" y="670" class="muted">仍有 6 行未解决，建议先回到缺口处理补齐后再导出。</text>
+    <rect x="796" y="616" width="460" height="66" rx="8" class="card"/>
+    <text x="812" y="644" class="h3">操作</text>
+    <rect x="874" y="628" width="94" height="30" rx="5" class="darkBtn"/>
+    <text x="896" y="648" class="white">导出配单</text>
+    <rect x="982" y="628" width="112" height="30" rx="5" fill="#2457c5"/>
+    <text x="1006" y="648" class="white">批量 HS</text>
+  </g>
+
+  <rect x="72" y="4110" width="1296" height="54" rx="8" class="shell"/>
+  <text x="96" y="4144" class="label">说明：</text>
+  <text x="146" y="4144" class="muted">该 SVG 是详细原型图，可拖入 Figma 继续调整。真实实现时会拆分 React 面板并按 Tab 按需请求数据。</text>
+</svg>

@@ -101,6 +101,8 @@ type BOMSearchTaskRepo interface {
 	LoadQuoteCachesForKeys(ctx context.Context, bizDate time.Time, pairs []MpnPlatformPair) (map[string]*QuoteCacheSnapshot, error)
 	DistinctPendingMergeKeysForSession(ctx context.Context, sessionID string) ([]MergeKey, error)
 	UpsertManualQuote(ctx context.Context, gapID uint64, row AgentQuoteRow) error
+	// ListBomQuoteItemsForSessionLineRead 读取该行在会话业务日、勾选平台下经 t_bom_quote_cache 关联的 t_bom_quote_item，并合并 session_id+line_id 直挂的明细。
+	ListBomQuoteItemsForSessionLineRead(ctx context.Context, sessionID string, lineID int64, bizDate time.Time, mergeMpn string, platformIDs []string) ([]BomQuoteItemReadRow, error)
 }
 
 type BOMLineGapRepo interface {

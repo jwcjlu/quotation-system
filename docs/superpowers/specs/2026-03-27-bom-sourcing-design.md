@@ -219,6 +219,22 @@ stateDiagram-v2
 - **默认：** 仅当 `bom_session.status == data_ready`（或等价）且 `readiness_mode` 条件满足时允许调用配单。
 - **部分行配单（V1，需求 §6）：** 允许请求体携带 `line_id` 子集；仅所选行参与配单；**匹配规则为完全匹配**（规范化后相等），详见需求 §6。行级就绪与错误码在 API spec 中列明。
 
+### 7.1 厂牌归一与 LLM 第二意见（默认可推荐池）
+
+**问题：** 报价侧 `mfr`/`brand` 未清洗或与 BOM 行 `mfr` 不一致时，若仍按单价排序，易出现「最低价但错厂牌」进入默认可推荐池。
+
+**原则：** 主路径为**确定性规则**；大模型仅作**第二意见**与展示/审计字段，**不得单独**作为「厂牌已匹配」的最终法律依据。
+
+| 层级 | 行为 |
+|------|------|
+| **1. 主路径（确定性）** | 维护厂牌词表与规则归一，得到 `mfr_norm`（或等价字段）。BOM 行**指定厂牌**时：报价归一后与行要求**不一致**的命中 **不得进入默认可推荐池**（仍可出现在全量命中/行内实验室供人工点选）。 |
+| **2. LLM 触发条件** | 仅在以下情形触发异步/按需调用（避免全量实时调用）：厂牌空值、规则清洗失败、**系统判定为「最低价但疑似错配」**（例如与标题/MPN 片段冲突）等。 |
+| **3. LLM 输出与落库** | 输出写入结构化字段（建议名 `llm_brand_suggestion` 或独立子表）：`suggested_mfr_norm`、**置信度** `confidence`（0–1 或枚举）、**简要理由** `rationale`、关联 `quote_item_id`/`cache_id`、**模型标识与版本** `model_id`/`model_version`、**输入摘要**（标题/MPN 等脱敏或截断后的 `input_digest`）。供前端展示与审计导出。 |
+| **4. 合并策略（档位提升）** | **仅当**（A）规则路径已给出**高置信**归一结果，**或**（B）LLM 为**高置信**且 **`suggested_mfr_norm` 与规则归一结果一致** 时，才允许将该报价的「厂牌可信度档位」自动上调并参与**默认可推荐池**排序。否则保持 **待人工** 或 **排除自动推荐**（与 §7 门禁一致：不满足则不得作为会话级默认选用）。 |
+| **5. 全程留痕** | 每次 LLM 调用持久化：`input_digest`、prompt/策略版本（若可）、`model_version`、原始 JSON 输出、**采购是否采纳**（布尔 + 操作人 + 时间，若 UI 提供「采纳建议」）。便于复盘与模型升级对照。 |
+
+**实现注意：** LLM 失败或超时不阻塞搜索任务终态；缺失 `llm_brand_suggestion` 时回退为仅规则路径。API 与表字段在实现阶段锁定命名（可与 `t_bom_quote_item` 扩展 JSON 或旁路表二选一，须在评审中写清）。
+
 ---
 
 ## 8. 文档索引
@@ -243,3 +259,4 @@ stateDiagram-v2
 | 2026-03-27 | §3.5：多 `bom_search_task` 共用同一 `caichip_task_id`，同 `(mpn_norm, platform_id, biz_date)` 单次真实抓取与 Fan-out |
 | 2026-03-27 | 实现落地：按计划 [2026-03-27-bom-sourcing-implementation.md](../plans/2026-03-27-bom-sourcing-implementation.md) 完成 FSM、就绪判定、Excel 导入、data/service 与 HTTP 注册（`readiness_mode` 迁移见 `docs/schema/migrations/20260327_bom_readiness.sql`） |
 | 2026-04-15 | §3.5/§4 缓存口径更新：`t_bom_quote_cache` 使用 `id` 主键 + `(mpn_norm, platform_id, biz_date)` 唯一键；`quotes_json` 拆至 `t_bom_quote_item` |
+| 2026-05-03 | **§7.1**：厂牌规则归一 + LLM 第二意见（触发条件、`llm_brand_suggestion`、合并档位策略、审计留痕）；默认可推荐池与最低价错配风险对齐 |

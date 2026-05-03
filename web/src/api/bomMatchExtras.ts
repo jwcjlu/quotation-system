@@ -196,7 +196,7 @@ export async function listManufacturerAliasCandidates(
 
 export async function listMatchSourceRecords(bomId: string): Promise<MatchSourceRecordsReply> {
   const json = await fetchJson<Record<string, unknown>>(
-    `/api/bom/match-source-records/${encodeURIComponent(bomId)}`
+    `/api/v1/bom/${encodeURIComponent(bomId)}/match-sources`
   )
   const lines = ((json.lines ?? []) as Record<string, unknown>[]).map((line) => ({
     line_no: num(line.line_no ?? line.lineNo),
@@ -225,9 +225,8 @@ export async function getMatchSourceDetail(
   lineNo: number,
   platform: string
 ): Promise<MatchSourceDetailReply> {
-  const q = new URLSearchParams({ line_no: String(lineNo), platform })
   const json = await fetchJson<Record<string, unknown>>(
-    `/api/bom/match-source-records/${encodeURIComponent(bomId)}/detail?${q}`
+    `/api/v1/bom/${encodeURIComponent(bomId)}/match-sources/${encodeURIComponent(String(lineNo))}/${encodeURIComponent(platform)}`
   )
   return {
     merge_mpn: str(json.merge_mpn ?? json.mergeMpn),
@@ -253,5 +252,101 @@ export async function getMatchSourceDetail(
     bom_demand_package: str(json.bom_demand_package ?? json.bomDemandPackage),
     bom_demand_manufacturer: str(json.bom_demand_manufacturer ?? json.bomDemandManufacturer),
     no_mpn_detail: str(json.no_mpn_detail ?? json.noMpnDetail),
+  }
+}
+
+export interface BomLineDemandSnapshot {
+  line_no: number
+  line_db_id: number
+  raw_text: string
+  mpn: string
+  unified_mpn: string
+  reference_designator: string
+  substitute_mpn: string
+  remark: string
+  description: string
+  demand_manufacturer: string
+  manufacturer_canonical_id: string
+  demand_package: string
+  quantity: number
+  extra_json: string
+}
+
+export interface BomQuoteItemReadRow {
+  platform: string
+  quote_id: number
+  item_id: number
+  model: string
+  manufacturer: string
+  manufacturer_canonical_id: string
+  package: string
+  stock: string
+  desc: string
+  moq: string
+  lead_time: string
+  price_tiers: string
+  hk_price: string
+  mainland_price: string
+  query_model: string
+  datasheet_url: string
+  source_type: string
+  session_id: string
+  line_id: number
+}
+
+export interface BomLineQuoteItemsReply {
+  biz_date: string
+  merge_mpn: string
+  demand: BomLineDemandSnapshot
+  items: BomQuoteItemReadRow[]
+}
+
+export async function getBomLineQuoteItems(bomId: string, lineNo: number): Promise<BomLineQuoteItemsReply> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/v1/bom/${encodeURIComponent(bomId)}/lines/${encodeURIComponent(String(lineNo))}/quote-items`
+  )
+  const d = (json.demand ?? {}) as Record<string, unknown>
+  const demand: BomLineDemandSnapshot = {
+    line_no: num(d.line_no ?? d.lineNo),
+    line_db_id: num(d.line_db_id ?? d.lineDbId),
+    raw_text: str(d.raw_text ?? d.rawText),
+    mpn: str(d.mpn),
+    unified_mpn: str(d.unified_mpn ?? d.unifiedMpn),
+    reference_designator: str(d.reference_designator ?? d.referenceDesignator),
+    substitute_mpn: str(d.substitute_mpn ?? d.substituteMpn),
+    remark: str(d.remark),
+    description: str(d.description),
+    demand_manufacturer: str(d.demand_manufacturer ?? d.demandManufacturer),
+    manufacturer_canonical_id: str(d.manufacturer_canonical_id ?? d.manufacturerCanonicalId),
+    demand_package: str(d.demand_package ?? d.demandPackage),
+    quantity: Number(d.quantity ?? 0) || 0,
+    extra_json: str(d.extra_json ?? d.extraJson),
+  }
+  const items = ((json.items ?? []) as Record<string, unknown>[]).map((r) => ({
+    platform: str(r.platform),
+    quote_id: num(r.quote_id ?? r.quoteId),
+    item_id: num(r.item_id ?? r.itemId),
+    model: str(r.model),
+    manufacturer: str(r.manufacturer),
+    manufacturer_canonical_id: str(r.manufacturer_canonical_id ?? r.manufacturerCanonicalId),
+    package: str(r.package),
+    stock: str(r.stock),
+    desc: str(r.desc),
+    moq: str(r.moq),
+    lead_time: str(r.lead_time ?? r.leadTime),
+    price_tiers: str(r.price_tiers ?? r.priceTiers),
+    hk_price: str(r.hk_price ?? r.hkPrice),
+    mainland_price: str(r.mainland_price ?? r.mainlandPrice),
+    query_model: str(r.query_model ?? r.queryModel),
+    datasheet_url: str(r.datasheet_url ?? r.datasheetUrl),
+    source_type: str(r.source_type ?? r.sourceType),
+    session_id: str(r.session_id ?? r.sessionId),
+    line_id: num(r.line_id ?? r.lineId),
+  }))
+  return {
+    biz_date: str(json.biz_date ?? json.bizDate),
+    merge_mpn: str(json.merge_mpn ?? json.mergeMpn),
+    demand,
+    items,
   }
 }

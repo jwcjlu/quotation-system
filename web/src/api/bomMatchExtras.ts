@@ -1,4 +1,5 @@
 import { fetchJson } from './http'
+import type { QuoteItemMfrReviewItem } from './types'
 
 export interface ManufacturerCanonicalRow {
   canonical_id: string
@@ -6,13 +7,23 @@ export interface ManufacturerCanonicalRow {
   alias_count?: number
 }
 
-export interface ManufacturerAliasCandidate {
-  kind: 'demand' | 'quote'
-  alias: string
+// ---------- BOM 厂牌两阶段清洗（REST /api/v1/bom-sessions/{session_id}/...）----------
+
+export interface SessionLineMfrCandidate {
+  line_no: number
+  mfr: string
   recommended_canonical_id: string
-  line_nos: number[]
-  platform_ids: string[]
-  demand_hint: string
+}
+
+export interface SessionLineMfrCandidatesReply {
+  items: SessionLineMfrCandidate[]
+}
+
+export interface QuoteItemMfrReviewsReply {
+  gate_open: boolean
+  items: QuoteItemMfrReviewItem[]
+  /** 未按优先子集过滤前的待审条数（与 gate_open 无关；默认 include_all=false 时 ≥ items.length） */
+  all_pending_quote_mfr_count?: number
 }
 
 export interface AgentQuoteRow {
@@ -156,17 +167,19 @@ export async function listManufacturerCanonicals(
   }))
 }
 
-export async function approveManufacturerAliasCleaning(
+/** 阶段一：提交需求行厂牌清洗（写别名表 + 仅回填 session_line）。 */
+export async function approveSessionLineMfrCleaning(
   sessionId: string,
   input: { alias: string; canonical_id: string; display_name: string }
 ): Promise<{ session_line_updated: number; quote_item_updated: number }> {
-  return fetchJson(`/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/manufacturer-alias-approvals`, {
+  return fetchJson(`/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/session-line-mfr-approvals`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
 }
 
+/** 对会话内需求行尝试按已有别名表补全 canonical（不写 quote_item）。 */
 export async function applyManufacturerAliasesToSession(
   sessionId: string
 ): Promise<{ session_line_updated: number; quote_item_updated: number }> {
@@ -177,26 +190,84 @@ export async function applyManufacturerAliasesToSession(
   })
 }
 
-export async function listManufacturerAliasCandidates(
+/** 阶段一：需求行厂牌待清洗候选列表。 */
+export async function listSessionLineMfrCandidates(
   sessionId: string
-): Promise<ManufacturerAliasCandidate[]> {
+): Promise<SessionLineMfrCandidatesReply> {
   const json = await fetchJson<Record<string, unknown>>(
-    `/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/manufacturer-alias-candidates`
+    `/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/session-line-mfr-candidates`
   )
-  const rows = (json.items ?? []) as Record<string, unknown>[]
-  return rows.map((r) => ({
-    kind: str(r.kind) === 'demand' ? 'demand' : 'quote',
-    alias: str(r.alias),
+  const rawItems = (json.items ?? []) as Record<string, unknown>[]
+  const items: SessionLineMfrCandidate[] = rawItems.map((r) => ({
+    line_no: num(r.line_no ?? r.lineNo),
+    mfr: str(r.mfr),
     recommended_canonical_id: str(r.recommended_canonical_id ?? r.recommendedCanonicalId),
-    line_nos: ((r.line_nos ?? r.lineNos ?? []) as unknown[]).map(num).filter((v) => v > 0),
-    platform_ids: ((r.platform_ids ?? r.platformIds ?? []) as unknown[]).map(str).filter(Boolean),
-    demand_hint: str(r.demand_hint ?? r.demandHint),
   }))
+  return { items }
+}
+
+/** 阶段二：独立 GET 列表（与 getReadiness(..., includeQuoteItemMfrReviews) 同源）。工作台已合并至 readiness；保留供旧客户端。 */
+export async function listQuoteItemMfrReviews(
+  sessionId: string,
+  options?: { includeAllPendingQuoteMfr?: boolean },
+): Promise<QuoteItemMfrReviewsReply> {
+  const q =
+    options?.includeAllPendingQuoteMfr === true
+      ? '?include_all_pending_quote_mfr=true'
+      : ''
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/quote-item-mfr-reviews${q}`
+  )
+  const rawItems = (json.items ?? []) as Record<string, unknown>[]
+  const items: QuoteItemMfrReviewItem[] = rawItems.map((r) => ({
+    quote_item_id: num(r.quote_item_id ?? r.quoteItemId),
+    line_no: num(r.line_no ?? r.lineNo),
+    line_manufacturer_canonical_id: str(r.line_manufacturer_canonical_id ?? r.lineManufacturerCanonicalId),
+    manufacturer: str(r.manufacturer),
+    platform_id: str(r.platform_id ?? r.platformId),
+  }))
+  const allPending =
+    json.all_pending_quote_mfr_count != null || json.allPendingQuoteMfrCount != null
+      ? num(json.all_pending_quote_mfr_count ?? json.allPendingQuoteMfrCount, 0)
+      : undefined
+  return {
+    gate_open: bool(json.gate_open ?? json.gateOpen),
+    items,
+    ...(allPending !== undefined ? { all_pending_quote_mfr_count: allPending } : {}),
+  }
+}
+
+/** 阶段二：报价厂牌 accept / reject（reject 可带 reason）。 */
+export async function submitQuoteItemMfrReview(
+  sessionId: string,
+  body: {
+    quote_item_id: number
+    decision: 'accept' | 'reject'
+    reason?: string
+    manufacturer_canonical_id?: string
+  }
+): Promise<void> {
+  const payload: Record<string, unknown> = {
+    quote_item_id: body.quote_item_id,
+    decision: body.decision,
+  }
+  if (body.reason != null && String(body.reason).trim() !== '') {
+    payload.reason = body.reason
+  }
+  if (body.manufacturer_canonical_id != null && String(body.manufacturer_canonical_id).trim() !== '') {
+    const canonical = String(body.manufacturer_canonical_id).trim()
+    payload.manufacturer_canonical_id = canonical
+  }
+  await fetchJson(`/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/quote-item-mfr-reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function listMatchSourceRecords(bomId: string): Promise<MatchSourceRecordsReply> {
   const json = await fetchJson<Record<string, unknown>>(
-    `/api/bom/match-source-records/${encodeURIComponent(bomId)}`
+    `/api/v1/bom/${encodeURIComponent(bomId)}/match-sources`
   )
   const lines = ((json.lines ?? []) as Record<string, unknown>[]).map((line) => ({
     line_no: num(line.line_no ?? line.lineNo),
@@ -225,9 +296,8 @@ export async function getMatchSourceDetail(
   lineNo: number,
   platform: string
 ): Promise<MatchSourceDetailReply> {
-  const q = new URLSearchParams({ line_no: String(lineNo), platform })
   const json = await fetchJson<Record<string, unknown>>(
-    `/api/bom/match-source-records/${encodeURIComponent(bomId)}/detail?${q}`
+    `/api/v1/bom/${encodeURIComponent(bomId)}/match-sources/${encodeURIComponent(String(lineNo))}/${encodeURIComponent(platform)}`
   )
   return {
     merge_mpn: str(json.merge_mpn ?? json.mergeMpn),
@@ -253,5 +323,101 @@ export async function getMatchSourceDetail(
     bom_demand_package: str(json.bom_demand_package ?? json.bomDemandPackage),
     bom_demand_manufacturer: str(json.bom_demand_manufacturer ?? json.bomDemandManufacturer),
     no_mpn_detail: str(json.no_mpn_detail ?? json.noMpnDetail),
+  }
+}
+
+export interface BomLineDemandSnapshot {
+  line_no: number
+  line_db_id: number
+  raw_text: string
+  mpn: string
+  unified_mpn: string
+  reference_designator: string
+  substitute_mpn: string
+  remark: string
+  description: string
+  demand_manufacturer: string
+  manufacturer_canonical_id: string
+  demand_package: string
+  quantity: number
+  extra_json: string
+}
+
+export interface BomQuoteItemReadRow {
+  platform: string
+  quote_id: number
+  item_id: number
+  model: string
+  manufacturer: string
+  manufacturer_canonical_id: string
+  package: string
+  stock: string
+  desc: string
+  moq: string
+  lead_time: string
+  price_tiers: string
+  hk_price: string
+  mainland_price: string
+  query_model: string
+  datasheet_url: string
+  source_type: string
+  session_id: string
+  line_id: number
+}
+
+export interface BomLineQuoteItemsReply {
+  biz_date: string
+  merge_mpn: string
+  demand: BomLineDemandSnapshot
+  items: BomQuoteItemReadRow[]
+}
+
+export async function getBomLineQuoteItems(bomId: string, lineNo: number): Promise<BomLineQuoteItemsReply> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/v1/bom/${encodeURIComponent(bomId)}/lines/${encodeURIComponent(String(lineNo))}/quote-items`
+  )
+  const d = (json.demand ?? {}) as Record<string, unknown>
+  const demand: BomLineDemandSnapshot = {
+    line_no: num(d.line_no ?? d.lineNo),
+    line_db_id: num(d.line_db_id ?? d.lineDbId),
+    raw_text: str(d.raw_text ?? d.rawText),
+    mpn: str(d.mpn),
+    unified_mpn: str(d.unified_mpn ?? d.unifiedMpn),
+    reference_designator: str(d.reference_designator ?? d.referenceDesignator),
+    substitute_mpn: str(d.substitute_mpn ?? d.substituteMpn),
+    remark: str(d.remark),
+    description: str(d.description),
+    demand_manufacturer: str(d.demand_manufacturer ?? d.demandManufacturer),
+    manufacturer_canonical_id: str(d.manufacturer_canonical_id ?? d.manufacturerCanonicalId),
+    demand_package: str(d.demand_package ?? d.demandPackage),
+    quantity: Number(d.quantity ?? 0) || 0,
+    extra_json: str(d.extra_json ?? d.extraJson),
+  }
+  const items = ((json.items ?? []) as Record<string, unknown>[]).map((r) => ({
+    platform: str(r.platform),
+    quote_id: num(r.quote_id ?? r.quoteId),
+    item_id: num(r.item_id ?? r.itemId),
+    model: str(r.model),
+    manufacturer: str(r.manufacturer),
+    manufacturer_canonical_id: str(r.manufacturer_canonical_id ?? r.manufacturerCanonicalId),
+    package: str(r.package),
+    stock: str(r.stock),
+    desc: str(r.desc),
+    moq: str(r.moq),
+    lead_time: str(r.lead_time ?? r.leadTime),
+    price_tiers: str(r.price_tiers ?? r.priceTiers),
+    hk_price: str(r.hk_price ?? r.hkPrice),
+    mainland_price: str(r.mainland_price ?? r.mainlandPrice),
+    query_model: str(r.query_model ?? r.queryModel),
+    datasheet_url: str(r.datasheet_url ?? r.datasheetUrl),
+    source_type: str(r.source_type ?? r.sourceType),
+    session_id: str(r.session_id ?? r.sessionId),
+    line_id: num(r.line_id ?? r.lineId),
+  }))
+  return {
+    biz_date: str(json.biz_date ?? json.bizDate),
+    merge_mpn: str(json.merge_mpn ?? json.mergeMpn),
+    demand,
+    items,
   }
 }

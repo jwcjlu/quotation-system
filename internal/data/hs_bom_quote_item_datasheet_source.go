@@ -61,7 +61,7 @@ func (s *HsBomQuoteItemDatasheetSource) ListQuoteDatasheetCandidates(ctx context
 	var rows []BomQuoteItem
 	q := s.scopeModelManufacturer(s.d.DB.WithContext(ctx), ctx, model, manufacturer).
 		Where("datasheet_url IS NOT NULL AND TRIM(datasheet_url) <> ''").
-		Order("updated_at DESC, id DESC")
+		Order("updated_at DESC, id DESC").Limit(2)
 	err := q.Find(&rows).Error
 	if err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func (s *HsBomQuoteItemDatasheetSource) GetLatestByModelManufacturer(ctx context
 	q := s.scopeModelManufacturer(s.d.DB.WithContext(ctx), ctx, model, manufacturer).
 		Where("datasheet_url IS NOT NULL AND TRIM(datasheet_url) <> ''").
 		Order("updated_at DESC, id DESC").
-		Limit(1)
+		Limit(10)
 	err := q.First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil

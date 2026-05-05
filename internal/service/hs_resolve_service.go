@@ -35,6 +35,7 @@ type hsTaskQuery interface {
 
 type hsRecommendationLister interface {
 	ListByRunID(ctx context.Context, runID string) ([]biz.HsModelRecommendationRecord, error)
+	ListPendingReviews(ctx context.Context, page, pageSize int, model, manufacturer string) ([]biz.HsPendingReviewRecord, int, error)
 }
 
 type hsDatasheetSource interface {
@@ -516,8 +517,8 @@ func (s *HsResolveService) ConfirmResolve(ctx context.Context, req *v1.HsResolve
 	}
 	model := strings.TrimSpace(req.GetModel())
 	manufacturer := strings.TrimSpace(req.GetManufacturer())
-	if model == "" || manufacturer == "" {
-		return nil, kerrors.BadRequest("HS_RESOLVE_CONFIRM_BAD_REQUEST", "model and manufacturer are required")
+	if model == "" {
+		return nil, kerrors.BadRequest("HS_RESOLVE_CONFIRM_BAD_REQUEST", "model is required")
 	}
 	if s.taskQuery == nil {
 		return nil, kerrors.ServiceUnavailable("HS_RESOLVE_CONFIRM_DISABLED", "task query is not configured")
@@ -529,7 +530,10 @@ func (s *HsResolveService) ConfirmResolve(ctx context.Context, req *v1.HsResolve
 	if task == nil {
 		return nil, kerrors.NotFound("HS_RESOLVE_RUN_NOT_FOUND", "run_id not found")
 	}
-	if task.Model != model || task.Manufacturer != manufacturer {
+	if task.Model != model {
+		return nil, kerrors.Conflict("HS_RESOLVE_CONFIRM_MODEL_MISMATCH", "run_id does not match model/manufacturer")
+	}
+	if manufacturer != "" && task.Manufacturer != manufacturer {
 		return nil, kerrors.Conflict("HS_RESOLVE_CONFIRM_MODEL_MISMATCH", "run_id does not match model/manufacturer")
 	}
 	in := biz.HsModelConfirmRequest{
@@ -619,6 +623,128 @@ func (s *HsResolveService) GetResolveHistory(ctx context.Context, req *v1.HsReso
 				Candidates:   cands,
 			},
 		},
+	}, nil
+}
+
+func (s *HsResolveService) BatchResolveByModels(ctx context.Context, req *v1.HsBatchResolveByModelsRequest) (*v1.HsBatchResolveByModelsReply, error) {
+	if s.resolver == nil {
+		return nil, kerrors.ServiceUnavailable("HS_RESOLVE_DISABLED", "hs resolve runner is not configured")
+	}
+	lines := req.GetLines()
+	if len(lines) == 0 {
+		return nil, kerrors.BadRequest("HS_RESOLVE_BAD_REQUEST", "lines is required")
+	}
+	requestID := strings.TrimSpace(req.GetRequestId())
+	if requestID == "" {
+		requestID = makeTraceIDForService()
+	}
+	input := make([]biz.HsBatchResolveLineInput, 0, len(lines))
+	for i := range lines {
+		input = append(input, biz.HsBatchResolveLineInput{
+			LineNo:       lines[i].GetLineNo(),
+			Model:        strings.TrimSpace(lines[i].GetModel()),
+			Manufacturer: strings.TrimSpace(lines[i].GetManufacturer()),
+			MatchStatus:  strings.TrimSpace(lines[i].GetMatchStatus()),
+			HsCodeStatus: strings.TrimSpace(lines[i].GetHsCodeStatus()),
+		})
+	}
+	decisions := biz.DecideBatchResolvableLines(input)
+	reply := &v1.HsBatchResolveByModelsReply{
+		Results: make([]*v1.HsBatchResolveResult, 0, len(decisions)),
+	}
+	for i := range decisions {
+		decision := decisions[i]
+		result := &v1.HsBatchResolveResult{
+			LineNo:       decision.Line.LineNo,
+			Model:        decision.Line.Model,
+			Manufacturer: decision.Line.Manufacturer,
+		}
+		if !decision.Accept {
+			reply.SkippedCount++
+			result.ErrorCode = "HS_RESOLVE_SKIPPED"
+			result.ErrorMessage = decision.Reason
+			reply.Results = append(reply.Results, result)
+			continue
+		}
+		resolveReq := biz.HsModelResolveRequest{
+			Model:             decision.Line.Model,
+			Manufacturer:      decision.Line.Manufacturer,
+			RequestTraceID:    fmt.Sprintf("%s:%d", requestID, decision.Line.LineNo),
+			RunID:             fmt.Sprintf("%s:%d", requestID, decision.Line.LineNo),
+			RecommendationTop: s.getRecommendTop(),
+			DatasheetCands:    s.buildDatasheetCandidates(ctx, decision.Line.Model, decision.Line.Manufacturer),
+		}
+		if len(resolveReq.DatasheetCands) == 0 {
+			reply.FailedCount++
+			result.ErrorCode = "DATASHEET_OR_MANUAL_REQUIRED"
+			result.ErrorMessage = "no datasheet candidates"
+			reply.Results = append(reply.Results, result)
+			continue
+		}
+		task, err := s.resolver.ResolveByModel(ctx, resolveReq)
+		if err != nil {
+			reply.FailedCount++
+			result.ErrorCode = "HS_RESOLVE_FAILED"
+			result.ErrorMessage = err.Error()
+			reply.Results = append(reply.Results, result)
+			continue
+		}
+		reply.AcceptedCount++
+		result.TaskId = task.RunID
+		result.RunId = task.RunID
+		result.TaskStatus = task.TaskStatus
+		result.ResultStatus = task.ResultStatus
+		result.BestCodeTs = task.BestCodeTS
+		result.BestScore = task.BestScore
+		reply.Results = append(reply.Results, result)
+	}
+	return reply, nil
+}
+
+func (s *HsResolveService) ListPendingReviews(ctx context.Context, req *v1.HsPendingReviewsRequest) (*v1.HsPendingReviewsReply, error) {
+	if s.recoRepo == nil {
+		return nil, kerrors.ServiceUnavailable("HS_RESOLVE_DISABLED", "hs recommendation repository is not configured")
+	}
+	page := int(req.GetPage())
+	pageSize := int(req.GetPageSize())
+	rows, total, err := s.recoRepo.ListPendingReviews(ctx, page, pageSize, strings.TrimSpace(req.GetModel()), strings.TrimSpace(req.GetManufacturer()))
+	if err != nil {
+		return nil, err
+	}
+	items := make([]*v1.HsPendingReviewItem, 0, len(rows))
+	for i := range rows {
+		if s.taskQuery != nil {
+			latest, latestErr := s.taskQuery.GetLatestByModelManufacturer(ctx, rows[i].Model, rows[i].Manufacturer)
+			if latestErr != nil {
+				return nil, latestErr
+			}
+			// 仅展示每个型号+厂牌的最新 run，避免确认旧 run 时触发 RUN_NOT_LATEST。
+			if latest == nil || strings.TrimSpace(latest.RunID) != strings.TrimSpace(rows[i].RunID) {
+				continue
+			}
+			if strings.TrimSpace(latest.ResultStatus) != biz.HsResultStatusPendingReview {
+				continue
+			}
+		}
+		cands, cErr := s.loadCandidates(ctx, rows[i].RunID)
+		if cErr != nil {
+			return nil, cErr
+		}
+		items = append(items, &v1.HsPendingReviewItem{
+			RunId:        rows[i].RunID,
+			Model:        rows[i].Model,
+			Manufacturer: rows[i].Manufacturer,
+			TaskStatus:   rows[i].TaskStatus,
+			ResultStatus: rows[i].ResultStatus,
+			BestCodeTs:   rows[i].BestCodeTS,
+			BestScore:    rows[i].BestScore,
+			UpdatedAt:    rows[i].UpdatedAt.Format(time.RFC3339),
+			Candidates:   cands,
+		})
+	}
+	return &v1.HsPendingReviewsReply{
+		Items: items,
+		Total: int32(total),
 	}, nil
 }
 
@@ -756,6 +882,10 @@ func (s *HsResolveService) makeRunID(model, manufacturer, traceID string, forceR
 		return base
 	}
 	return fmt.Sprintf("%s|refresh-%d", base, time.Now().UnixNano())
+}
+
+func makeTraceIDForService() string {
+	return fmt.Sprintf("hs-batch-%d", time.Now().UnixNano())
 }
 
 func (s *HsResolveService) buildDatasheetCandidates(ctx context.Context, model, manufacturer string) []biz.HsDatasheetCandidate {

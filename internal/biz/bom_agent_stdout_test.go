@@ -94,6 +94,14 @@ func (r *stdoutSearchRepoStub) UpsertManualQuote(context.Context, uint64, AgentQ
 	return nil
 }
 
+func (r *stdoutSearchRepoStub) ListBomQuoteItemsForSessionLineRead(context.Context, string, int64, time.Time, string, []string) ([]BomQuoteItemReadRow, error) {
+	return nil, nil
+}
+
+func (r *stdoutSearchRepoStub) CountQuoteMfrReviewPendingForSession(context.Context, string) (int64, error) {
+	return 0, nil
+}
+
 type stdoutSessionRepoStub struct {
 	view      *BOMSessionView
 	lines     []BOMSessionLineView

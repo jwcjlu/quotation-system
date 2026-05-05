@@ -53,9 +53,30 @@ service BomService {
     };
   }
 
-  rpc ApproveManufacturerAliasCleaning(ApproveManufacturerAliasCleaningRequest) returns (ApproveManufacturerAliasCleaningReply) {
+  // 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
+  rpc ListSessionLineMfrCandidates(ListSessionLineMfrCandidatesRequest) returns (ListSessionLineMfrCandidatesReply) {
     option (google.api.http) = {
-      post: "/api/v1/bom-sessions/{session_id}/manufacturer-alias-approvals"
+      get: "/api/v1/bom-sessions/{session_id}/session-line-mfr-candidates"
+    };
+  }
+
+  rpc ApproveSessionLineMfrCleaning(ApproveSessionLineMfrCleaningRequest) returns (ApproveSessionLineMfrCleaningReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions/{session_id}/session-line-mfr-approvals"
+      body: "*"
+    };
+  }
+
+  // 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
+  rpc ListQuoteItemMfrReviews(ListQuoteItemMfrReviewsRequest) returns (ListQuoteItemMfrReviewsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews"
+    };
+  }
+
+  rpc SubmitQuoteItemMfrReview(SubmitQuoteItemMfrReviewRequest) returns (SubmitQuoteItemMfrReviewReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews"
       body: "*"
     };
   }
@@ -92,6 +113,13 @@ service BomService {
   rpc GetMatchSourceDetail(GetMatchSourceDetailRequest) returns (GetMatchSourceDetailReply) {
     option (google.api.http) = {
       get: "/api/v1/bom/{bom_id}/match-sources/{line_no}/{platform}"
+    };
+  }
+
+  // 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+  rpc GetBomLineQuoteItems(GetBomLineQuoteItemsRequest) returns (GetBomLineQuoteItemsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom/{bom_id}/lines/{line_no}/quote-items"
     };
   }
   // ---------- BOM 会话（货源搜索 / 轮询就绪，见 docs/BOM货源搜索-接口清单.md）----------
@@ -270,6 +298,21 @@ service HsResolveService {
   rpc GetResolveHistory(HsResolveHistoryRequest) returns (HsResolveHistoryReply) {
     option (google.api.http) = {
       get: "/api/hs/resolve/history"
+    };
+  }
+
+  // 批量触发解析（仅处理“已匹配且无 HS”行）
+  rpc BatchResolveByModels(HsBatchResolveByModelsRequest) returns (HsBatchResolveByModelsReply) {
+    option (google.api.http) = {
+      post: "/api/hs/resolve/by-models:batch"
+      body: "*"
+    };
+  }
+
+  // 分页查询待人工确认项
+  rpc ListPendingReviews(HsPendingReviewsRequest) returns (HsPendingReviewsReply) {
+    option (google.api.http) = {
+      get: "/api/hs/resolve/pending-reviews"
     };
   }
 
@@ -466,6 +509,57 @@ message GetMatchSourceDetailReply {
   string bom_demand_manufacturer = 11;
 }
 
+message GetBomLineQuoteItemsRequest {
+  string bom_id = 1;
+  int32 line_no = 2;
+}
+
+message BomLineDemandSnapshot {
+  int32 line_no = 1;
+  int64 line_db_id = 2;
+  string raw_text = 3;
+  string mpn = 4;
+  string unified_mpn = 5;
+  string reference_designator = 6;
+  string substitute_mpn = 7;
+  string remark = 8;
+  string description = 9;
+  string demand_manufacturer = 10;
+  string manufacturer_canonical_id = 11;
+  string demand_package = 12;
+  double quantity = 13;
+  string extra_json = 14;
+}
+
+message BomQuoteItemRead {
+  string platform = 1;
+  uint64 quote_id = 2;
+  uint64 item_id = 3;
+  string model = 4;
+  string manufacturer = 5;
+  string manufacturer_canonical_id = 6;
+  string package = 7;
+  string stock = 8;
+  string desc = 9;
+  string moq = 10;
+  string lead_time = 11;
+  string price_tiers = 12;
+  string hk_price = 13;
+  string mainland_price = 14;
+  string query_model = 15;
+  string datasheet_url = 16;
+  string source_type = 17;
+  string session_id = 18;
+  int64 line_id = 19;
+}
+
+message GetBomLineQuoteItemsReply {
+  string biz_date = 1;
+  string merge_mpn = 2;
+  BomLineDemandSnapshot demand = 3;
+  repeated BomQuoteItemRead items = 4;
+}
+
 // ========== 厂牌别名 ==========
 message ListManufacturerCanonicalsRequest {
   int32 limit = 1;
@@ -488,17 +582,62 @@ message CreateManufacturerAliasRequest {
 
 message CreateManufacturerAliasReply {}
 
-message ApproveManufacturerAliasCleaningRequest {
+message ListSessionLineMfrCandidatesRequest {
+  string session_id = 1;
+}
+
+message ListSessionLineMfrCandidatesReply {
+  repeated SessionLineMfrCandidateRow items = 1;
+}
+
+message SessionLineMfrCandidateRow {
+  int32 line_no = 1;
+  string mfr = 2;
+  string recommended_canonical_id = 3;
+}
+
+message ApproveSessionLineMfrCleaningRequest {
   string session_id = 1;
   string alias = 2;
   string canonical_id = 3;
   string display_name = 4;
 }
 
-message ApproveManufacturerAliasCleaningReply {
+message ApproveSessionLineMfrCleaningReply {
   int32 session_line_updated = 1;
   int32 quote_item_updated = 2;
 }
+
+message ListQuoteItemMfrReviewsRequest {
+  string session_id = 1;
+  // 为 true 时返回全部仍待阶段二人工确认的报价子行；为 false（默认）时仅返回各行 TopK∪TopN 优先队列内、且仍须确认的报价（依赖 match 就绪；未就绪时与 true 行为一致返回全量）。
+  bool include_all_pending_quote_mfr = 2;
+}
+
+message ListQuoteItemMfrReviewsReply {
+  bool gate_open = 1;
+  repeated QuoteItemMfrReviewRow items = 2;
+  // 未按优先子集过滤前的待审报价子行总数（默认过滤时用于前端「展示 x / y」；include_all_pending_quote_mfr=true 时与 items 长度一致）。
+  int32 all_pending_quote_mfr_count = 3;
+}
+
+message QuoteItemMfrReviewRow {
+  uint64 quote_item_id = 1;
+  int32 line_no = 2;
+  string line_manufacturer_canonical_id = 3;
+  string manufacturer = 4;
+  string platform_id = 5;
+}
+
+message SubmitQuoteItemMfrReviewRequest {
+  string session_id = 1;
+  uint64 quote_item_id = 2;
+  string decision = 3;
+  string reason = 4;
+  string manufacturer_canonical_id = 5;
+}
+
+message SubmitQuoteItemMfrReviewReply {}
 
 message ApplyKnownManufacturerAliasesToSessionRequest {
   string session_id = 1;
@@ -601,6 +740,10 @@ message PutPlatformsReply {
 
 message GetReadinessRequest {
   string session_id = 1;
+  // 为 true 时在响应中一并返回阶段二报价厂牌待审列表（原 GET quote-item-mfr-reviews；与 ListQuoteItemMfrReviews 同源）。
+  bool include_quote_item_mfr_reviews = 2;
+  // 仅当 include_quote_item_mfr_reviews 时有效：为 true 返回全量待审子行，为 false（默认）仅返回各行 TopK∪TopN 内待审。
+  bool include_all_pending_quote_mfr = 3;
 }
 
 message GetReadinessReply {
@@ -618,6 +761,29 @@ message GetReadinessReply {
   int32 no_match_after_filter_line_count = 12;
   int32 collecting_line_count = 13;
   bool has_strict_blocking_gap = 14;
+  // 父行有需求厂牌时，报价子表处于 manufacturer_review_status=pending 的行数（跨平台合计）。
+  int32 quote_mfr_review_pending_count = 15;
+  // 规则 B：会话内需行中「未满足底价带厂牌全通过」的行数（与 SRS REQ-READY-004 一致；无法计算时 repeated 为空且本字段为 0）。
+  int32 session_lines_quote_review_rule_b_not_ok_count = 16;
+  // 当前默认 TopN（REQ-QUEUE-001 配置回声）。
+  int32 session_quote_review_default_top_n = 17;
+  // 每需求行规则 B 与候选池快照（REQ-READY-001）。
+  repeated LineQuoteReviewReadiness line_quote_review_readiness = 18;
+  // 以下字段仅当请求 include_quote_item_mfr_reviews 时填充（与 ListQuoteItemMfrReviewsReply 对齐）。
+  bool quote_mfr_review_gate_open = 19;
+  repeated QuoteItemMfrReviewRow quote_item_mfr_review_items = 20;
+  int32 all_pending_quote_mfr_count = 21;
+}
+
+// 单条 t_bom_session_line（需求行）维度：TopK/TopN/规则 B 均在「该行 × 会话勾选平台」合并后的报价子行池上计算，不按平台分别取 Top。
+message LineQuoteReviewReadiness {
+  string line_id = 1;
+  bool line_quote_review_rule_b_ok = 2;
+  int32 line_quote_review_candidate_pool_m = 3;
+  // 该行合并池内规则 B 底价带 TopK（t_bom_quote_item.id，跨平台）。
+  repeated uint64 line_quote_review_top_k_item_ids = 4;
+  // 该行合并池内默认优先审核 TopN（同上，跨平台可比价排序后截断）。
+  repeated uint64 line_quote_review_top_n_item_ids = 5;
 }
 
 message GetBOMLinesRequest {
@@ -1036,6 +1202,65 @@ message HsResolveHistoryItem {
 
 message HsResolveHistoryReply {
   repeated HsResolveHistoryItem items = 1;
+}
+
+message HsBatchResolveLine {
+  int32 line_no = 1;
+  string model = 2;
+  string manufacturer = 3;
+  string match_status = 4;
+  string hs_code_status = 5;
+}
+
+message HsBatchResolveByModelsRequest {
+  string session_id = 1;
+  string request_id = 2;
+  repeated HsBatchResolveLine lines = 3;
+}
+
+message HsBatchResolveResult {
+  int32 line_no = 1;
+  string model = 2;
+  string manufacturer = 3;
+  string task_id = 4;
+  string run_id = 5;
+  string task_status = 6;
+  string result_status = 7;
+  string best_code_ts = 8;
+  double best_score = 9;
+  string error_code = 10;
+  string error_message = 11;
+}
+
+message HsBatchResolveByModelsReply {
+  int32 accepted_count = 1;
+  int32 skipped_count = 2;
+  int32 failed_count = 3;
+  repeated HsBatchResolveResult results = 4;
+}
+
+message HsPendingReviewsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string model = 3;
+  string manufacturer = 4;
+}
+
+message HsPendingReviewItem {
+  string run_id = 1;
+  string model = 2;
+  string manufacturer = 3;
+  string task_status = 4;
+  string result_status = 5;
+  string best_code_ts = 6;
+  double best_score = 7;
+  string updated_at = 8;
+  repeated HsResolveCandidate candidates = 9;
+}
+
+message HsPendingReviewsReply {
+  repeated HsPendingReviewItem items = 1;
+  int32 total = 2;
 }
 
 // ---------- HS 元数据（管理页 /api/hs/meta/*）----------

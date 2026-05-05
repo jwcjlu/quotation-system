@@ -1,3 +1,5 @@
+// 厂牌两阶段改造后：阶段一（canonical 列表、ApproveSessionLineMfrCleaning、ApplyKnownAliases）的 service 层单测。
+// 原 bom_manufacturer_alias_candidates_test.go 已删除，相关场景由本文件与 bom_mfr_two_phase_test.go 等覆盖。
 package service
 
 import (
@@ -26,27 +28,27 @@ func TestListManufacturerCanonicalsRoutePrefersStaticPath(t *testing.T) {
 	}
 }
 
-func TestApproveManufacturerAliasCleaningBackfillsSession(t *testing.T) {
+func TestApproveSessionLineMfrCleaningBackfillsSession(t *testing.T) {
 	cleaning := &manufacturerCleaningRepoStub{}
 	svc := &BomService{
 		alias:       manufacturerAliasRepoStub{},
 		mfrCleaning: cleaning,
 	}
 
-	reply, err := svc.ApproveManufacturerAliasCleaning(context.Background(), &v1.ApproveManufacturerAliasCleaningRequest{
+	reply, err := svc.ApproveSessionLineMfrCleaning(context.Background(), &v1.ApproveSessionLineMfrCleaningRequest{
 		SessionId:   "session-1",
 		Alias:       "TI",
 		CanonicalId: "MFR_TI",
 		DisplayName: "Texas Instruments",
 	})
 	if err != nil {
-		t.Fatalf("ApproveManufacturerAliasCleaning() error = %v", err)
+		t.Fatalf("ApproveSessionLineMfrCleaning() error = %v", err)
 	}
 	if cleaning.backfillSessionID != "session-1" || cleaning.backfillAliasNorm != "TI" || cleaning.backfillCanonicalID != "MFR_TI" {
 		t.Fatalf("backfill args = session %q alias %q canonical %q", cleaning.backfillSessionID, cleaning.backfillAliasNorm, cleaning.backfillCanonicalID)
 	}
-	if reply.GetSessionLineUpdated() != 2 || reply.GetQuoteItemUpdated() != 3 {
-		t.Fatalf("reply = %+v, want line=2 quote=3", reply)
+	if reply.GetSessionLineUpdated() != 2 || reply.GetQuoteItemUpdated() != 0 {
+		t.Fatalf("reply = %+v, want line=2 quote=0 (阶段一不写 quote_item)", reply)
 	}
 }
 
@@ -63,8 +65,8 @@ func TestApplyKnownManufacturerAliasesToSession(t *testing.T) {
 	if cleaning.applySessionID != "session-1" {
 		t.Fatalf("apply session = %q, want session-1", cleaning.applySessionID)
 	}
-	if reply.GetSessionLineUpdated() != 5 || reply.GetQuoteItemUpdated() != 7 {
-		t.Fatalf("reply = %+v, want line=5 quote=7", reply)
+	if reply.GetSessionLineUpdated() != 5 || reply.GetQuoteItemUpdated() != 0 {
+		t.Fatalf("reply = %+v, want line=5 quote=0 (应用别名仅需求行)", reply)
 	}
 }
 
@@ -77,14 +79,26 @@ type manufacturerCleaningRepoStub struct {
 
 func (s *manufacturerCleaningRepoStub) DBOk() bool { return true }
 
-func (s *manufacturerCleaningRepoStub) BackfillSessionManufacturerCanonical(ctx context.Context, sessionID, aliasNorm, canonicalID string, overwrite bool) (biz.ManufacturerCleaningResult, error) {
+func (s *manufacturerCleaningRepoStub) BackfillSessionLineManufacturerCanonical(ctx context.Context, sessionID, aliasNorm, canonicalID string, overwrite bool) (biz.ManufacturerCleaningResult, error) {
 	s.backfillSessionID = sessionID
 	s.backfillAliasNorm = aliasNorm
 	s.backfillCanonicalID = canonicalID
-	return biz.ManufacturerCleaningResult{SessionLineUpdated: 2, QuoteItemUpdated: 3}, nil
+	return biz.ManufacturerCleaningResult{SessionLineUpdated: 2, QuoteItemUpdated: 0}, nil
 }
 
 func (s *manufacturerCleaningRepoStub) ApplyKnownAliasesToSession(ctx context.Context, sessionID string) (biz.ManufacturerCleaningResult, error) {
 	s.applySessionID = sessionID
-	return biz.ManufacturerCleaningResult{SessionLineUpdated: 5, QuoteItemUpdated: 7}, nil
+	return biz.ManufacturerCleaningResult{SessionLineUpdated: 5, QuoteItemUpdated: 0}, nil
+}
+
+func (s *manufacturerCleaningRepoStub) ListMfrReviewQuoteItems(context.Context, string) ([]biz.MfrReviewQuoteItem, error) {
+	return nil, nil
+}
+
+func (s *manufacturerCleaningRepoStub) LoadMfrReviewQuoteItem(context.Context, string, uint64) (*biz.MfrReviewQuoteItem, error) {
+	return nil, nil
+}
+
+func (s *manufacturerCleaningRepoStub) UpdateQuoteItemManufacturerReview(context.Context, uint64, string, *string, *string) error {
+	return nil
 }

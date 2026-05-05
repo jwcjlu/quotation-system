@@ -20,7 +20,7 @@ func (s *BomService) SaveMatchRun(ctx context.Context, req *v1.SaveMatchRunReque
 	if err != nil {
 		return nil, err
 	}
-	if err := s.matchReadinessError(ctx, req.GetSessionId(), view, lines); err != nil {
+	if err := s.matchReadinessError(ctx, req.GetSessionId(), view, lines, false); err != nil {
 		return nil, err
 	}
 	items, _, err := s.computeMatchItems(ctx, view, lines, plats)

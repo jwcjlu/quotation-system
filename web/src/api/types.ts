@@ -108,6 +108,23 @@ export interface ListSessionsReply {
   total: number
 }
 
+export interface LineQuoteReviewReadiness {
+  line_id: string
+  line_quote_review_rule_b_ok: boolean
+  line_quote_review_candidate_pool_m: number
+  line_quote_review_top_k_item_ids: string[]
+  line_quote_review_top_n_item_ids: string[]
+}
+
+/** 阶段二：报价厂牌待确认行（GetReadiness 合并字段与 quote-item-mfr-reviews 列表同形） */
+export interface QuoteItemMfrReviewItem {
+  quote_item_id: number
+  line_no: number
+  line_manufacturer_canonical_id: string
+  manufacturer: string
+  platform_id: string
+}
+
 export interface GetReadinessReply {
   session_id: string
   biz_date: string
@@ -123,6 +140,14 @@ export interface GetReadinessReply {
   no_match_after_filter_line_count: number
   collecting_line_count: number
   has_strict_blocking_gap: boolean
+  quote_mfr_review_pending_count?: number
+  session_lines_quote_review_rule_b_not_ok_count?: number
+  session_quote_review_default_top_n?: number
+  line_quote_review_readiness?: LineQuoteReviewReadiness[]
+  /** 请求 include_quote_item_mfr_reviews 时有效 */
+  quote_mfr_review_gate_open?: boolean
+  quote_item_mfr_review_items?: QuoteItemMfrReviewItem[]
+  all_pending_quote_mfr_count?: number
 }
 
 export interface PlatformGap {

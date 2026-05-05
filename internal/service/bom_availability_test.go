@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -189,6 +190,21 @@ func (m *countingManufacturerAliasRepo) CanonicalID(ctx context.Context, aliasNo
 	m.calls[aliasNorm]++
 	v, ok := m.values[aliasNorm]
 	return v, ok, nil
+}
+
+func (m *countingManufacturerAliasRepo) CanonicalIDsByNormKeys(ctx context.Context, aliasNormKeys []string) (map[string]string, error) {
+	out := make(map[string]string)
+	for _, k := range aliasNormKeys {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			continue
+		}
+		m.calls[k]++
+		if v, ok := m.values[k]; ok && strings.TrimSpace(v) != "" {
+			out[k] = v
+		}
+	}
+	return out, nil
 }
 
 func (m *countingManufacturerAliasRepo) DBOk() bool { return true }

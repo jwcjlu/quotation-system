@@ -20,7 +20,7 @@ var _ = binding.EncodeURL
 const _ = http.SupportPackageIsVersion1
 
 const OperationBomServiceApplyKnownManufacturerAliasesToSession = "/api.bom.v1.BomService/ApplyKnownManufacturerAliasesToSession"
-const OperationBomServiceApproveManufacturerAliasCleaning = "/api.bom.v1.BomService/ApproveManufacturerAliasCleaning"
+const OperationBomServiceApproveSessionLineMfrCleaning = "/api.bom.v1.BomService/ApproveSessionLineMfrCleaning"
 const OperationBomServiceAutoMatch = "/api.bom.v1.BomService/AutoMatch"
 const OperationBomServiceCreateManufacturerAlias = "/api.bom.v1.BomService/CreateManufacturerAlias"
 const OperationBomServiceCreateSession = "/api.bom.v1.BomService/CreateSession"
@@ -30,6 +30,7 @@ const OperationBomServiceDownloadTemplate = "/api.bom.v1.BomService/DownloadTemp
 const OperationBomServiceExportSession = "/api.bom.v1.BomService/ExportSession"
 const OperationBomServiceGetBOM = "/api.bom.v1.BomService/GetBOM"
 const OperationBomServiceGetBOMLines = "/api.bom.v1.BomService/GetBOMLines"
+const OperationBomServiceGetBomLineQuoteItems = "/api.bom.v1.BomService/GetBomLineQuoteItems"
 const OperationBomServiceGetMatchResult = "/api.bom.v1.BomService/GetMatchResult"
 const OperationBomServiceGetMatchRun = "/api.bom.v1.BomService/GetMatchRun"
 const OperationBomServiceGetMatchSourceDetail = "/api.bom.v1.BomService/GetMatchSourceDetail"
@@ -40,6 +41,8 @@ const OperationBomServiceListLineGaps = "/api.bom.v1.BomService/ListLineGaps"
 const OperationBomServiceListManufacturerCanonicals = "/api.bom.v1.BomService/ListManufacturerCanonicals"
 const OperationBomServiceListMatchRuns = "/api.bom.v1.BomService/ListMatchRuns"
 const OperationBomServiceListMatchSources = "/api.bom.v1.BomService/ListMatchSources"
+const OperationBomServiceListQuoteItemMfrReviews = "/api.bom.v1.BomService/ListQuoteItemMfrReviews"
+const OperationBomServiceListSessionLineMfrCandidates = "/api.bom.v1.BomService/ListSessionLineMfrCandidates"
 const OperationBomServiceListSessionSearchTasks = "/api.bom.v1.BomService/ListSessionSearchTasks"
 const OperationBomServiceListSessions = "/api.bom.v1.BomService/ListSessions"
 const OperationBomServicePatchSession = "/api.bom.v1.BomService/PatchSession"
@@ -51,11 +54,12 @@ const OperationBomServiceSaveMatchRun = "/api.bom.v1.BomService/SaveMatchRun"
 const OperationBomServiceSearchQuotes = "/api.bom.v1.BomService/SearchQuotes"
 const OperationBomServiceSelectLineGapSubstitute = "/api.bom.v1.BomService/SelectLineGapSubstitute"
 const OperationBomServiceSubmitBomSearchResult = "/api.bom.v1.BomService/SubmitBomSearchResult"
+const OperationBomServiceSubmitQuoteItemMfrReview = "/api.bom.v1.BomService/SubmitQuoteItemMfrReview"
 const OperationBomServiceUploadBOM = "/api.bom.v1.BomService/UploadBOM"
 
 type BomServiceHTTPServer interface {
 	ApplyKnownManufacturerAliasesToSession(context.Context, *ApplyKnownManufacturerAliasesToSessionRequest) (*ApplyKnownManufacturerAliasesToSessionReply, error)
-	ApproveManufacturerAliasCleaning(context.Context, *ApproveManufacturerAliasCleaningRequest) (*ApproveManufacturerAliasCleaningReply, error)
+	ApproveSessionLineMfrCleaning(context.Context, *ApproveSessionLineMfrCleaningRequest) (*ApproveSessionLineMfrCleaningReply, error)
 	// AutoMatch 自动配单
 	AutoMatch(context.Context, *AutoMatchRequest) (*AutoMatchReply, error)
 	CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error)
@@ -70,6 +74,8 @@ type BomServiceHTTPServer interface {
 	// GetBOM 获取 BOM 详情（含解析结果）
 	GetBOM(context.Context, *GetBOMRequest) (*GetBOMReply, error)
 	GetBOMLines(context.Context, *GetBOMLinesRequest) (*GetBOMLinesReply, error)
+	// GetBomLineQuoteItems 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+	GetBomLineQuoteItems(context.Context, *GetBomLineQuoteItemsRequest) (*GetBomLineQuoteItemsReply, error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(context.Context, *GetMatchResultRequest) (*GetMatchResultReply, error)
 	GetMatchRun(context.Context, *GetMatchRunRequest) (*GetMatchRunReply, error)
@@ -86,6 +92,10 @@ type BomServiceHTTPServer interface {
 	ListMatchRuns(context.Context, *ListMatchRunsRequest) (*ListMatchRunsReply, error)
 	// ListMatchSources 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
 	ListMatchSources(context.Context, *ListMatchSourcesRequest) (*ListMatchSourcesReply, error)
+	// ListQuoteItemMfrReviews 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
+	ListQuoteItemMfrReviews(context.Context, *ListQuoteItemMfrReviewsRequest) (*ListQuoteItemMfrReviewsReply, error)
+	// ListSessionLineMfrCandidates 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
+	ListSessionLineMfrCandidates(context.Context, *ListSessionLineMfrCandidatesRequest) (*ListSessionLineMfrCandidatesReply, error)
 	ListSessionSearchTasks(context.Context, *ListSessionSearchTasksRequest) (*ListSessionSearchTasksReply, error)
 	// ListSessions 会话列表（分页、筛选）
 	ListSessions(context.Context, *ListSessionsRequest) (*ListSessionsReply, error)
@@ -102,6 +112,7 @@ type BomServiceHTTPServer interface {
 	SelectLineGapSubstitute(context.Context, *SelectLineGapSubstituteRequest) (*SelectLineGapSubstituteReply, error)
 	// SubmitBomSearchResult Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
 	SubmitBomSearchResult(context.Context, *SubmitBomSearchResultRequest) (*SubmitBomSearchResultReply, error)
+	SubmitQuoteItemMfrReview(context.Context, *SubmitQuoteItemMfrReviewRequest) (*SubmitQuoteItemMfrReviewReply, error)
 	// UploadBOM 上传并解析 BOM
 	UploadBOM(context.Context, *UploadBOMRequest) (*UploadBOMReply, error)
 }
@@ -114,12 +125,16 @@ func RegisterBomServiceHTTPServer(s *http.Server, srv BomServiceHTTPServer) {
 	r.GET("/api/v1/bom/template", _BomService_DownloadTemplate0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/manufacturer-canonicals", _BomService_ListManufacturerCanonicals0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom/manufacturer-aliases", _BomService_CreateManufacturerAlias0_HTTP_Handler(srv))
-	r.POST("/api/v1/bom-sessions/{session_id}/manufacturer-alias-approvals", _BomService_ApproveManufacturerAliasCleaning0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom-sessions/{session_id}/session-line-mfr-candidates", _BomService_ListSessionLineMfrCandidates0_HTTP_Handler(srv))
+	r.POST("/api/v1/bom-sessions/{session_id}/session-line-mfr-approvals", _BomService_ApproveSessionLineMfrCleaning0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews", _BomService_ListQuoteItemMfrReviews0_HTTP_Handler(srv))
+	r.POST("/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews", _BomService_SubmitQuoteItemMfrReview0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom-sessions/{session_id}/manufacturer-aliases/apply", _BomService_ApplyKnownManufacturerAliasesToSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}", _BomService_GetBOM0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match", _BomService_GetMatchResult0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match-sources", _BomService_ListMatchSources0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom/{bom_id}/match-sources/{line_no}/{platform}", _BomService_GetMatchSourceDetail0_HTTP_Handler(srv))
+	r.GET("/api/v1/bom/{bom_id}/lines/{line_no}/quote-items", _BomService_GetBomLineQuoteItems0_HTTP_Handler(srv))
 	r.POST("/api/v1/bom-sessions", _BomService_CreateSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions/{session_id}", _BomService_GetSession0_HTTP_Handler(srv))
 	r.GET("/api/v1/bom-sessions", _BomService_ListSessions0_HTTP_Handler(srv))
@@ -269,9 +284,31 @@ func _BomService_CreateManufacturerAlias0_HTTP_Handler(srv BomServiceHTTPServer)
 	}
 }
 
-func _BomService_ApproveManufacturerAliasCleaning0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+func _BomService_ListSessionLineMfrCandidates0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
 	return func(ctx http.Context) error {
-		var in ApproveManufacturerAliasCleaningRequest
+		var in ListSessionLineMfrCandidatesRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceListSessionLineMfrCandidates)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListSessionLineMfrCandidates(ctx, req.(*ListSessionLineMfrCandidatesRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListSessionLineMfrCandidatesReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_ApproveSessionLineMfrCleaning0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ApproveSessionLineMfrCleaningRequest
 		if err := ctx.Bind(&in); err != nil {
 			return err
 		}
@@ -281,15 +318,62 @@ func _BomService_ApproveManufacturerAliasCleaning0_HTTP_Handler(srv BomServiceHT
 		if err := ctx.BindVars(&in); err != nil {
 			return err
 		}
-		http.SetOperation(ctx, OperationBomServiceApproveManufacturerAliasCleaning)
+		http.SetOperation(ctx, OperationBomServiceApproveSessionLineMfrCleaning)
 		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
-			return srv.ApproveManufacturerAliasCleaning(ctx, req.(*ApproveManufacturerAliasCleaningRequest))
+			return srv.ApproveSessionLineMfrCleaning(ctx, req.(*ApproveSessionLineMfrCleaningRequest))
 		})
 		out, err := h(ctx, &in)
 		if err != nil {
 			return err
 		}
-		reply := out.(*ApproveManufacturerAliasCleaningReply)
+		reply := out.(*ApproveSessionLineMfrCleaningReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_ListQuoteItemMfrReviews0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ListQuoteItemMfrReviewsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceListQuoteItemMfrReviews)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListQuoteItemMfrReviews(ctx, req.(*ListQuoteItemMfrReviewsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListQuoteItemMfrReviewsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_SubmitQuoteItemMfrReview0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in SubmitQuoteItemMfrReviewRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceSubmitQuoteItemMfrReview)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.SubmitQuoteItemMfrReview(ctx, req.(*SubmitQuoteItemMfrReviewRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*SubmitQuoteItemMfrReviewReply)
 		return ctx.Result(200, reply)
 	}
 }
@@ -403,6 +487,28 @@ func _BomService_GetMatchSourceDetail0_HTTP_Handler(srv BomServiceHTTPServer) fu
 			return err
 		}
 		reply := out.(*GetMatchSourceDetailReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _BomService_GetBomLineQuoteItems0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetBomLineQuoteItemsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationBomServiceGetBomLineQuoteItems)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetBomLineQuoteItems(ctx, req.(*GetBomLineQuoteItemsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetBomLineQuoteItemsReply)
 		return ctx.Result(200, reply)
 	}
 }
@@ -895,7 +1001,7 @@ func _BomService_ExportSession0_HTTP_Handler(srv BomServiceHTTPServer) func(ctx 
 
 type BomServiceHTTPClient interface {
 	ApplyKnownManufacturerAliasesToSession(ctx context.Context, req *ApplyKnownManufacturerAliasesToSessionRequest, opts ...http.CallOption) (rsp *ApplyKnownManufacturerAliasesToSessionReply, err error)
-	ApproveManufacturerAliasCleaning(ctx context.Context, req *ApproveManufacturerAliasCleaningRequest, opts ...http.CallOption) (rsp *ApproveManufacturerAliasCleaningReply, err error)
+	ApproveSessionLineMfrCleaning(ctx context.Context, req *ApproveSessionLineMfrCleaningRequest, opts ...http.CallOption) (rsp *ApproveSessionLineMfrCleaningReply, err error)
 	// AutoMatch 自动配单
 	AutoMatch(ctx context.Context, req *AutoMatchRequest, opts ...http.CallOption) (rsp *AutoMatchReply, err error)
 	CreateManufacturerAlias(ctx context.Context, req *CreateManufacturerAliasRequest, opts ...http.CallOption) (rsp *CreateManufacturerAliasReply, err error)
@@ -910,6 +1016,8 @@ type BomServiceHTTPClient interface {
 	// GetBOM 获取 BOM 详情（含解析结果）
 	GetBOM(ctx context.Context, req *GetBOMRequest, opts ...http.CallOption) (rsp *GetBOMReply, err error)
 	GetBOMLines(ctx context.Context, req *GetBOMLinesRequest, opts ...http.CallOption) (rsp *GetBOMLinesReply, err error)
+	// GetBomLineQuoteItems 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+	GetBomLineQuoteItems(ctx context.Context, req *GetBomLineQuoteItemsRequest, opts ...http.CallOption) (rsp *GetBomLineQuoteItemsReply, err error)
 	// GetMatchResult 获取配单结果
 	GetMatchResult(ctx context.Context, req *GetMatchResultRequest, opts ...http.CallOption) (rsp *GetMatchResultReply, err error)
 	GetMatchRun(ctx context.Context, req *GetMatchRunRequest, opts ...http.CallOption) (rsp *GetMatchRunReply, err error)
@@ -926,6 +1034,10 @@ type BomServiceHTTPClient interface {
 	ListMatchRuns(ctx context.Context, req *ListMatchRunsRequest, opts ...http.CallOption) (rsp *ListMatchRunsReply, err error)
 	// ListMatchSources 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
 	ListMatchSources(ctx context.Context, req *ListMatchSourcesRequest, opts ...http.CallOption) (rsp *ListMatchSourcesReply, err error)
+	// ListQuoteItemMfrReviews 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
+	ListQuoteItemMfrReviews(ctx context.Context, req *ListQuoteItemMfrReviewsRequest, opts ...http.CallOption) (rsp *ListQuoteItemMfrReviewsReply, err error)
+	// ListSessionLineMfrCandidates 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
+	ListSessionLineMfrCandidates(ctx context.Context, req *ListSessionLineMfrCandidatesRequest, opts ...http.CallOption) (rsp *ListSessionLineMfrCandidatesReply, err error)
 	ListSessionSearchTasks(ctx context.Context, req *ListSessionSearchTasksRequest, opts ...http.CallOption) (rsp *ListSessionSearchTasksReply, err error)
 	// ListSessions 会话列表（分页、筛选）
 	ListSessions(ctx context.Context, req *ListSessionsRequest, opts ...http.CallOption) (rsp *ListSessionsReply, err error)
@@ -942,6 +1054,7 @@ type BomServiceHTTPClient interface {
 	SelectLineGapSubstitute(ctx context.Context, req *SelectLineGapSubstituteRequest, opts ...http.CallOption) (rsp *SelectLineGapSubstituteReply, err error)
 	// SubmitBomSearchResult Agent 回写单行搜索任务结果（写 bom_search_task + bom_quote_cache）
 	SubmitBomSearchResult(ctx context.Context, req *SubmitBomSearchResultRequest, opts ...http.CallOption) (rsp *SubmitBomSearchResultReply, err error)
+	SubmitQuoteItemMfrReview(ctx context.Context, req *SubmitQuoteItemMfrReviewRequest, opts ...http.CallOption) (rsp *SubmitQuoteItemMfrReviewReply, err error)
 	// UploadBOM 上传并解析 BOM
 	UploadBOM(ctx context.Context, req *UploadBOMRequest, opts ...http.CallOption) (rsp *UploadBOMReply, err error)
 }
@@ -967,11 +1080,11 @@ func (c *BomServiceHTTPClientImpl) ApplyKnownManufacturerAliasesToSession(ctx co
 	return &out, nil
 }
 
-func (c *BomServiceHTTPClientImpl) ApproveManufacturerAliasCleaning(ctx context.Context, in *ApproveManufacturerAliasCleaningRequest, opts ...http.CallOption) (*ApproveManufacturerAliasCleaningReply, error) {
-	var out ApproveManufacturerAliasCleaningReply
-	pattern := "/api/v1/bom-sessions/{session_id}/manufacturer-alias-approvals"
+func (c *BomServiceHTTPClientImpl) ApproveSessionLineMfrCleaning(ctx context.Context, in *ApproveSessionLineMfrCleaningRequest, opts ...http.CallOption) (*ApproveSessionLineMfrCleaningReply, error) {
+	var out ApproveSessionLineMfrCleaningReply
+	pattern := "/api/v1/bom-sessions/{session_id}/session-line-mfr-approvals"
 	path := binding.EncodeURL(pattern, in, false)
-	opts = append(opts, http.Operation(OperationBomServiceApproveManufacturerAliasCleaning))
+	opts = append(opts, http.Operation(OperationBomServiceApproveSessionLineMfrCleaning))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {
@@ -1094,6 +1207,20 @@ func (c *BomServiceHTTPClientImpl) GetBOMLines(ctx context.Context, in *GetBOMLi
 	pattern := "/api/v1/bom-sessions/{session_id}/lines"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationBomServiceGetBOMLines))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetBomLineQuoteItems 单行：t_bom_session_line 原始需求 + 经 t_bom_quote_cache 关联的 t_bom_quote_item 全表明细（运营审查）
+func (c *BomServiceHTTPClientImpl) GetBomLineQuoteItems(ctx context.Context, in *GetBomLineQuoteItemsRequest, opts ...http.CallOption) (*GetBomLineQuoteItemsReply, error) {
+	var out GetBomLineQuoteItemsReply
+	pattern := "/api/v1/bom/{bom_id}/lines/{line_no}/quote-items"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceGetBomLineQuoteItems))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {
@@ -1230,6 +1357,34 @@ func (c *BomServiceHTTPClientImpl) ListMatchSources(ctx context.Context, in *Lis
 	pattern := "/api/v1/bom/{bom_id}/match-sources"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationBomServiceListMatchSources))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListQuoteItemMfrReviews 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
+func (c *BomServiceHTTPClientImpl) ListQuoteItemMfrReviews(ctx context.Context, in *ListQuoteItemMfrReviewsRequest, opts ...http.CallOption) (*ListQuoteItemMfrReviewsReply, error) {
+	var out ListQuoteItemMfrReviewsReply
+	pattern := "/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceListQuoteItemMfrReviews))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListSessionLineMfrCandidates 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
+func (c *BomServiceHTTPClientImpl) ListSessionLineMfrCandidates(ctx context.Context, in *ListSessionLineMfrCandidatesRequest, opts ...http.CallOption) (*ListSessionLineMfrCandidatesReply, error) {
+	var out ListSessionLineMfrCandidatesReply
+	pattern := "/api/v1/bom-sessions/{session_id}/session-line-mfr-candidates"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationBomServiceListSessionLineMfrCandidates))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {
@@ -1386,6 +1541,19 @@ func (c *BomServiceHTTPClientImpl) SubmitBomSearchResult(ctx context.Context, in
 	return &out, nil
 }
 
+func (c *BomServiceHTTPClientImpl) SubmitQuoteItemMfrReview(ctx context.Context, in *SubmitQuoteItemMfrReviewRequest, opts ...http.CallOption) (*SubmitQuoteItemMfrReviewReply, error) {
+	var out SubmitQuoteItemMfrReviewReply
+	pattern := "/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationBomServiceSubmitQuoteItemMfrReview))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // UploadBOM 上传并解析 BOM
 func (c *BomServiceHTTPClientImpl) UploadBOM(ctx context.Context, in *UploadBOMRequest, opts ...http.CallOption) (*UploadBOMReply, error) {
 	var out UploadBOMReply
@@ -1400,18 +1568,24 @@ func (c *BomServiceHTTPClientImpl) UploadBOM(ctx context.Context, in *UploadBOMR
 	return &out, nil
 }
 
+const OperationHsResolveServiceBatchResolveByModels = "/api.bom.v1.HsResolveService/BatchResolveByModels"
 const OperationHsResolveServiceConfirmResolve = "/api.bom.v1.HsResolveService/ConfirmResolve"
 const OperationHsResolveServiceGetResolveHistory = "/api.bom.v1.HsResolveService/GetResolveHistory"
 const OperationHsResolveServiceGetResolveTask = "/api.bom.v1.HsResolveService/GetResolveTask"
+const OperationHsResolveServiceListPendingReviews = "/api.bom.v1.HsResolveService/ListPendingReviews"
 const OperationHsResolveServiceResolveByModel = "/api.bom.v1.HsResolveService/ResolveByModel"
 
 type HsResolveServiceHTTPServer interface {
+	// BatchResolveByModels 批量触发解析（仅处理“已匹配且无 HS”行）
+	BatchResolveByModels(context.Context, *HsBatchResolveByModelsRequest) (*HsBatchResolveByModelsReply, error)
 	// ConfirmResolve 人工确认候选
 	ConfirmResolve(context.Context, *HsResolveConfirmRequest) (*HsResolveConfirmReply, error)
 	// GetResolveHistory 查询历史结果与候选
 	GetResolveHistory(context.Context, *HsResolveHistoryRequest) (*HsResolveHistoryReply, error)
 	// GetResolveTask 查询单个任务状态与结果
 	GetResolveTask(context.Context, *HsResolveTaskRequest) (*HsResolveTaskReply, error)
+	// ListPendingReviews 分页查询待人工确认项
+	ListPendingReviews(context.Context, *HsPendingReviewsRequest) (*HsPendingReviewsReply, error)
 	// ResolveByModel 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
 	ResolveByModel(context.Context, *HsResolveByModelRequest) (*HsResolveByModelReply, error)
 }
@@ -1422,6 +1596,8 @@ func RegisterHsResolveServiceHTTPServer(s *http.Server, srv HsResolveServiceHTTP
 	r.GET("/api/hs/resolve/task", _HsResolveService_GetResolveTask0_HTTP_Handler(srv))
 	r.POST("/api/hs/resolve/confirm", _HsResolveService_ConfirmResolve0_HTTP_Handler(srv))
 	r.GET("/api/hs/resolve/history", _HsResolveService_GetResolveHistory0_HTTP_Handler(srv))
+	r.POST("/api/hs/resolve/by-models:batch", _HsResolveService_BatchResolveByModels0_HTTP_Handler(srv))
+	r.GET("/api/hs/resolve/pending-reviews", _HsResolveService_ListPendingReviews0_HTTP_Handler(srv))
 }
 
 func _HsResolveService_ResolveByModel0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
@@ -1506,13 +1682,58 @@ func _HsResolveService_GetResolveHistory0_HTTP_Handler(srv HsResolveServiceHTTPS
 	}
 }
 
+func _HsResolveService_BatchResolveByModels0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsBatchResolveByModelsRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsResolveServiceBatchResolveByModels)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.BatchResolveByModels(ctx, req.(*HsBatchResolveByModelsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsBatchResolveByModelsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _HsResolveService_ListPendingReviews0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsPendingReviewsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsResolveServiceListPendingReviews)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListPendingReviews(ctx, req.(*HsPendingReviewsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsPendingReviewsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
 type HsResolveServiceHTTPClient interface {
+	// BatchResolveByModels 批量触发解析（仅处理“已匹配且无 HS”行）
+	BatchResolveByModels(ctx context.Context, req *HsBatchResolveByModelsRequest, opts ...http.CallOption) (rsp *HsBatchResolveByModelsReply, err error)
 	// ConfirmResolve 人工确认候选
 	ConfirmResolve(ctx context.Context, req *HsResolveConfirmRequest, opts ...http.CallOption) (rsp *HsResolveConfirmReply, err error)
 	// GetResolveHistory 查询历史结果与候选
 	GetResolveHistory(ctx context.Context, req *HsResolveHistoryRequest, opts ...http.CallOption) (rsp *HsResolveHistoryReply, err error)
 	// GetResolveTask 查询单个任务状态与结果
 	GetResolveTask(ctx context.Context, req *HsResolveTaskRequest, opts ...http.CallOption) (rsp *HsResolveTaskReply, err error)
+	// ListPendingReviews 分页查询待人工确认项
+	ListPendingReviews(ctx context.Context, req *HsPendingReviewsRequest, opts ...http.CallOption) (rsp *HsPendingReviewsReply, err error)
 	// ResolveByModel 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
 	ResolveByModel(ctx context.Context, req *HsResolveByModelRequest, opts ...http.CallOption) (rsp *HsResolveByModelReply, err error)
 }
@@ -1523,6 +1744,20 @@ type HsResolveServiceHTTPClientImpl struct {
 
 func NewHsResolveServiceHTTPClient(client *http.Client) HsResolveServiceHTTPClient {
 	return &HsResolveServiceHTTPClientImpl{client}
+}
+
+// BatchResolveByModels 批量触发解析（仅处理“已匹配且无 HS”行）
+func (c *HsResolveServiceHTTPClientImpl) BatchResolveByModels(ctx context.Context, in *HsBatchResolveByModelsRequest, opts ...http.CallOption) (*HsBatchResolveByModelsReply, error) {
+	var out HsBatchResolveByModelsReply
+	pattern := "/api/hs/resolve/by-models:batch"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationHsResolveServiceBatchResolveByModels))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // ConfirmResolve 人工确认候选
@@ -1559,6 +1794,20 @@ func (c *HsResolveServiceHTTPClientImpl) GetResolveTask(ctx context.Context, in 
 	pattern := "/api/hs/resolve/task"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationHsResolveServiceGetResolveTask))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListPendingReviews 分页查询待人工确认项
+func (c *HsResolveServiceHTTPClientImpl) ListPendingReviews(ctx context.Context, in *HsPendingReviewsRequest, opts ...http.CallOption) (*HsPendingReviewsReply, error) {
+	var out HsPendingReviewsReply
+	pattern := "/api/hs/resolve/pending-reviews"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationHsResolveServiceListPendingReviews))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {

@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"strings"
+	"time"
 
 	"caichip/internal/biz"
 
@@ -25,7 +26,9 @@ func (r *BomManufacturerCleaningRepo) DBOk() bool {
 	return r != nil && r.db != nil && r.alias != nil
 }
 
-func (r *BomManufacturerCleaningRepo) BackfillSessionManufacturerCanonical(ctx context.Context, sessionID, aliasNorm, canonicalID string, overwrite bool) (biz.ManufacturerCleaningResult, error) {
+// BackfillSessionLineManufacturerCanonical 阶段一：仅更新 t_bom_session_line（与别名审批所选 canonical 对齐）。
+// 报价明细 t_bom_quote_item 不在此路径回填（两阶段清洗 — 阶段二单独评审）。
+func (r *BomManufacturerCleaningRepo) BackfillSessionLineManufacturerCanonical(ctx context.Context, sessionID, aliasNorm, canonicalID string, overwrite bool) (biz.ManufacturerCleaningResult, error) {
 	var out biz.ManufacturerCleaningResult
 	if !r.DBOk() {
 		return out, gorm.ErrInvalidDB
@@ -53,26 +56,10 @@ func (r *BomManufacturerCleaningRepo) BackfillSessionManufacturerCanonical(ctx c
 		}
 		out.SessionLineUpdated += updated
 	}
-	quotes, err := r.listQuoteItemsForCleaning(ctx, sessionID)
-	if err != nil {
-		return out, err
-	}
-	for _, item := range quotes {
-		if biz.NormalizeMfrString(item.Manufacturer) != aliasNorm {
-			continue
-		}
-		if !overwrite && item.ManufacturerCanonicalID != nil {
-			continue
-		}
-		updated, err := r.updateQuoteItemCanonical(ctx, item.ID, canonicalID, overwrite)
-		if err != nil {
-			return out, err
-		}
-		out.QuoteItemUpdated += updated
-	}
 	return out, nil
 }
 
+// ApplyKnownAliasesToSession 仅对需求行按别名表补 canonical；不修改 t_bom_quote_item。
 func (r *BomManufacturerCleaningRepo) ApplyKnownAliasesToSession(ctx context.Context, sessionID string) (biz.ManufacturerCleaningResult, error) {
 	var out biz.ManufacturerCleaningResult
 	if !r.DBOk() {
@@ -95,23 +82,78 @@ func (r *BomManufacturerCleaningRepo) ApplyKnownAliasesToSession(ctx context.Con
 		}
 		out.SessionLineUpdated += updated
 	}
-	quotes, err := r.listQuoteItemsForCleaning(ctx, sessionID)
-	if err != nil {
-		return out, err
+	return out, nil
+}
+
+func (r *BomManufacturerCleaningRepo) ListMfrReviewQuoteItems(ctx context.Context, sessionID string) ([]biz.MfrReviewQuoteItem, error) {
+	if r.db == nil {
+		return nil, gorm.ErrInvalidDB
 	}
-	for _, item := range quotes {
-		if item.ManufacturerCanonicalID != nil {
-			continue
-		}
-		updated, err := r.applyKnownManufacturer(ctx, biz.NormalizeMfrString(item.Manufacturer), func(canonicalID string) (int64, error) {
-			return r.updateQuoteItemCanonical(ctx, item.ID, canonicalID, false)
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return nil, nil
+	}
+	var rows []BomQuoteItem
+	err := r.db.WithContext(ctx).Model(&BomQuoteItem{}).Where("session_id = ? AND manufacturer_review_status = ?", sessionID, biz.MfrReviewPending).Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make([]biz.MfrReviewQuoteItem, 0, len(rows))
+	for _, it := range rows {
+		out = append(out, biz.MfrReviewQuoteItem{
+			ID:                       it.ID,
+			LineID:                   it.LineID,
+			Manufacturer:             it.Manufacturer,
+			ManufacturerCanonicalID:  it.ManufacturerCanonicalID,
+			ManufacturerReviewStatus: it.ManufacturerReviewStatus,
 		})
-		if err != nil {
-			return out, err
-		}
-		out.QuoteItemUpdated += updated
 	}
 	return out, nil
+}
+
+func (r *BomManufacturerCleaningRepo) LoadMfrReviewQuoteItem(ctx context.Context, sessionID string, quoteItemID uint64) (*biz.MfrReviewQuoteItem, error) {
+	if r.db == nil {
+		return nil, gorm.ErrInvalidDB
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" || quoteItemID == 0 {
+		return nil, nil
+	}
+	var it BomQuoteItem
+	err := r.db.WithContext(ctx).Where("id = ? AND session_id = ?", quoteItemID, sessionID).First(&it).Error
+	if err != nil {
+		return nil, err
+	}
+	out := &biz.MfrReviewQuoteItem{
+		ID:                       it.ID,
+		LineID:                   it.LineID,
+		Manufacturer:             it.Manufacturer,
+		ManufacturerCanonicalID:  it.ManufacturerCanonicalID,
+		ManufacturerReviewStatus: it.ManufacturerReviewStatus,
+	}
+	return out, nil
+}
+
+func (r *BomManufacturerCleaningRepo) UpdateQuoteItemManufacturerReview(ctx context.Context, quoteItemID uint64, status string, canonicalID *string, reason *string) error {
+	if r.db == nil {
+		return gorm.ErrInvalidDB
+	}
+	updates := map[string]any{
+		"manufacturer_review_status": status,
+	}
+	if canonicalID != nil {
+		updates["manufacturer_canonical_id"] = *canonicalID
+	} else {
+		updates["manufacturer_canonical_id"] = nil
+	}
+	if reason != nil {
+		updates["manufacturer_review_reason"] = *reason
+	} else {
+		updates["manufacturer_review_reason"] = nil
+	}
+	now := time.Now().UTC()
+	updates["manufacturer_reviewed_at"] = &now
+	return r.db.WithContext(ctx).Model(&BomQuoteItem{}).Where("id = ?", quoteItemID).Updates(updates).Error
 }
 
 func (r *BomManufacturerCleaningRepo) applyKnownManufacturer(ctx context.Context, aliasNorm string, update func(string) (int64, error)) (int64, error) {
@@ -131,23 +173,8 @@ func (r *BomManufacturerCleaningRepo) listSessionLinesForCleaning(ctx context.Co
 	return rows, err
 }
 
-func (r *BomManufacturerCleaningRepo) listQuoteItemsForCleaning(ctx context.Context, sessionID string) ([]BomQuoteItem, error) {
-	var rows []BomQuoteItem
-	err := r.db.WithContext(ctx).Model(&BomQuoteItem{}).Where("session_id = ?", sessionID).Find(&rows).Error
-	return rows, err
-}
-
 func (r *BomManufacturerCleaningRepo) updateSessionLineCanonical(ctx context.Context, id int64, canonicalID string, overwrite bool) (int64, error) {
 	q := r.db.WithContext(ctx).Model(&BomSessionLine{}).Where("id = ?", id)
-	if !overwrite {
-		q = q.Where("manufacturer_canonical_id IS NULL")
-	}
-	res := q.Update("manufacturer_canonical_id", canonicalID)
-	return res.RowsAffected, res.Error
-}
-
-func (r *BomManufacturerCleaningRepo) updateQuoteItemCanonical(ctx context.Context, id uint64, canonicalID string, overwrite bool) (int64, error) {
-	q := r.db.WithContext(ctx).Model(&BomQuoteItem{}).Where("id = ?", id)
 	if !overwrite {
 		q = q.Where("manufacturer_canonical_id IS NULL")
 	}

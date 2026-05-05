@@ -5,7 +5,8 @@ import { SessionLinesPanel } from './SessionLinesPanel'
 import { SessionMaintenancePanel } from './SessionMaintenancePanel'
 import { SessionMatchResultPanel } from './SessionMatchResultPanel'
 import { SessionOverviewPanel } from './SessionOverviewPanel'
-import { SessionSearchCleanPanel } from './SessionSearchCleanPanel'
+import { SessionDataCleanPanel } from './SessionDataCleanPanel'
+import { SessionSearchTasksPanel } from './SessionSearchTasksPanel'
 import { SESSION_WORKBENCH_TABS, type SessionWorkbenchTab } from './sessionTabs'
 
 const SESSION_MATCH_READY = 'data_ready'
@@ -123,8 +124,10 @@ export function SessionWorkspace({
 
       {currentTab === 'match' && canEnterMatch ? (
         <SessionMatchResultPanel bomId={sessionId} onNavigateToHsResolve={onNavigateToHsResolve} />
-      ) : currentTab === 'search-clean' ? (
-        <SessionSearchCleanPanel sessionId={sessionId} />
+      ) : currentTab === 'search-tasks' ? (
+        <SessionSearchTasksPanel sessionId={sessionId} />
+      ) : currentTab === 'data-clean' ? (
+        <SessionDataCleanPanel sessionId={sessionId} />
       ) : currentTab === 'lines' ? (
         <SessionLinesPanel sessionId={sessionId} />
       ) : currentTab === 'gaps' ? (

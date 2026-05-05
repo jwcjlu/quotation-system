@@ -1,0 +1,116 @@
+<svg width="1440" height="1020" viewBox="0 0 1440 1020" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="1020" fill="#F4F6FA"/>
+  <text x="72" y="54" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="30" font-weight="700">BOM 工作台改造后原型图</text>
+  <text x="72" y="86" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15">每个 Tab 是独立任务面板：概览看状态，BOM 行管行数据，搜索清洗管任务，缺口处理管报价/替代料，维护管单据配置。</text>
+
+  <rect x="72" y="120" width="1296" height="800" rx="8" fill="white" stroke="#CBD6E5"/>
+  <rect x="72" y="120" width="1296" height="82" rx="8" fill="#111B2B"/>
+  <rect x="72" y="194" width="1296" height="8" fill="#111B2B"/>
+  <text x="96" y="158" fill="white" font-family="Microsoft YaHei, Arial, sans-serif" font-size="22" font-weight="700">CAICHIP BOM 配单系统</text>
+  <text x="96" y="184" fill="#AAB8CE" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">集中管理 BOM 会话、搜索清洗、缺口处理和匹配结果</text>
+
+  <rect x="964" y="144" width="74" height="34" rx="6" fill="#111B2B"/>
+  <text x="984" y="166" fill="#D6E0F2" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">指南</text>
+  <rect x="1052" y="144" width="108" height="34" rx="6" fill="white"/>
+  <text x="1073" y="166" fill="#111827" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">BOM 工作台</text>
+  <rect x="1172" y="144" width="96" height="34" rx="6" fill="#111B2B"/>
+  <text x="1192" y="166" fill="#D6E0F2" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">HS 解析</text>
+  <rect x="1280" y="144" width="70" height="34" rx="6" fill="#111B2B"/>
+  <text x="1296" y="166" fill="#D6E0F2" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">运维</text>
+
+  <rect x="72" y="202" width="330" height="718" fill="#FFFFFF"/>
+  <line x1="402" y1="202" x2="402" y2="920" stroke="#D9E1EC"/>
+  <text x="96" y="234" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="17" font-weight="700">BOM 会话</text>
+  <text x="96" y="260" fill="#64748B" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12">左侧只负责查找和选择会话</text>
+  <rect x="306" y="218" width="70" height="48" rx="6" fill="#1F2A3D"/>
+  <text x="318" y="248" fill="white" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" font-weight="700">上传 BOM</text>
+
+  <rect x="96" y="288" width="280" height="36" rx="6" fill="white" stroke="#D7E0ED"/>
+  <text x="112" y="311" fill="#64748B" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">状态：data_ready</text>
+  <rect x="96" y="336" width="280" height="36" rx="6" fill="white" stroke="#D7E0ED"/>
+  <text x="112" y="359" fill="#64748B" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">日期：2026-04-26</text>
+  <rect x="96" y="384" width="280" height="36" rx="6" fill="white" stroke="#D7E0ED"/>
+  <text x="112" y="407" fill="#64748B" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">标题 / 客户搜索</text>
+
+  <rect x="96" y="444" width="280" height="74" rx="7" fill="#EEF4FF" stroke="#8FB2FF"/>
+  <text x="112" y="471" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" font-weight="700">Alpha 采购 BOM</text>
+  <text x="112" y="496" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12">data_ready | 48 行 | 更新 11:08</text>
+  <rect x="96" y="530" width="280" height="74" rx="7" fill="white" stroke="#D7E0ED"/>
+  <text x="112" y="557" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" font-weight="700">华东客户电源板</text>
+  <text x="112" y="582" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12">searching | 126 行 | 更新 10:42</text>
+  <rect x="96" y="616" width="280" height="74" rx="7" fill="white" stroke="#D7E0ED"/>
+  <text x="112" y="643" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" font-weight="700">传感器样品单</text>
+  <text x="112" y="668" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12">parsing | 32 行 | 更新 09:51</text>
+
+  <rect x="402" y="202" width="966" height="718" fill="#F8FAFC"/>
+  <text x="430" y="244" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="700">会话工作区</text>
+  <text x="430" y="276" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">Alpha 采购 BOM / session-20260426-001</text>
+  <rect x="1224" y="220" width="104" height="64" rx="7" fill="white" stroke="#D7E0ED"/>
+  <text x="1245" y="259" fill="#334155" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" font-weight="700">返回会话列表</text>
+
+  <rect x="430" y="310" width="898" height="54" rx="8" fill="white" stroke="#D7E0ED"/>
+  <rect x="440" y="320" width="52" height="34" rx="6" fill="#111827"/>
+  <text x="454" y="342" fill="white" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" font-weight="700">概览</text>
+  <text x="514" y="342" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" font-weight="700">BOM 行</text>
+  <text x="592" y="342" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" font-weight="700">搜索清洗</text>
+  <text x="692" y="342" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" font-weight="700">缺口处理</text>
+  <text x="792" y="342" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" font-weight="700">维护</text>
+  <text x="858" y="342" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13" font-weight="700">匹配结果</text>
+
+  <rect x="430" y="382" width="280" height="138" rx="8" fill="white" stroke="#D7E0ED"/>
+  <text x="446" y="414" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" font-weight="700">导入状态</text>
+  <text x="446" y="456" fill="#12805C" font-family="Arial, sans-serif" font-size="30" font-weight="700">ready</text>
+  <text x="446" y="486" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">只展示会话摘要和下一步状态</text>
+  <text x="446" y="506" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">不出现 BOM 行大表</text>
+
+  <rect x="724" y="382" width="280" height="138" rx="8" fill="white" stroke="#D7E0ED"/>
+  <text x="740" y="414" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" font-weight="700">BOM 行数</text>
+  <text x="740" y="456" fill="#2457C5" font-family="Arial, sans-serif" font-size="30" font-weight="700">48</text>
+  <text x="740" y="486" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">点击 BOM 行 Tab 后</text>
+  <text x="740" y="506" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">才加载完整行数据</text>
+
+  <rect x="1018" y="382" width="310" height="138" rx="8" fill="white" stroke="#D7E0ED"/>
+  <text x="1034" y="414" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="15" font-weight="700">待处理缺口</text>
+  <text x="1034" y="456" fill="#A76505" font-family="Arial, sans-serif" font-size="30" font-weight="700">6</text>
+  <text x="1034" y="486" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">点击缺口处理 Tab 后</text>
+  <text x="1034" y="506" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">再看人工报价与替代料</text>
+
+  <rect x="430" y="540" width="898" height="42" rx="7" fill="#FFF7E8" stroke="#F0C77D"/>
+  <text x="446" y="566" fill="#7A4A06" font-family="Microsoft YaHei, Arial, sans-serif" font-size="13">概览的目标是“看状态、选下一步”，不是把所有功能塞在首屏。</text>
+
+  <text x="430" y="638" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="17" font-weight="700">其他 Tab 的内容形态</text>
+  <rect x="430" y="660" width="207" height="164" rx="8" fill="white" stroke="#D7E0ED"/>
+  <text x="446" y="690" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" font-weight="700">BOM 行</text>
+  <text x="446" y="722" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12">行列表 / 新增 / 编辑 / 删除</text>
+  <rect x="446" y="742" width="80" height="22" rx="11" fill="#E8F7F0"/>
+  <text x="462" y="758" fill="#12805C" font-family="Arial, sans-serif" font-size="11" font-weight="700">ready</text>
+  <rect x="446" y="774" width="94" height="22" rx="11" fill="#FFF2D8"/>
+  <text x="462" y="790" fill="#A76505" font-family="Arial, sans-serif" font-size="11" font-weight="700">no_data</text>
+
+  <rect x="652" y="660" width="207" height="164" rx="8" fill="white" stroke="#D7E0ED"/>
+  <text x="668" y="690" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" font-weight="700">搜索清洗</text>
+  <text x="668" y="722" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12">任务状态 / 批量重试 / 厂家别名</text>
+  <rect x="668" y="742" width="82" height="22" rx="11" fill="#EAF1FF"/>
+  <text x="684" y="758" fill="#2457C5" font-family="Arial, sans-serif" font-size="11" font-weight="700">searching</text>
+  <rect x="668" y="774" width="72" height="22" rx="11" fill="#FFF0EF"/>
+  <text x="684" y="790" fill="#B42318" font-family="Arial, sans-serif" font-size="11" font-weight="700">failed</text>
+
+  <rect x="874" y="660" width="207" height="164" rx="8" fill="white" stroke="#D7E0ED"/>
+  <text x="890" y="690" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" font-weight="700">缺口处理</text>
+  <text x="890" y="722" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12">人工报价 / 替代料 / 保存 run</text>
+  <rect x="890" y="742" width="84" height="22" rx="11" fill="#FFF2D8"/>
+  <text x="906" y="758" fill="#A76505" font-family="Microsoft YaHei, Arial, sans-serif" font-size="11" font-weight="700">待处理 6</text>
+  <rect x="890" y="774" width="74" height="22" rx="11" fill="#E8F7F0"/>
+  <text x="906" y="790" fill="#12805C" font-family="Microsoft YaHei, Arial, sans-serif" font-size="11" font-weight="700">已解决</text>
+
+  <rect x="1096" y="660" width="232" height="164" rx="8" fill="white" stroke="#D7E0ED"/>
+  <text x="1112" y="690" fill="#0F172A" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" font-weight="700">维护 / 匹配结果</text>
+  <text x="1112" y="722" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12">单据信息 / 平台 / 导出</text>
+  <text x="1112" y="750" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="12">data_ready 后查看最终匹配</text>
+  <rect x="1112" y="774" width="94" height="22" rx="11" fill="#EAF1FF"/>
+  <text x="1128" y="790" fill="#2457C5" font-family="Microsoft YaHei, Arial, sans-serif" font-size="11" font-weight="700">HS 解析</text>
+
+  <rect x="72" y="946" width="1296" height="48" rx="8" fill="white" stroke="#D9E1EC"/>
+  <text x="96" y="976" fill="#334155" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14" font-weight="700">审批提示：</text>
+  <text x="174" y="976" fill="#536076" font-family="Microsoft YaHei, Arial, sans-serif" font-size="14">批准后将按该结构拆分真实 React 组件；当前 SVG 是可导入 Figma 的原型图，不连接后端。</text>
+</svg>

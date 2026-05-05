@@ -296,6 +296,14 @@ func (s *bomSearchTaskRepoStub) UpsertManualQuote(ctx context.Context, gapID uin
 	return nil
 }
 
+func (s *bomSearchTaskRepoStub) ListBomQuoteItemsForSessionLineRead(context.Context, string, int64, time.Time, string, []string) ([]biz.BomQuoteItemReadRow, error) {
+	return nil, nil
+}
+
+func (s *bomSearchTaskRepoStub) CountQuoteMfrReviewPendingForSession(context.Context, string) (int64, error) {
+	return 0, nil
+}
+
 type bomLineGapRepoStub struct {
 	gaps        []biz.BOMLineGap
 	updated     []uint64
@@ -371,6 +379,20 @@ type manufacturerAliasRepoStub map[string]string
 func (m manufacturerAliasRepoStub) CanonicalID(ctx context.Context, aliasNorm string) (string, bool, error) {
 	v, ok := m[aliasNorm]
 	return v, ok, nil
+}
+
+func (m manufacturerAliasRepoStub) CanonicalIDsByNormKeys(ctx context.Context, aliasNormKeys []string) (map[string]string, error) {
+	out := make(map[string]string)
+	for _, k := range aliasNormKeys {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			continue
+		}
+		if v, ok := m[k]; ok && strings.TrimSpace(v) != "" {
+			out[k] = v
+		}
+	}
+	return out, nil
 }
 
 func (m manufacturerAliasRepoStub) DBOk() bool { return true }

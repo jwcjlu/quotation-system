@@ -56,7 +56,8 @@ func (s *BomService) CreateManufacturerAlias(ctx context.Context, req *v1.Create
 	return nil, err
 }
 
-func (s *BomService) ApproveManufacturerAliasCleaning(ctx context.Context, req *v1.ApproveManufacturerAliasCleaningRequest) (*v1.ApproveManufacturerAliasCleaningReply, error) {
+// ApproveSessionLineMfrCleaning 阶段一审批：写别名表 + 仅回填 t_bom_session_line。
+func (s *BomService) ApproveSessionLineMfrCleaning(ctx context.Context, req *v1.ApproveSessionLineMfrCleaningRequest) (*v1.ApproveSessionLineMfrCleaningReply, error) {
 	if s.alias == nil || !s.alias.DBOk() || s.mfrCleaning == nil || !s.mfrCleaning.DBOk() {
 		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
 	}
@@ -78,11 +79,11 @@ func (s *BomService) ApproveManufacturerAliasCleaning(ctx context.Context, req *
 		}
 		return nil, err
 	}
-	res, err := s.mfrCleaning.BackfillSessionManufacturerCanonical(ctx, sessionID, aliasNorm, canonicalID, false)
+	res, err := s.mfrCleaning.BackfillSessionLineManufacturerCanonical(ctx, sessionID, aliasNorm, canonicalID, true)
 	if err != nil {
 		return nil, err
 	}
-	return &v1.ApproveManufacturerAliasCleaningReply{
+	return &v1.ApproveSessionLineMfrCleaningReply{
 		SessionLineUpdated: int32(res.SessionLineUpdated),
 		QuoteItemUpdated:   int32(res.QuoteItemUpdated),
 	}, nil

@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -23,25 +24,26 @@ func bomQuoteItemReadRow(it *BomQuoteItem, platformID string) biz.BomQuoteItemRe
 		lid = *it.LineID
 	}
 	return biz.BomQuoteItemReadRow{
-		PlatformID:              strings.TrimSpace(platformID),
-		QuoteID:                 it.QuoteID,
-		ItemID:                  it.ID,
-		Model:                   it.Model,
-		Manufacturer:            it.Manufacturer,
-		ManufacturerCanonicalID: canon,
-		Package:                 it.Package,
-		Stock:                   it.Stock,
-		Desc:                    it.Desc,
-		MOQ:                     it.MOQ,
-		LeadTime:                it.LeadTime,
-		PriceTiers:              it.PriceTiers,
-		HKPrice:                 it.HKPrice,
-		MainlandPrice:           it.MainlandPrice,
-		QueryModel:              it.QueryModel,
-		DatasheetURL:            it.DatasheetURL,
-		SourceType:              it.SourceType,
-		SessionID:               sid,
-		LineID:                  lid,
+		PlatformID:               strings.TrimSpace(platformID),
+		QuoteID:                  it.QuoteID,
+		ItemID:                   it.ID,
+		Model:                    it.Model,
+		Manufacturer:             it.Manufacturer,
+		ManufacturerCanonicalID:  canon,
+		ManufacturerReviewStatus: strings.TrimSpace(it.ManufacturerReviewStatus),
+		Package:                  it.Package,
+		Stock:                    it.Stock,
+		Desc:                     it.Desc,
+		MOQ:                      it.MOQ,
+		LeadTime:                 it.LeadTime,
+		PriceTiers:               it.PriceTiers,
+		HKPrice:                  it.HKPrice,
+		MainlandPrice:            it.MainlandPrice,
+		QueryModel:               it.QueryModel,
+		DatasheetURL:             it.DatasheetURL,
+		SourceType:               it.SourceType,
+		SessionID:                sid,
+		LineID:                   lid,
 	}
 }
 
@@ -120,22 +122,40 @@ platLoop:
 			Find(&items2).Error; err != nil {
 			return nil, err
 		}
+		quoteIDSeen := make(map[uint64]struct{})
+		var quoteIDs []uint64
+		for i := range items2 {
+			qid := items2[i].QuoteID
+			if qid == 0 {
+				continue
+			}
+			if _, ok := quoteIDSeen[qid]; ok {
+				continue
+			}
+			quoteIDSeen[qid] = struct{}{}
+			quoteIDs = append(quoteIDs, qid)
+		}
+		platByQuote := make(map[uint64]string, len(quoteIDs))
+		if len(quoteIDs) > 0 {
+			var caches2 []BomQuoteCache
+			if err = r.db.WithContext(ctx).
+				Model(&BomQuoteCache{}).
+				Select("id", "platform_id").
+				Where("id IN ?  and stock > 0", quoteIDs).
+				Find(&caches2).Error; err != nil {
+				return nil, err
+			}
+			for i := range caches2 {
+				platByQuote[caches2[i].ID] = strings.TrimSpace(caches2[i].PlatformID)
+			}
+		}
 		for i := range items2 {
 			it := &items2[i]
 			if _, ok := seen[it.ID]; ok {
 				continue
 			}
 			seen[it.ID] = struct{}{}
-			plat := ""
-			if it.QuoteID != 0 {
-				var pid string
-				_ = r.db.WithContext(ctx).Model(&BomQuoteCache{}).
-					Select("platform_id").
-					Where("id = ?", it.QuoteID).
-					Limit(1).
-					Scan(&pid).Error
-				plat = strings.TrimSpace(pid)
-			}
+			plat := platByQuote[it.QuoteID]
 			outMap[it.ID] = bomQuoteItemReadRow(it, plat)
 		}
 	}
@@ -151,4 +171,28 @@ platLoop:
 		return out[i].ItemID < out[j].ItemID
 	})
 	return out, nil
+}
+
+// CountQuoteMfrReviewPendingForSession 见 biz.BOMSearchTaskRepo。
+func (r *BOMSearchTaskRepo) CountQuoteMfrReviewPendingForSession(ctx context.Context, sessionID string) (int64, error) {
+	if !r.DBOk() {
+		return 0, nil
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return 0, nil
+	}
+	join := fmt.Sprintf(
+		"INNER JOIN %s AS l ON l.id = %s.line_id AND l.session_id = ?",
+		TableBomSessionLine,
+		TableBomQuoteItem,
+	)
+	var n int64
+	err := r.db.WithContext(ctx).
+		Model(&BomQuoteItem{}).
+		Joins(join, sessionID).
+		Where(TableBomQuoteItem+".session_id = ? AND "+TableBomQuoteItem+".manufacturer_review_status = ?", sessionID, biz.MfrReviewPending).
+		Where("l.mfr IS NOT NULL AND TRIM(l.mfr) <> ?", "").
+		Count(&n).Error
+	return n, err
 }

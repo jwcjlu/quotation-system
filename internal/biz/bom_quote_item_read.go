@@ -7,8 +7,9 @@ type BomQuoteItemReadRow struct {
 	ItemID                  uint64
 	Model                   string
 	Manufacturer            string
-	ManufacturerCanonicalID string
-	Package                 string
+	ManufacturerCanonicalID   string
+	ManufacturerReviewStatus  string
+	Package                   string
 	Stock                   string
 	Desc                    string
 	MOQ                     string

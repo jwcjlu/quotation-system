@@ -8,7 +8,8 @@ const {
   listSessionSearchTasks,
   retrySearchTasks,
   autoMatch,
-  listManufacturerAliasCandidates,
+  listSessionLineMfrCandidates,
+  listQuoteItemMfrReviews,
   listManufacturerCanonicals,
   getSession,
   getBOMLines,
@@ -20,7 +21,8 @@ const {
   listSessionSearchTasks: vi.fn(),
   retrySearchTasks: vi.fn(),
   autoMatch: vi.fn(),
-  listManufacturerAliasCandidates: vi.fn(),
+  listSessionLineMfrCandidates: vi.fn(),
+  listQuoteItemMfrReviews: vi.fn(),
   listManufacturerCanonicals: vi.fn(),
   getSession: vi.fn(),
   getBOMLines: vi.fn(),
@@ -37,7 +39,8 @@ vi.mock('../api', async () => {
     listSessionSearchTasks,
     retrySearchTasks,
     autoMatch,
-    listManufacturerAliasCandidates,
+    listSessionLineMfrCandidates,
+    listQuoteItemMfrReviews,
     listManufacturerCanonicals,
     getSession,
     getBOMLines,
@@ -100,7 +103,8 @@ describe('BomWorkbenchPage', () => {
     })
     retrySearchTasks.mockResolvedValue({ accepted: 0 })
     autoMatch.mockResolvedValue({ items: [], total_amount: 0 })
-    listManufacturerAliasCandidates.mockResolvedValue([])
+    listSessionLineMfrCandidates.mockResolvedValue({ items: [] })
+    listQuoteItemMfrReviews.mockResolvedValue({ gate_open: false, items: [] })
     listManufacturerCanonicals.mockResolvedValue([])
     getBOMLines.mockResolvedValue({
       lines: [
@@ -197,7 +201,8 @@ describe('BomWorkbenchPage', () => {
 
     expect(await screen.findByRole('tab', { name: '\u6982\u89c8' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'BOM\u884c' })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: '\u641c\u7d22\u6e05\u6d17' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '\u4efb\u52a1\u7ba1\u7406' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: '\u6570\u636e\u6e05\u6d17' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '\u7f3a\u53e3\u5904\u7406' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '\u7ef4\u62a4' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: '\u5339\u914d\u7ed3\u679c' })).toBeInTheDocument()
@@ -219,7 +224,7 @@ describe('BomWorkbenchPage', () => {
     expect(getBOMLines).toHaveBeenCalledWith('session-1')
   })
 
-  it('opens search clean tools inside the selected session', async () => {
+  it('opens search task tools inside the selected session', async () => {
     render(<BomWorkbenchPage />)
 
     await act(async () => {
@@ -227,12 +232,29 @@ describe('BomWorkbenchPage', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
-    fireEvent.click(await screen.findByRole('tab', { name: '\u641c\u7d22\u6e05\u6d17' }))
+    fireEvent.click(await screen.findByRole('tab', { name: '\u4efb\u52a1\u7ba1\u7406' }))
 
-    expect(await screen.findByTestId('session-search-clean-panel')).toBeInTheDocument()
-    expect(screen.getByTestId('manufacturer-alias-review-panel')).toBeInTheDocument()
+    expect(await screen.findByTestId('session-search-tasks-panel')).toBeInTheDocument()
+    expect(screen.queryByTestId('manufacturer-alias-review-panel')).not.toBeInTheDocument()
     expect(listSessionSearchTasks).toHaveBeenCalledWith('session-1')
-    expect(listManufacturerAliasCandidates).toHaveBeenCalledWith('session-1')
+    expect(listSessionLineMfrCandidates).not.toHaveBeenCalled()
+    expect(autoMatch).not.toHaveBeenCalled()
+  })
+
+  it('opens data clean and manufacturer alias review inside the selected session', async () => {
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+    fireEvent.click(await screen.findByRole('tab', { name: '\u6570\u636e\u6e05\u6d17' }))
+
+    expect(await screen.findByTestId('session-data-clean-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('manufacturer-alias-review-panel')).toBeInTheDocument()
+    expect(listSessionLineMfrCandidates).toHaveBeenCalledWith('session-1')
+    expect(listQuoteItemMfrReviews).toHaveBeenCalledWith('session-1')
     expect(autoMatch).not.toHaveBeenCalled()
   })
 
@@ -284,6 +306,20 @@ describe('BomWorkbenchPage', () => {
   })
 
   it('opens the match result workspace once the selected session is data_ready', async () => {
+    listSessions.mockResolvedValue({
+      total: 1,
+      items: [
+        {
+          session_id: 'session-1',
+          title: 'Alpha BOM',
+          customer_name: '',
+          status: 'data_ready',
+          biz_date: '2026-04-21',
+          updated_at: '2026-04-21T13:55:00+08:00',
+          line_count: 48,
+        },
+      ],
+    })
     getSession.mockResolvedValue({
       session_id: 'session-1',
       title: 'Alpha BOM',
@@ -317,5 +353,49 @@ describe('BomWorkbenchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
 
     expect(await screen.findByRole('button', { name: '\u8fd4\u56de\u4f1a\u8bdd\u5217\u8868' })).toBeInTheDocument()
+  })
+
+  it('marks quote-item mfr phase aria-disabled when gate_open is false', async () => {
+    listQuoteItemMfrReviews.mockResolvedValue({ gate_open: false, items: [] })
+
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+    fireEvent.click(await screen.findByRole('tab', { name: '\u6570\u636e\u6e05\u6d17' }))
+
+    const phase = await screen.findByTestId('quote-item-mfr-phase')
+    expect(phase).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows enabled quote mfr pass/reject when gate_open is true with pending items', async () => {
+    listQuoteItemMfrReviews.mockResolvedValue({
+      gate_open: true,
+      items: [
+        {
+          quote_item_id: 1,
+          line_no: 2,
+          line_manufacturer_canonical_id: 'MFR_TI',
+          manufacturer: 'TI',
+          platform_id: 'find_chips',
+        },
+      ],
+    })
+
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+    fireEvent.click(await screen.findByRole('tab', { name: '\u6570\u636e\u6e05\u6d17' }))
+
+    const passBtn = await screen.findByRole('button', { name: '\u901a\u8fc7' })
+    expect(passBtn).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: '\u4e0d\u901a\u8fc7' })).not.toBeDisabled()
   })
 })

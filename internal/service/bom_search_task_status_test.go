@@ -277,3 +277,11 @@ func (r *searchTaskStatusRepoStub) DistinctPendingMergeKeysForSession(context.Co
 func (r *searchTaskStatusRepoStub) UpsertManualQuote(context.Context, uint64, biz.AgentQuoteRow) error {
 	return nil
 }
+
+func (r *searchTaskStatusRepoStub) ListBomQuoteItemsForSessionLineRead(context.Context, string, int64, time.Time, string, []string) ([]biz.BomQuoteItemReadRow, error) {
+	return nil, nil
+}
+
+func (r *searchTaskStatusRepoStub) CountQuoteMfrReviewPendingForSession(context.Context, string) (int64, error) {
+	return 0, nil
+}

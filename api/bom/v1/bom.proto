@@ -53,9 +53,30 @@ service BomService {
     };
   }
 
-  rpc ApproveManufacturerAliasCleaning(ApproveManufacturerAliasCleaningRequest) returns (ApproveManufacturerAliasCleaningReply) {
+  // 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
+  rpc ListSessionLineMfrCandidates(ListSessionLineMfrCandidatesRequest) returns (ListSessionLineMfrCandidatesReply) {
     option (google.api.http) = {
-      post: "/api/v1/bom-sessions/{session_id}/manufacturer-alias-approvals"
+      get: "/api/v1/bom-sessions/{session_id}/session-line-mfr-candidates"
+    };
+  }
+
+  rpc ApproveSessionLineMfrCleaning(ApproveSessionLineMfrCleaningRequest) returns (ApproveSessionLineMfrCleaningReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions/{session_id}/session-line-mfr-approvals"
+      body: "*"
+    };
+  }
+
+  // 厂牌两阶段清洗 — 阶段二：报价明细评审列表 + 提交
+  rpc ListQuoteItemMfrReviews(ListQuoteItemMfrReviewsRequest) returns (ListQuoteItemMfrReviewsReply) {
+    option (google.api.http) = {
+      get: "/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews"
+    };
+  }
+
+  rpc SubmitQuoteItemMfrReview(SubmitQuoteItemMfrReviewRequest) returns (SubmitQuoteItemMfrReviewReply) {
+    option (google.api.http) = {
+      post: "/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews"
       body: "*"
     };
   }
@@ -546,17 +567,57 @@ message CreateManufacturerAliasRequest {
 
 message CreateManufacturerAliasReply {}
 
-message ApproveManufacturerAliasCleaningRequest {
+message ListSessionLineMfrCandidatesRequest {
+  string session_id = 1;
+}
+
+message ListSessionLineMfrCandidatesReply {
+  repeated SessionLineMfrCandidateRow items = 1;
+}
+
+message SessionLineMfrCandidateRow {
+  int32 line_no = 1;
+  string mfr = 2;
+  string recommended_canonical_id = 3;
+}
+
+message ApproveSessionLineMfrCleaningRequest {
   string session_id = 1;
   string alias = 2;
   string canonical_id = 3;
   string display_name = 4;
 }
 
-message ApproveManufacturerAliasCleaningReply {
+message ApproveSessionLineMfrCleaningReply {
   int32 session_line_updated = 1;
   int32 quote_item_updated = 2;
 }
+
+message ListQuoteItemMfrReviewsRequest {
+  string session_id = 1;
+}
+
+message ListQuoteItemMfrReviewsReply {
+  bool gate_open = 1;
+  repeated QuoteItemMfrReviewRow items = 2;
+}
+
+message QuoteItemMfrReviewRow {
+  uint64 quote_item_id = 1;
+  int32 line_no = 2;
+  string line_manufacturer_canonical_id = 3;
+  string manufacturer = 4;
+  string platform_id = 5;
+}
+
+message SubmitQuoteItemMfrReviewRequest {
+  string session_id = 1;
+  uint64 quote_item_id = 2;
+  string decision = 3;
+  string reason = 4;
+}
+
+message SubmitQuoteItemMfrReviewReply {}
 
 message ApplyKnownManufacturerAliasesToSessionRequest {
   string session_id = 1;
@@ -676,6 +737,8 @@ message GetReadinessReply {
   int32 no_match_after_filter_line_count = 12;
   int32 collecting_line_count = 13;
   bool has_strict_blocking_gap = 14;
+  // 父行有需求厂牌时，报价子表处于 manufacturer_review_status=pending 的行数（跨平台合计）。
+  int32 quote_mfr_review_pending_count = 15;
 }
 
 message GetBOMLinesRequest {

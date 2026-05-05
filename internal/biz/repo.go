@@ -103,6 +103,8 @@ type BOMSearchTaskRepo interface {
 	UpsertManualQuote(ctx context.Context, gapID uint64, row AgentQuoteRow) error
 	// ListBomQuoteItemsForSessionLineRead 读取该行在会话业务日、勾选平台下经 t_bom_quote_cache 关联的 t_bom_quote_item，并合并 session_id+line_id 直挂的明细。
 	ListBomQuoteItemsForSessionLineRead(ctx context.Context, sessionID string, lineID int64, bizDate time.Time, mergeMpn string, platformIDs []string) ([]BomQuoteItemReadRow, error)
+	// CountQuoteMfrReviewPendingForSession 统计：报价子表属于本会话、关联父行 mfr 非空、且 manufacturer_review_status=pending 的行数。
+	CountQuoteMfrReviewPendingForSession(ctx context.Context, sessionID string) (int64, error)
 }
 
 type BOMLineGapRepo interface {
@@ -263,6 +265,9 @@ type ManufacturerCanonicalDisplay struct {
 // BomManufacturerAliasRepo 厂牌别名表：点查 + 运维列表/写入。
 type BomManufacturerAliasRepo interface {
 	CanonicalID(ctx context.Context, aliasNorm string) (canonicalID string, ok bool, err error)
+	// CanonicalIDsByNormKeys 按 alias_norm 批量精确匹配；返回值仅含 canonical_id 非空的命中项（未命中键不出现在 map 中）。
+	// keys 应为 Trim 后非空、且与 NormalizeMfrString 输出一致的规范键。
+	CanonicalIDsByNormKeys(ctx context.Context, aliasNormKeys []string) (map[string]string, error)
 	DBOk() bool
 	ListDistinctCanonicals(ctx context.Context, limit int) ([]ManufacturerCanonicalDisplay, error)
 	CreateRow(ctx context.Context, canonicalID, displayName, alias, aliasNorm string) error
@@ -273,10 +278,23 @@ type ManufacturerCleaningResult struct {
 	QuoteItemUpdated   int64
 }
 
+// MfrReviewQuoteItem 供厂牌评审列表的报价行快照（避免 biz 依赖 data 模型）。
+type MfrReviewQuoteItem struct {
+	ID                       uint64
+	LineID                   *int64
+	Manufacturer             string
+	ManufacturerCanonicalID  *string
+	ManufacturerReviewStatus string
+}
+
 type BomManufacturerCleaningRepo interface {
 	DBOk() bool
-	BackfillSessionManufacturerCanonical(ctx context.Context, sessionID, aliasNorm, canonicalID string, overwrite bool) (ManufacturerCleaningResult, error)
+	// BackfillSessionLineManufacturerCanonical 阶段一：仅按 alias_norm 回填 t_bom_session_line 的 manufacturer_canonical_id。
+	BackfillSessionLineManufacturerCanonical(ctx context.Context, sessionID, aliasNorm, canonicalID string, overwrite bool) (ManufacturerCleaningResult, error)
 	ApplyKnownAliasesToSession(ctx context.Context, sessionID string) (ManufacturerCleaningResult, error)
+	ListMfrReviewQuoteItems(ctx context.Context, sessionID string) ([]MfrReviewQuoteItem, error)
+	LoadMfrReviewQuoteItem(ctx context.Context, sessionID string, quoteItemID uint64) (*MfrReviewQuoteItem, error)
+	UpdateQuoteItemManufacturerReview(ctx context.Context, quoteItemID uint64, status string, canonicalID *string, reason *string) error
 }
 
 // HsModelMappingRecord 型号到 code_ts 的映射记录。

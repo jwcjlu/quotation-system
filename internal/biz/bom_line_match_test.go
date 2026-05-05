@@ -158,6 +158,92 @@ func TestLineMatch_MfrMismatchCollected(t *testing.T) {
 	}
 }
 
+func quoteRowLM358TI() AgentQuoteRow {
+	return AgentQuoteRow{
+		Model: "LM358", Manufacturer: "TI", Package: "SOP-8",
+		Stock: "1", MOQ: "1", PriceTiers: "1+ ￥1.0000", LeadTime: "1天",
+	}
+}
+
+func TestLineMatch_ManufacturerReviewStatus_AcceptedRequiresCanonMatch(t *testing.T) {
+	ctx := context.Background()
+	alias := stringAliasMap{"TI": "MFR_TI"}
+	hint := &BomManufacturerResolveHint{Hit: true, CanonID: "MFR_TI"}
+	base := LineMatchInput{
+		BomMpn:           "LM358",
+		BomPackage:       "SOP-8",
+		BomMfr:           "TI",
+		BomQty:           1,
+		PlatformID:       "ickey",
+		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		BaseCCY:          "CNY",
+		RoundingMode:     "decimal6",
+		ParseTierStrings: true,
+		BomMfrHint:       hint,
+	}
+	rowMatch := quoteRowLM358TI()
+	canonOK := "MFR_TI"
+	rowMatch.ManufacturerReviewStatus = MfrReviewAccepted
+	rowMatch.ManufacturerCanonicalID = &canonOK
+	in := base
+	in.QuoteRows = []AgentQuoteRow{rowMatch}
+	pick, err := PickBestQuoteForLine(ctx, in, fakeFX{}, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !pick.Ok {
+		t.Fatalf("expected Ok, reason=%q", pick.Reason)
+	}
+	rowBad := quoteRowLM358TI()
+	canonBad := "MFR_ON"
+	rowBad.ManufacturerReviewStatus = MfrReviewAccepted
+	rowBad.ManufacturerCanonicalID = &canonBad
+	in2 := base
+	in2.QuoteRows = []AgentQuoteRow{rowBad}
+	pick2, err := PickBestQuoteForLine(ctx, in2, fakeFX{}, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pick2.Ok {
+		t.Fatalf("expected not Ok for wrong canonical under accepted")
+	}
+}
+
+func TestLineMatch_ManufacturerReviewStatus_PendingExcluded(t *testing.T) {
+	ctx := context.Background()
+	alias := stringAliasMap{"TI": "MFR_TI"}
+	hint := &BomManufacturerResolveHint{Hit: true, CanonID: "MFR_TI"}
+	canon := "MFR_TI"
+	row := quoteRowLM358TI()
+	row.ManufacturerReviewStatus = MfrReviewPending
+	row.ManufacturerCanonicalID = &canon
+	in := LineMatchInput{
+		BomMpn:           "LM358",
+		BomPackage:       "SOP-8",
+		BomMfr:           "TI",
+		BomQty:           1,
+		PlatformID:       "ickey",
+		BizDate:          time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		RequestDay:       time.Date(2026, 3, 28, 0, 0, 0, 0, time.UTC),
+		BaseCCY:          "CNY",
+		RoundingMode:     "decimal6",
+		ParseTierStrings: true,
+		BomMfrHint:       hint,
+		QuoteRows:        []AgentQuoteRow{row},
+	}
+	pick, err := PickBestQuoteForLine(ctx, in, fakeFX{}, alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pick.Ok {
+		t.Fatalf("expected not Ok for pending")
+	}
+	if pick.Reason != lineMatchReasonNoComparePrice {
+		t.Fatalf("reason=%q want %q", pick.Reason, lineMatchReasonNoComparePrice)
+	}
+}
+
 func TestLineMatch_TiePriceShorterLead(t *testing.T) {
 	// Same CNY unit price after quantize; shorter lead wins (§1.10).
 	quotes := `[

@@ -15,9 +15,10 @@ import (
 //   - Model: NormalizeMPNForBOMSearch(bom_mpn) must equal NormalizeMPNForBOMSearch(quote.model); empty model rows are skipped.
 //   - Package: if BomPackage is non-empty after TrimSpace, quote.package must match after NormalizeMfrString on both sides
 //     (trim → NFKC → ASCII upper); empty BomPackage → no package constraint.
-//   - Manufacturer: TrimSpace(BomMfr)=="" → no mfr filter (§2.5). Else: quote must have non-empty manufacturer (§2.6);
-//     both sides resolved via ResolveManufacturerCanonical; canonical IDs must be equal. If BOM mfr non-empty but BOM side
-//     misses alias table → entire line returns Ok=false (strict §2.3). Quote side miss → skip row.
+//   - Manufacturer: TrimSpace(BomMfr)=="" → no mfr filter (§2.5). Else: quote must have non-empty manufacturer (§2.6)。
+//     若报价行带 manufacturer_review_status（由 t_bom_quote_item 合并）：仅 accepted 且报价 manufacturer_canonical_id
+//     与需求 canonical 一致时通过；pending/rejected 排除。无该字段时沿用 ResolveManufacturerCanonical 别名路径（历史 quotes_json）。
+//     BOM 侧别名未命中 → Ok=false。报价侧 miss（legacy）→ skip row。
 //   - Params/desc: V1 not compared (no extra BOM fields on this struct).
 //
 // BomManufacturerResolveHint 由外层在一次配单中预先解析需求厂牌后传入，避免每个平台重复查别
@@ -142,16 +143,21 @@ func PickBestQuoteForLine(ctx context.Context, in LineMatchInput, fx FXRateLooku
 			return LineMatchPick{}, err
 		}
 		if bomMfrConstraint && quoteRowPassesModelAndPackage(in, row) && !rowOK {
-			mfr := strings.TrimSpace(row.Manufacturer)
-			if mfr == "" {
-				addMfrMismatch("")
-			} else {
-				qCanon, qHit, qerr := ResolveManufacturerCanonical(ctx, row.Manufacturer, alias)
-				if qerr != nil {
-					return LineMatchPick{}, qerr
-				}
-				if !qHit || qCanon != bomCanonID {
-					addMfrMismatch(row.Manufacturer)
+			switch strings.TrimSpace(row.ManufacturerReviewStatus) {
+			case MfrReviewPending, MfrReviewRejected, MfrReviewAccepted:
+				addMfrMismatch(row.Manufacturer)
+			default:
+				mfr := strings.TrimSpace(row.Manufacturer)
+				if mfr == "" {
+					addMfrMismatch("")
+				} else {
+					qCanon, qHit, qerr := ResolveManufacturerCanonical(ctx, row.Manufacturer, alias)
+					if qerr != nil {
+						return LineMatchPick{}, qerr
+					}
+					if !qHit || qCanon != bomCanonID {
+						addMfrMismatch(row.Manufacturer)
+					}
 				}
 			}
 		}
@@ -232,50 +238,6 @@ func PickBestQuoteForLine(ctx context.Context, in LineMatchInput, fx FXRateLooku
 		Ok:                            true,
 		MfrMismatchQuoteManufacturers: mfrMismatch,
 	}, nil
-}
-
-func lineMatchRowPasses(ctx context.Context, in LineMatchInput, bomCanonID string, bomMfrRequired bool, row AgentQuoteRow, alias AliasLookup) (bool, error) {
-	if strings.TrimSpace(row.Model) == "" {
-		return false, nil
-	}
-	if NormalizeMPNForBOMSearch(in.BomMpn) != NormalizeMPNForBOMSearch(row.Model) {
-		return false, nil
-	}
-	if pkg := strings.TrimSpace(in.BomPackage); pkg != "" {
-		if NormalizeMfrString(row.Package) != NormalizeMfrString(pkg) {
-			return false, nil
-		}
-	}
-	if !bomMfrRequired {
-		return true, nil
-	}
-	if strings.TrimSpace(row.Manufacturer) == "" {
-		return false, nil
-	}
-	qCanon, qHit, err := ResolveManufacturerCanonical(ctx, row.Manufacturer, alias)
-	if err != nil {
-		return false, err
-	}
-	if !qHit || qCanon != bomCanonID {
-		return false, nil
-	}
-	return true, nil
-}
-
-// quoteRowPassesModelAndPackage 仅校验型号与封装（若有），不含厂牌；用于识别「厂牌不匹配」类跳过。
-func quoteRowPassesModelAndPackage(in LineMatchInput, row AgentQuoteRow) bool {
-	if strings.TrimSpace(row.Model) == "" {
-		return false
-	}
-	if NormalizeMPNForBOMSearch(in.BomMpn) != NormalizeMPNForBOMSearch(row.Model) {
-		return false
-	}
-	if pkg := strings.TrimSpace(in.BomPackage); pkg != "" {
-		if NormalizeMfrString(row.Package) != NormalizeMfrString(pkg) {
-			return false
-		}
-	}
-	return true
 }
 
 // parseMoqDigits takes the first positive integer literal from moq string (e.g. "1", "MOQ 100"); 0 = unknown / not set.

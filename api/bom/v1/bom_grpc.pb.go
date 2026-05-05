@@ -25,7 +25,10 @@ const (
 	BomService_DownloadTemplate_FullMethodName                       = "/api.bom.v1.BomService/DownloadTemplate"
 	BomService_ListManufacturerCanonicals_FullMethodName             = "/api.bom.v1.BomService/ListManufacturerCanonicals"
 	BomService_CreateManufacturerAlias_FullMethodName                = "/api.bom.v1.BomService/CreateManufacturerAlias"
-	BomService_ApproveManufacturerAliasCleaning_FullMethodName       = "/api.bom.v1.BomService/ApproveManufacturerAliasCleaning"
+	BomService_ListSessionLineMfrCandidates_FullMethodName           = "/api.bom.v1.BomService/ListSessionLineMfrCandidates"
+	BomService_ApproveSessionLineMfrCleaning_FullMethodName          = "/api.bom.v1.BomService/ApproveSessionLineMfrCleaning"
+	BomService_ListQuoteItemMfrReviews_FullMethodName                = "/api.bom.v1.BomService/ListQuoteItemMfrReviews"
+	BomService_SubmitQuoteItemMfrReview_FullMethodName               = "/api.bom.v1.BomService/SubmitQuoteItemMfrReview"
 	BomService_ApplyKnownManufacturerAliasesToSession_FullMethodName = "/api.bom.v1.BomService/ApplyKnownManufacturerAliasesToSession"
 	BomService_GetBOM_FullMethodName                                 = "/api.bom.v1.BomService/GetBOM"
 	BomService_GetMatchResult_FullMethodName                         = "/api.bom.v1.BomService/GetMatchResult"
@@ -72,7 +75,12 @@ type BomServiceClient interface {
 	// 厂牌别名：规范 ID 下拉数据 + 写入 t_bom_manufacturer_alias（配单页「厂牌别名审核」）
 	ListManufacturerCanonicals(ctx context.Context, in *ListManufacturerCanonicalsRequest, opts ...grpc.CallOption) (*ListManufacturerCanonicalsReply, error)
 	CreateManufacturerAlias(ctx context.Context, in *CreateManufacturerAliasRequest, opts ...grpc.CallOption) (*CreateManufacturerAliasReply, error)
-	ApproveManufacturerAliasCleaning(ctx context.Context, in *ApproveManufacturerAliasCleaningRequest, opts ...grpc.CallOption) (*ApproveManufacturerAliasCleaningReply, error)
+	// 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
+	ListSessionLineMfrCandidates(ctx context.Context, in *ListSessionLineMfrCandidatesRequest, opts ...grpc.CallOption) (*ListSessionLineMfrCandidatesReply, error)
+	ApproveSessionLineMfrCleaning(ctx context.Context, in *ApproveSessionLineMfrCleaningRequest, opts ...grpc.CallOption) (*ApproveSessionLineMfrCleaningReply, error)
+	// 厂牌两阶段清洗 — 阶段二：报价明细评审列表 + 提交
+	ListQuoteItemMfrReviews(ctx context.Context, in *ListQuoteItemMfrReviewsRequest, opts ...grpc.CallOption) (*ListQuoteItemMfrReviewsReply, error)
+	SubmitQuoteItemMfrReview(ctx context.Context, in *SubmitQuoteItemMfrReviewRequest, opts ...grpc.CallOption) (*SubmitQuoteItemMfrReviewReply, error)
 	ApplyKnownManufacturerAliasesToSession(ctx context.Context, in *ApplyKnownManufacturerAliasesToSessionRequest, opts ...grpc.CallOption) (*ApplyKnownManufacturerAliasesToSessionReply, error)
 	// 获取 BOM 详情（含解析结果）
 	GetBOM(ctx context.Context, in *GetBOMRequest, opts ...grpc.CallOption) (*GetBOMReply, error)
@@ -183,10 +191,40 @@ func (c *bomServiceClient) CreateManufacturerAlias(ctx context.Context, in *Crea
 	return out, nil
 }
 
-func (c *bomServiceClient) ApproveManufacturerAliasCleaning(ctx context.Context, in *ApproveManufacturerAliasCleaningRequest, opts ...grpc.CallOption) (*ApproveManufacturerAliasCleaningReply, error) {
+func (c *bomServiceClient) ListSessionLineMfrCandidates(ctx context.Context, in *ListSessionLineMfrCandidatesRequest, opts ...grpc.CallOption) (*ListSessionLineMfrCandidatesReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ApproveManufacturerAliasCleaningReply)
-	err := c.cc.Invoke(ctx, BomService_ApproveManufacturerAliasCleaning_FullMethodName, in, out, cOpts...)
+	out := new(ListSessionLineMfrCandidatesReply)
+	err := c.cc.Invoke(ctx, BomService_ListSessionLineMfrCandidates_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) ApproveSessionLineMfrCleaning(ctx context.Context, in *ApproveSessionLineMfrCleaningRequest, opts ...grpc.CallOption) (*ApproveSessionLineMfrCleaningReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ApproveSessionLineMfrCleaningReply)
+	err := c.cc.Invoke(ctx, BomService_ApproveSessionLineMfrCleaning_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) ListQuoteItemMfrReviews(ctx context.Context, in *ListQuoteItemMfrReviewsRequest, opts ...grpc.CallOption) (*ListQuoteItemMfrReviewsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListQuoteItemMfrReviewsReply)
+	err := c.cc.Invoke(ctx, BomService_ListQuoteItemMfrReviews_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bomServiceClient) SubmitQuoteItemMfrReview(ctx context.Context, in *SubmitQuoteItemMfrReviewRequest, opts ...grpc.CallOption) (*SubmitQuoteItemMfrReviewReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SubmitQuoteItemMfrReviewReply)
+	err := c.cc.Invoke(ctx, BomService_SubmitQuoteItemMfrReview_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +518,12 @@ type BomServiceServer interface {
 	// 厂牌别名：规范 ID 下拉数据 + 写入 t_bom_manufacturer_alias（配单页「厂牌别名审核」）
 	ListManufacturerCanonicals(context.Context, *ListManufacturerCanonicalsRequest) (*ListManufacturerCanonicalsReply, error)
 	CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error)
-	ApproveManufacturerAliasCleaning(context.Context, *ApproveManufacturerAliasCleaningRequest) (*ApproveManufacturerAliasCleaningReply, error)
+	// 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
+	ListSessionLineMfrCandidates(context.Context, *ListSessionLineMfrCandidatesRequest) (*ListSessionLineMfrCandidatesReply, error)
+	ApproveSessionLineMfrCleaning(context.Context, *ApproveSessionLineMfrCleaningRequest) (*ApproveSessionLineMfrCleaningReply, error)
+	// 厂牌两阶段清洗 — 阶段二：报价明细评审列表 + 提交
+	ListQuoteItemMfrReviews(context.Context, *ListQuoteItemMfrReviewsRequest) (*ListQuoteItemMfrReviewsReply, error)
+	SubmitQuoteItemMfrReview(context.Context, *SubmitQuoteItemMfrReviewRequest) (*SubmitQuoteItemMfrReviewReply, error)
 	ApplyKnownManufacturerAliasesToSession(context.Context, *ApplyKnownManufacturerAliasesToSessionRequest) (*ApplyKnownManufacturerAliasesToSessionReply, error)
 	// 获取 BOM 详情（含解析结果）
 	GetBOM(context.Context, *GetBOMRequest) (*GetBOMReply, error)
@@ -549,8 +592,17 @@ func (UnimplementedBomServiceServer) ListManufacturerCanonicals(context.Context,
 func (UnimplementedBomServiceServer) CreateManufacturerAlias(context.Context, *CreateManufacturerAliasRequest) (*CreateManufacturerAliasReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateManufacturerAlias not implemented")
 }
-func (UnimplementedBomServiceServer) ApproveManufacturerAliasCleaning(context.Context, *ApproveManufacturerAliasCleaningRequest) (*ApproveManufacturerAliasCleaningReply, error) {
-	return nil, status.Error(codes.Unimplemented, "method ApproveManufacturerAliasCleaning not implemented")
+func (UnimplementedBomServiceServer) ListSessionLineMfrCandidates(context.Context, *ListSessionLineMfrCandidatesRequest) (*ListSessionLineMfrCandidatesReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSessionLineMfrCandidates not implemented")
+}
+func (UnimplementedBomServiceServer) ApproveSessionLineMfrCleaning(context.Context, *ApproveSessionLineMfrCleaningRequest) (*ApproveSessionLineMfrCleaningReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ApproveSessionLineMfrCleaning not implemented")
+}
+func (UnimplementedBomServiceServer) ListQuoteItemMfrReviews(context.Context, *ListQuoteItemMfrReviewsRequest) (*ListQuoteItemMfrReviewsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListQuoteItemMfrReviews not implemented")
+}
+func (UnimplementedBomServiceServer) SubmitQuoteItemMfrReview(context.Context, *SubmitQuoteItemMfrReviewRequest) (*SubmitQuoteItemMfrReviewReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method SubmitQuoteItemMfrReview not implemented")
 }
 func (UnimplementedBomServiceServer) ApplyKnownManufacturerAliasesToSession(context.Context, *ApplyKnownManufacturerAliasesToSessionRequest) (*ApplyKnownManufacturerAliasesToSessionReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method ApplyKnownManufacturerAliasesToSession not implemented")
@@ -762,20 +814,74 @@ func _BomService_CreateManufacturerAlias_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BomService_ApproveManufacturerAliasCleaning_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ApproveManufacturerAliasCleaningRequest)
+func _BomService_ListSessionLineMfrCandidates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListSessionLineMfrCandidatesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BomServiceServer).ApproveManufacturerAliasCleaning(ctx, in)
+		return srv.(BomServiceServer).ListSessionLineMfrCandidates(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: BomService_ApproveManufacturerAliasCleaning_FullMethodName,
+		FullMethod: BomService_ListSessionLineMfrCandidates_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BomServiceServer).ApproveManufacturerAliasCleaning(ctx, req.(*ApproveManufacturerAliasCleaningRequest))
+		return srv.(BomServiceServer).ListSessionLineMfrCandidates(ctx, req.(*ListSessionLineMfrCandidatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_ApproveSessionLineMfrCleaning_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApproveSessionLineMfrCleaningRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ApproveSessionLineMfrCleaning(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ApproveSessionLineMfrCleaning_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ApproveSessionLineMfrCleaning(ctx, req.(*ApproveSessionLineMfrCleaningRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_ListQuoteItemMfrReviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListQuoteItemMfrReviewsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).ListQuoteItemMfrReviews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_ListQuoteItemMfrReviews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).ListQuoteItemMfrReviews(ctx, req.(*ListQuoteItemMfrReviewsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BomService_SubmitQuoteItemMfrReview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitQuoteItemMfrReviewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BomServiceServer).SubmitQuoteItemMfrReview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BomService_SubmitQuoteItemMfrReview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BomServiceServer).SubmitQuoteItemMfrReview(ctx, req.(*SubmitQuoteItemMfrReviewRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1298,8 +1404,20 @@ var BomService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _BomService_CreateManufacturerAlias_Handler,
 		},
 		{
-			MethodName: "ApproveManufacturerAliasCleaning",
-			Handler:    _BomService_ApproveManufacturerAliasCleaning_Handler,
+			MethodName: "ListSessionLineMfrCandidates",
+			Handler:    _BomService_ListSessionLineMfrCandidates_Handler,
+		},
+		{
+			MethodName: "ApproveSessionLineMfrCleaning",
+			Handler:    _BomService_ApproveSessionLineMfrCleaning_Handler,
+		},
+		{
+			MethodName: "ListQuoteItemMfrReviews",
+			Handler:    _BomService_ListQuoteItemMfrReviews_Handler,
+		},
+		{
+			MethodName: "SubmitQuoteItemMfrReview",
+			Handler:    _BomService_SubmitQuoteItemMfrReview_Handler,
 		},
 		{
 			MethodName: "ApplyKnownManufacturerAliasesToSession",

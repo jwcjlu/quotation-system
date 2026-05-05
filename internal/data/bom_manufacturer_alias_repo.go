@@ -53,6 +53,55 @@ func (r *BomManufacturerAliasRepo) CanonicalID(ctx context.Context, aliasNorm st
 	return row.CanonicalID, true, nil
 }
 
+func dedupeNonEmptyAliasNormKeys(keys []string) []string {
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(keys))
+	for _, raw := range keys {
+		k := strings.TrimSpace(raw)
+		if k == "" {
+			continue
+		}
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		out = append(out, k)
+	}
+	return out
+}
+
+// CanonicalIDsByNormKeys 一次 IN 查询解析多个 alias_norm（与逐条 CanonicalID 语义一致：首行优先）。
+func (r *BomManufacturerAliasRepo) CanonicalIDsByNormKeys(ctx context.Context, aliasNormKeys []string) (map[string]string, error) {
+	if r == nil || r.db == nil {
+		return map[string]string{}, nil
+	}
+	uniq := dedupeNonEmptyAliasNormKeys(aliasNormKeys)
+	if len(uniq) == 0 {
+		return map[string]string{}, nil
+	}
+	var rows []BomManufacturerAlias
+	err := r.db.WithContext(ctx).
+		Where("alias_norm IN ?", uniq).
+		Order("alias_norm ASC, id ASC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(uniq))
+	for i := range rows {
+		n := strings.TrimSpace(rows[i].AliasNorm)
+		c := strings.TrimSpace(rows[i].CanonicalID)
+		if n == "" || c == "" {
+			continue
+		}
+		if _, ok := out[n]; ok {
+			continue
+		}
+		out[n] = c
+	}
+	return out, nil
+}
+
 // CreateRow 插入一条别名；alias_norm 须由调用方按 biz.NormalizeMfrString 与配单一致地计算。
 func (r *BomManufacturerAliasRepo) CreateRow(ctx context.Context, canonicalID, displayName, alias, aliasNorm string) error {
 	if r == nil || r.db == nil {

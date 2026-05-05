@@ -77,6 +77,59 @@ func (r *CachedBomManufacturerAliasRepo) CanonicalID(ctx context.Context, aliasN
 	return p.id, p.hit, nil
 }
 
+// CanonicalIDsByNormKeys 合并缓存未命中键后，对剩余键一次穿透查询并回填 TTL 缓存。
+func (r *CachedBomManufacturerAliasRepo) CanonicalIDsByNormKeys(ctx context.Context, aliasNormKeys []string) (map[string]string, error) {
+	if r == nil || r.inner == nil {
+		return map[string]string{}, nil
+	}
+	uniq := dedupeNonEmptyAliasNormKeys(aliasNormKeys)
+	if len(uniq) == 0 {
+		return map[string]string{}, nil
+	}
+	out := make(map[string]string, len(uniq))
+	fetchKeys := make([]string, 0, len(uniq))
+	for _, k := range uniq {
+		key := KeyMfrAliasNorm(k)
+		if v, ok := r.kv.Get(key); ok {
+			if p, ok := v.(*mfrCanonCacheEntry); ok {
+				expired := p.expiresAt.IsZero() || time.Now().After(p.expiresAt)
+				if !expired {
+					if p.hit {
+						out[k] = p.id
+					}
+					continue
+				}
+				r.kv.Delete(key)
+			}
+		}
+		fetchKeys = append(fetchKeys, k)
+	}
+	if len(fetchKeys) == 0 {
+		return out, nil
+	}
+	dbMap, err := r.inner.CanonicalIDsByNormKeys(ctx, fetchKeys)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	for _, k := range fetchKeys {
+		canon, ok := dbMap[k]
+		canon = strings.TrimSpace(canon)
+		hit := ok && canon != ""
+		var id string
+		if hit {
+			id = canon
+			out[k] = id
+		}
+		ttl := mfrAliasCanonNegTTL
+		if hit {
+			ttl = mfrAliasCanonPosTTL
+		}
+		r.kv.Set(KeyMfrAliasNorm(k), &mfrCanonCacheEntry{id: id, hit: hit, expiresAt: now.Add(ttl)})
+	}
+	return out, nil
+}
+
 type mfrCanonCacheEntry struct {
 	id        string
 	hit       bool

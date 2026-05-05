@@ -166,20 +166,36 @@ func (s *BomService) AutoMatch(ctx context.Context, req *v1.AutoMatchRequest) (*
 	if err != nil {
 		return nil, err
 	}
+	matchTiming := bomMatchTimingEnabled()
+	tAll := time.Now()
 	_ = req.GetStrategy()
+	t0 := time.Now()
 	view, lines, plats, err := s.loadSessionLinesAndPlatforms(ctx, sid, nil)
 	if err != nil {
 		return nil, err
 	}
+	if matchTiming {
+		s.log.Infof("bom_match_timing session=%s phase=load_session lines=%d platforms=%d ms=%d",
+			sid, len(lines), len(plats), time.Since(t0).Milliseconds())
+	}
+	t1 := time.Now()
 	if err := s.matchReadinessError(ctx, sid, view, lines, true); err != nil {
 		return nil, err
+	}
+	if matchTiming {
+		s.log.Infof("bom_match_timing session=%s phase=match_readiness ms=%d", sid, time.Since(t1).Milliseconds())
 	}
 	if pending := demandManufacturerCleaningRequired(lines); len(pending) > 0 {
 		return nil, kerrors.BadRequest("MFR_CLEANING_REQUIRED", "manufacturer cleaning required for lines: "+formatLineNos(pending))
 	}
+	t2 := time.Now()
 	items, total, err := s.computeMatchItems(ctx, view, lines, plats)
 	if err != nil {
 		return nil, err
+	}
+	if matchTiming {
+		s.log.Infof("bom_match_timing session=%s phase=compute_match_items ms=%d", sid, time.Since(t2).Milliseconds())
+		s.log.Infof("bom_match_timing session=%s phase=auto_match_total ms=%d", sid, time.Since(tAll).Milliseconds())
 	}
 	return &v1.AutoMatchReply{Items: items, TotalAmount: total}, nil
 }
@@ -629,6 +645,14 @@ func (s *BomService) GetReadiness(ctx context.Context, req *v1.GetReadinessReque
 	}
 	lenient := biz.ReadinessFromTasks(biz.ReadinessLenient, tasks, lineSnaps, view.PlatformIDs)
 	strict := biz.ReadinessFromTasks(biz.ReadinessStrict, tasks, lineSnaps, view.PlatformIDs)
+	var quoteMfrPending int32
+	if s.search != nil && s.search.DBOk() {
+		n, err := s.search.CountQuoteMfrReviewPendingForSession(ctx, sid)
+		if err != nil {
+			return nil, err
+		}
+		quoteMfrPending = int32(n)
+	}
 	phase := "searching"
 	can := false
 	block := ""
@@ -663,6 +687,7 @@ func (s *BomService) GetReadiness(ctx context.Context, req *v1.GetReadinessReque
 		NoMatchAfterFilterLineCount:    int32(availabilitySummary.NoMatchAfterFilterLineCount),
 		CollectingLineCount:            int32(availabilitySummary.CollectingLineCount),
 		HasStrictBlockingGap:           availabilitySummary.HasStrictBlockingGap(),
+		QuoteMfrReviewPendingCount:     quoteMfrPending,
 	}, nil
 }
 

@@ -24,6 +24,7 @@ func init() {
 
 func main() {
 	flag.Parse()
+	os.Setenv("CAICHIP_BOM_MATCH_TIMING", "1")
 	logger := log.NewStdLogger(os.Stdout)
 
 	c := config.New(

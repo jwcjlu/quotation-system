@@ -131,6 +131,9 @@ type BomQuoteItem struct {
 	Model                   string    `gorm:"column:model;size:255;not null;default:''"`
 	Manufacturer            string    `gorm:"column:manufacturer;size:255;not null;default:''"`
 	ManufacturerCanonicalID *string   `gorm:"column:manufacturer_canonical_id;size:128"`
+	ManufacturerReviewStatus   string     `gorm:"column:manufacturer_review_status;size:16;not null;default:pending"`
+	ManufacturerReviewReason   *string    `gorm:"column:manufacturer_review_reason;type:text"`
+	ManufacturerReviewedAt     *time.Time `gorm:"column:manufacturer_reviewed_at;precision:3"`
 	Stock                   string    `gorm:"column:stock;size:64;not null;default:''"`
 	Package                 string    `gorm:"column:package;size:128;not null;default:''"`
 	Desc                    string    `gorm:"column:desc;size:512;not null;default:''"`

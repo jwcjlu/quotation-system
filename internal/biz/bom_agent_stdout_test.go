@@ -98,6 +98,10 @@ func (r *stdoutSearchRepoStub) ListBomQuoteItemsForSessionLineRead(context.Conte
 	return nil, nil
 }
 
+func (r *stdoutSearchRepoStub) CountQuoteMfrReviewPendingForSession(context.Context, string) (int64, error) {
+	return 0, nil
+}
+
 type stdoutSessionRepoStub struct {
 	view      *BOMSessionView
 	lines     []BOMSessionLineView

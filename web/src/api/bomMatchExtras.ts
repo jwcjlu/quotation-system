@@ -6,13 +6,29 @@ export interface ManufacturerCanonicalRow {
   alias_count?: number
 }
 
-export interface ManufacturerAliasCandidate {
-  kind: 'demand' | 'quote'
-  alias: string
+// ---------- BOM 厂牌两阶段清洗（REST /api/v1/bom-sessions/{session_id}/...）----------
+
+export interface SessionLineMfrCandidate {
+  line_no: number
+  mfr: string
   recommended_canonical_id: string
-  line_nos: number[]
-  platform_ids: string[]
-  demand_hint: string
+}
+
+export interface SessionLineMfrCandidatesReply {
+  items: SessionLineMfrCandidate[]
+}
+
+export interface QuoteItemMfrReviewItem {
+  quote_item_id: number
+  line_no: number
+  line_manufacturer_canonical_id: string
+  manufacturer: string
+  platform_id: string
+}
+
+export interface QuoteItemMfrReviewsReply {
+  gate_open: boolean
+  items: QuoteItemMfrReviewItem[]
 }
 
 export interface AgentQuoteRow {
@@ -156,17 +172,19 @@ export async function listManufacturerCanonicals(
   }))
 }
 
-export async function approveManufacturerAliasCleaning(
+/** 阶段一：提交需求行厂牌清洗（写别名表 + 仅回填 session_line）。 */
+export async function approveSessionLineMfrCleaning(
   sessionId: string,
   input: { alias: string; canonical_id: string; display_name: string }
 ): Promise<{ session_line_updated: number; quote_item_updated: number }> {
-  return fetchJson(`/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/manufacturer-alias-approvals`, {
+  return fetchJson(`/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/session-line-mfr-approvals`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
 }
 
+/** 对会话内需求行尝试按已有别名表补全 canonical（不写 quote_item）。 */
 export async function applyManufacturerAliasesToSession(
   sessionId: string
 ): Promise<{ session_line_updated: number; quote_item_updated: number }> {
@@ -177,21 +195,58 @@ export async function applyManufacturerAliasesToSession(
   })
 }
 
-export async function listManufacturerAliasCandidates(
+/** 阶段一：需求行厂牌待清洗候选列表。 */
+export async function listSessionLineMfrCandidates(
   sessionId: string
-): Promise<ManufacturerAliasCandidate[]> {
+): Promise<SessionLineMfrCandidatesReply> {
   const json = await fetchJson<Record<string, unknown>>(
-    `/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/manufacturer-alias-candidates`
+    `/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/session-line-mfr-candidates`
   )
-  const rows = (json.items ?? []) as Record<string, unknown>[]
-  return rows.map((r) => ({
-    kind: str(r.kind) === 'demand' ? 'demand' : 'quote',
-    alias: str(r.alias),
+  const rawItems = (json.items ?? []) as Record<string, unknown>[]
+  const items: SessionLineMfrCandidate[] = rawItems.map((r) => ({
+    line_no: num(r.line_no ?? r.lineNo),
+    mfr: str(r.mfr),
     recommended_canonical_id: str(r.recommended_canonical_id ?? r.recommendedCanonicalId),
-    line_nos: ((r.line_nos ?? r.lineNos ?? []) as unknown[]).map(num).filter((v) => v > 0),
-    platform_ids: ((r.platform_ids ?? r.platformIds ?? []) as unknown[]).map(str).filter(Boolean),
-    demand_hint: str(r.demand_hint ?? r.demandHint),
   }))
+  return { items }
+}
+
+/** 阶段二：报价厂牌待确认列表 + 闸门 gate_open。 */
+export async function listQuoteItemMfrReviews(sessionId: string): Promise<QuoteItemMfrReviewsReply> {
+  const json = await fetchJson<Record<string, unknown>>(
+    `/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/quote-item-mfr-reviews`
+  )
+  const rawItems = (json.items ?? []) as Record<string, unknown>[]
+  const items: QuoteItemMfrReviewItem[] = rawItems.map((r) => ({
+    quote_item_id: num(r.quote_item_id ?? r.quoteItemId),
+    line_no: num(r.line_no ?? r.lineNo),
+    line_manufacturer_canonical_id: str(r.line_manufacturer_canonical_id ?? r.lineManufacturerCanonicalId),
+    manufacturer: str(r.manufacturer),
+    platform_id: str(r.platform_id ?? r.platformId),
+  }))
+  return {
+    gate_open: bool(json.gate_open ?? json.gateOpen),
+    items,
+  }
+}
+
+/** 阶段二：报价厂牌 accept / reject（reject 可带 reason）。 */
+export async function submitQuoteItemMfrReview(
+  sessionId: string,
+  body: { quote_item_id: number; decision: 'accept' | 'reject'; reason?: string }
+): Promise<void> {
+  const payload: Record<string, unknown> = {
+    quote_item_id: body.quote_item_id,
+    decision: body.decision,
+  }
+  if (body.reason != null && String(body.reason).trim() !== '') {
+    payload.reason = body.reason
+  }
+  await fetchJson(`/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/quote-item-mfr-reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function listMatchSourceRecords(bomId: string): Promise<MatchSourceRecordsReply> {

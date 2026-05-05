@@ -1,18 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  applyManufacturerAliasesToSession,
-  approveManufacturerAliasCleaning,
-  listManufacturerAliasCandidates,
-  listManufacturerCanonicals,
-  listSessionSearchTasks,
-  retrySearchTasks,
-  type ListSessionSearchTasksReply,
-  type ManufacturerAliasCandidate,
-  type ManufacturerCanonicalRow,
-  type SessionSearchTaskRow,
-} from '../../api'
+import { listSessionSearchTasks, retrySearchTasks, type ListSessionSearchTasksReply, type SessionSearchTaskRow } from '../../api'
 import { SearchTaskStatusPanel } from '../sourcing-session/SearchTaskStatusPanel'
-import { ManufacturerAliasReviewPanel, type PendingMfrRow } from './ManufacturerAliasReviewPanel'
 import {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_OPTIONS,
@@ -24,28 +12,14 @@ import {
 
 const RETRYABLE_STATUS_FILTER_VALUE = '__retryable__'
 
-function pendingRowsFromCandidates(items: ManufacturerAliasCandidate[]): PendingMfrRow[] {
-  return items.map((item) => ({
-    kind: item.kind,
-    alias: item.alias,
-    recommendedCanonicalId: item.recommended_canonical_id,
-    platformIds: item.platform_ids,
-    lineIndexes: item.line_nos,
-    demandHint: item.demand_hint,
-  }))
-}
-
-interface SessionSearchCleanPanelProps {
+interface SessionSearchTasksPanelProps {
   sessionId: string
 }
 
-export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelProps) {
+export function SessionSearchTasksPanel({ sessionId }: SessionSearchTasksPanelProps) {
   const [searchTasks, setSearchTasks] = useState<ListSessionSearchTasksReply | null>(null)
   const [searchTasksLoading, setSearchTasksLoading] = useState(false)
   const [retrying, setRetrying] = useState(false)
-  const [pendingRows, setPendingRows] = useState<PendingMfrRow[]>([])
-  const [canonicalRows, setCanonicalRows] = useState<ManufacturerCanonicalRow[]>([])
-  const [aliasErr, setAliasErr] = useState<string | null>(null)
   const [keyword, setKeyword] = useState('')
   const [platform, setPlatform] = useState('')
   const [status, setStatus] = useState('')
@@ -67,32 +41,6 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
   useEffect(() => {
     void loadSearchTasks()
   }, [loadSearchTasks])
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setAliasErr(null)
-      try {
-        const [candidates, canonicals] = await Promise.all([
-          listManufacturerAliasCandidates(sessionId),
-          listManufacturerCanonicals(),
-        ])
-        if (!cancelled) {
-          setPendingRows(pendingRowsFromCandidates(candidates))
-          setCanonicalRows(canonicals)
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setPendingRows([])
-          setCanonicalRows([])
-          setAliasErr(error instanceof Error ? error.message : '\u5382\u724c\u522b\u540d\u52a0\u8f7d\u5931\u8d25')
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [sessionId])
 
   const filteredTasks = useMemo(() => {
     const tasks = searchTasks?.tasks ?? []
@@ -192,34 +140,12 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
     }
   }
 
-  async function handleApproveManufacturerAlias(input: { alias: string; canonical_id: string; display_name: string }) {
-    await approveManufacturerAliasCleaning(sessionId, input)
-    const [candidates, canonicals] = await Promise.all([
-      listManufacturerAliasCandidates(sessionId),
-      listManufacturerCanonicals(),
-      loadSearchTasks(),
-    ])
-    setPendingRows(pendingRowsFromCandidates(candidates))
-    setCanonicalRows(canonicals)
-  }
-
-  async function handleApplyExistingAliases() {
-    await applyManufacturerAliasesToSession(sessionId)
-    const [candidates, canonicals] = await Promise.all([
-      listManufacturerAliasCandidates(sessionId),
-      listManufacturerCanonicals(),
-      loadSearchTasks(),
-    ])
-    setPendingRows(pendingRowsFromCandidates(candidates))
-    setCanonicalRows(canonicals)
-  }
-
   const summary = searchTasks?.summary
   const failedCount = (summary?.failed ?? 0) + (summary?.missing ?? 0)
 
   return (
-    <div className="space-y-4" data-testid="session-search-clean-panel">
-      <div className="grid gap-4 xl:grid-cols-4">
+    <div className="space-y-4" data-testid="session-search-tasks-panel">
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border border-[#d7e0ed] bg-white p-4">
           <div className="text-sm font-bold text-slate-950">{'\u603b\u4efb\u52a1'}</div>
           <div className="mt-4 text-3xl font-bold text-[#2457c5]">{summary?.total ?? 0}</div>
@@ -232,13 +158,9 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
           <div className="text-sm font-bold text-slate-950">{'\u53ef\u91cd\u8bd5\u5f02\u5e38'}</div>
           <div className="mt-4 text-3xl font-bold text-[#a76505]">{failedCount}</div>
         </div>
-        <div className="rounded-lg border border-[#d7e0ed] bg-white p-4">
-          <div className="text-sm font-bold text-slate-950">{'\u5382\u5bb6\u522b\u540d\u5f85\u5ba1'}</div>
-          <div className="mt-4 text-3xl font-bold text-[#2457c5]">{pendingRows.length}</div>
-        </div>
       </div>
 
-      <div className="rounded-lg border border-[#d7e0ed] bg-white p-3" data-testid="search-clean-panel">
+      <div className="rounded-lg border border-[#d7e0ed] bg-white p-3" data-testid="search-tasks-toolbar">
         <div className="flex flex-wrap items-center gap-3">
           <div className="text-sm font-bold text-slate-950">{'\u5e73\u53f0 / \u72b6\u6001 / \u5173\u952e\u5b57'}</div>
           <div className="ml-auto text-sm text-slate-500">
@@ -346,17 +268,6 @@ export function SessionSearchCleanPanel({ sessionId }: SessionSearchCleanPanelPr
           下一页
         </button>
       </div>
-      {aliasErr && (
-        <div className="rounded-lg border border-[#f0c77d] bg-[#fff7e8] px-4 py-3 text-sm text-amber-900">
-          {aliasErr}
-        </div>
-      )}
-      <ManufacturerAliasReviewPanel
-        pendingRows={pendingRows}
-        canonicalRows={canonicalRows}
-        onApprove={handleApproveManufacturerAlias}
-        onApplyExisting={handleApplyExistingAliases}
-      />
     </div>
   )
 }

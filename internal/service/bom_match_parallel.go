@@ -94,6 +94,13 @@ func (s *BomService) matchOneLine(
 				)
 				continue
 			}
+			if s.search != nil && s.search.DBOk() && line.ID > 0 {
+				dbRows, derr := s.search.ListBomQuoteItemsForSessionLineRead(ctx, sid, line.ID, view.BizDate, mergeKey, plats)
+				if derr != nil {
+					return derr
+				}
+				rows = mergeQuoteRowsWithSessionLineReads(rows, dbRows, pid)
+			}
 			in := biz.LineMatchInput{
 				BomMpn:           mergeKey,
 				BomPackage:       derefStrPtr(line.Package),
@@ -166,22 +173,36 @@ func (s *BomService) computeMatchItems(ctx context.Context, view *biz.BOMSession
 		return nil, 0, nil
 	}
 
+	matchTiming := bomMatchTimingEnabled()
+	tCaches := time.Now()
 	pairList := dedupeQuoteCachePairs(lines, plats)
 	cacheMap, err := s.search.LoadQuoteCachesForKeys(ctx, view.BizDate, pairList)
 	if err != nil {
 		return nil, 0, err
+	}
+	if matchTiming {
+		s.log.Infof("bom_match_timing session=%s phase=match_load_quote_caches pair_keys=%d ms=%d",
+			sid, len(pairList), time.Since(tCaches).Milliseconds())
 	}
 	aliasCache := newSessionAliasCache(s.alias)
 	fxCache := newSessionFXCache(s.fx)
 
 	// 行数较少时直接串行，避免协程池开销。
 	if n == 1 {
+		tLines := time.Now()
 		item, st, err := s.matchOneLine(ctx, sid, lines[0], plats, cacheMap, aliasCache, fxCache, view, reqDay, baseCCY, roundMode, parseTiers)
 		if err != nil {
 			return nil, 0, err
 		}
+		if matchTiming {
+			s.log.Infof("bom_match_timing session=%s phase=match_one_line ms=%d", sid, time.Since(tLines).Milliseconds())
+		}
 		out := []*v1.MatchItem{item}
+		tCust := time.Now()
 		s.attachCustomsToMatchItems(ctx, lines, out)
+		if matchTiming {
+			s.log.Infof("bom_match_timing session=%s phase=match_attach_customs ms=%d", sid, time.Since(tCust).Milliseconds())
+		}
 		return out, st, nil
 	}
 
@@ -199,6 +220,7 @@ func (s *BomService) computeMatchItems(ctx context.Context, view *biz.BOMSession
 	var mu sync.Mutex
 	var firstErr error
 	var wg sync.WaitGroup
+	tPool := time.Now()
 
 	setErr := func(e error) {
 		if e == nil {
@@ -241,6 +263,10 @@ func (s *BomService) computeMatchItems(ctx context.Context, view *biz.BOMSession
 		}
 	}
 	wg.Wait()
+	if matchTiming {
+		s.log.Infof("bom_match_timing session=%s phase=match_parallel_lines workers=%d ms=%d",
+			sid, workers, time.Since(tPool).Milliseconds())
+	}
 	if firstErr != nil {
 		return nil, 0, firstErr
 	}
@@ -250,7 +276,11 @@ func (s *BomService) computeMatchItems(ctx context.Context, view *biz.BOMSession
 		out = append(out, items[i])
 		total += items[i].GetSubtotal()
 	}
+	tCust := time.Now()
 	s.attachCustomsToMatchItems(ctx, lines, out)
+	if matchTiming {
+		s.log.Infof("bom_match_timing session=%s phase=match_attach_customs ms=%d", sid, time.Since(tCust).Milliseconds())
+	}
 	return out, total, nil
 }
 

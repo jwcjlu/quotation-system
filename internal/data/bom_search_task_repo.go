@@ -236,23 +236,28 @@ func (r *BOMSearchTaskRepo) upsertQuoteCache(ctx context.Context, x *gorm.DB, mp
 		row := rows[i]
 		mfr := sanitizeForLegacyMySQLUTF8(row.Manufacturer)
 		canonPtr, _ := r.manufacturerCanonicalPtrForQuote(ctx, mfr)
+		manufacturerReviewStatus := biz.MfrReviewPending
+		if canonPtr != nil && len(*canonPtr) > 0 {
+			manufacturerReviewStatus = biz.MfrReviewAccepted
+		}
 		items = append(items, BomQuoteItem{
-			QuoteID:                 cacheID,
-			Model:                   sanitizeForLegacyMySQLUTF8(row.Model),
-			Manufacturer:            mfr,
-			ManufacturerCanonicalID: canonPtr,
-			Stock:                   sanitizeForLegacyMySQLUTF8(row.Stock),
-			Package:                 sanitizeForLegacyMySQLUTF8(row.Package),
-			Desc:                    sanitizeForLegacyMySQLUTF8(row.Desc),
-			MOQ:                     sanitizeForLegacyMySQLUTF8(row.MOQ),
-			LeadTime:                sanitizeForLegacyMySQLUTF8(row.LeadTime),
-			PriceTiers:              sanitizeForLegacyMySQLUTF8(row.PriceTiers),
-			HKPrice:                 sanitizeForLegacyMySQLUTF8(row.HKPrice),
-			MainlandPrice:           sanitizeForLegacyMySQLUTF8(row.MainlandPrice),
-			QueryModel:              sanitizeForLegacyMySQLUTF8(row.QueryModel),
-			DatasheetURL:            sanitizeForLegacyMySQLUTF8(row.DatasheetURL),
-			CreatedAt:               now,
-			UpdatedAt:               now,
+			QuoteID:                  cacheID,
+			Model:                    sanitizeForLegacyMySQLUTF8(row.Model),
+			Manufacturer:             mfr,
+			ManufacturerCanonicalID:  canonPtr,
+			Stock:                    sanitizeForLegacyMySQLUTF8(row.Stock),
+			Package:                  sanitizeForLegacyMySQLUTF8(row.Package),
+			Desc:                     sanitizeForLegacyMySQLUTF8(row.Desc),
+			MOQ:                      sanitizeForLegacyMySQLUTF8(row.MOQ),
+			LeadTime:                 sanitizeForLegacyMySQLUTF8(row.LeadTime),
+			PriceTiers:               sanitizeForLegacyMySQLUTF8(row.PriceTiers),
+			HKPrice:                  sanitizeForLegacyMySQLUTF8(row.HKPrice),
+			MainlandPrice:            sanitizeForLegacyMySQLUTF8(row.MainlandPrice),
+			QueryModel:               sanitizeForLegacyMySQLUTF8(row.QueryModel),
+			DatasheetURL:             sanitizeForLegacyMySQLUTF8(row.DatasheetURL),
+			CreatedAt:                now,
+			UpdatedAt:                now,
+			ManufacturerReviewStatus: manufacturerReviewStatus,
 		})
 	}
 	if len(items) > 0 {

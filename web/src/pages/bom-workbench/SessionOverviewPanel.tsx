@@ -18,13 +18,6 @@ function normalizeStatus(status: string) {
   return trimmed || 'unknown'
 }
 
-function statusClassName(status: string) {
-  const normalized = normalizeStatus(status)
-  if (normalized === 'ready') return 'text-[#12805c]'
-  if (normalized === 'unknown') return 'text-slate-500'
-  return 'text-[#a76505]'
-}
-
 function normalizeImportStatusText(status?: string) {
   const s = (status || '').trim().toLowerCase()
   if (s === 'ready') return '已完成'

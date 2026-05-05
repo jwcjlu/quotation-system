@@ -228,7 +228,7 @@ export async function listQuoteItemMfrReviews(
   }))
   const allPending =
     json.all_pending_quote_mfr_count != null || json.allPendingQuoteMfrCount != null
-      ? num(json.all_pending_quote_mfr_count ?? json.allPendingQuoteMfrCount, 0)
+      ? num(json.all_pending_quote_mfr_count ?? json.allPendingQuoteMfrCount)
       : undefined
   return {
     gate_open: bool(json.gate_open ?? json.gateOpen),

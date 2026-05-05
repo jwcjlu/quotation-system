@@ -108,6 +108,10 @@ func (s *spyRecommendationRepo) ListByRunID(_ context.Context, _ string) ([]HsMo
 	return out, nil
 }
 
+func (s *spyRecommendationRepo) ListPendingReviews(_ context.Context, _ int, _ int, _ string, _ string) ([]HsPendingReviewRecord, int, error) {
+	return nil, 0, nil
+}
+
 type spyMappingRepo struct {
 	saved     []*HsModelMappingRecord
 	confirmed *HsModelMappingRecord

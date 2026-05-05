@@ -13,6 +13,7 @@ interface SearchTaskStatusPanelProps {
 }
 
 type SearchTaskQuickFilter = SessionSearchTaskRow['search_ui_state'] | 'retryable' | null
+type SearchTaskQuickFilterStat = Exclude<SearchTaskQuickFilter, null>
 
 type SearchTaskColumnKey =
   | 'line_no'
@@ -190,7 +191,7 @@ export function SearchTaskStatusPanel({
 
       {summary && (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-10">
-          {[
+          {([
             ['等待', summary.pending, 'pending'],
             ['搜索中', summary.searching, 'searching'],
             ['成功', summary.succeeded, 'succeeded'],
@@ -201,11 +202,11 @@ export function SearchTaskStatusPanel({
             ['缺任务', summary.missing, 'missing'],
             ['可重试', summary.retryable, 'retryable'],
             ['总数', summary.total, null],
-          ].map(([label, value, filter]) => (
+          ] as Array<[string, number, SearchTaskQuickFilter]>).map(([label, value, filter]) => (
             <button
               key={label}
               type="button"
-              onClick={() => setQuickFilter((prev) => (prev === filter ? null : filter))}
+              onClick={() => setQuickFilter(quickFilter === filter ? null : (filter as SearchTaskQuickFilterStat | null))}
               className={`rounded-lg border px-3 py-2 text-left transition-colors ${
                 quickFilter === filter
                   ? 'border-blue-400 bg-blue-50'

@@ -40,8 +40,9 @@ type QuoteItemMfrReviewItem struct {
 
 // SubmitQuoteItemMfrReviewBody 阶段二提交。
 type SubmitQuoteItemMfrReviewBody struct {
-	Decision string `json:"decision"` // accept | reject
-	Reason   string `json:"reason,omitempty"`
+	Decision                string `json:"decision"` // accept | reject
+	Reason                  string `json:"reason,omitempty"`
+	ManufacturerCanonicalID string `json:"manufacturer_canonical_id,omitempty"`
 }
 
 // listSessionLineMfrCandidatesInternal 阶段一候选（仅需求行，不扫报价 JSON）。
@@ -137,13 +138,28 @@ func (s *BomService) listQuoteItemMfrReviewsInternal(ctx context.Context, sessio
 	if err != nil {
 		return nil, err
 	}
+	lineByID := make(map[int64]data.BomSessionLine, len(lines))
+	for i := range lines {
+		lineByID[lines[i].ID] = lines[i]
+	}
 	items := make([]QuoteItemMfrReviewItem, 0)
 	for _, pending := range pendings {
+		if pending.LineID == nil {
+			continue
+		}
+		line, ok := lineByID[*pending.LineID]
+		if !ok {
+			continue
+		}
+		lineCanon := ""
+		if line.ManufacturerCanonicalID != nil {
+			lineCanon = strings.TrimSpace(*line.ManufacturerCanonicalID)
+		}
 		items = append(items, QuoteItemMfrReviewItem{
 			QuoteItemID:                 pending.ID,
-			LineNo:                      int(*pending.LineID),
-			LineManufacturerCanonicalID: strings.TrimSpace(*pending.ManufacturerCanonicalID),
-			Manufacturer:                *pending.ManufacturerCanonicalID,
+			LineNo:                      line.LineNo,
+			LineManufacturerCanonicalID: lineCanon,
+			Manufacturer:                strings.TrimSpace(pending.Manufacturer),
 		})
 	}
 	allPending := int32(len(items))
@@ -165,45 +181,36 @@ func (s *BomService) submitQuoteItemMfrReviewInternal(ctx context.Context, sessi
 	if dec != "accept" && dec != "reject" {
 		return kerrors.BadRequest("BAD_INPUT", "decision must be accept or reject")
 	}
-	it, err := s.mfrCleaning.LoadMfrReviewQuoteItem(ctx, sessionID, quoteItemID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
-	if it == nil || errors.Is(err, gorm.ErrRecordNotFound) {
-		it2, err2 := s.loadMfrReviewQuoteItemViaCacheRead(ctx, sessionID, quoteItemID)
-		if err2 != nil && !errors.Is(err2, gorm.ErrRecordNotFound) {
-			return err2
-		}
-		if it2 == nil {
-			return kerrors.NotFound("QUOTE_ITEM_NOT_FOUND", "quote item not found")
-		}
-		it = it2
-	}
-	lines, err := s.dataListLines(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-	if it.LineID == nil {
-		return kerrors.BadRequest("BAD_INPUT", "quote item missing line_id")
-	}
-	var parent *data.BomSessionLine
-	for i := range lines {
-		if lines[i].ID == *it.LineID {
-			parent = &lines[i]
-			break
-		}
-	}
-	if parent == nil {
-		return kerrors.BadRequest("BAD_INPUT", "parent line not found")
-	}
-	if err := biz.RequireParentManufacturerCanonicalForQuoteMfrReview(parent.ManufacturerCanonicalID); err != nil {
-		return kerrors.BadRequest("GATE", err.Error())
-	}
-	lineCanon := strings.TrimSpace(*parent.ManufacturerCanonicalID)
 	if dec == "accept" {
-		canon := lineCanon
-		reason := (*string)(nil)
-		return s.mfrCleaning.UpdateQuoteItemManufacturerReview(ctx, quoteItemID, biz.MfrReviewAccepted, &canon, reason)
+		canon := strings.TrimSpace(body.ManufacturerCanonicalID)
+		if canon == "" {
+			it, err := s.mfrCleaning.LoadMfrReviewQuoteItem(ctx, sessionID, quoteItemID)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+			if it != nil && it.ManufacturerCanonicalID != nil {
+				canon = strings.TrimSpace(*it.ManufacturerCanonicalID)
+			}
+			if canon == "" && it != nil && it.LineID != nil {
+				lines, err := s.dataListLines(ctx, sessionID)
+				if err != nil {
+					return err
+				}
+				for i := range lines {
+					if lines[i].ID != *it.LineID || lines[i].ManufacturerCanonicalID == nil {
+						continue
+					}
+					canon = strings.TrimSpace(*lines[i].ManufacturerCanonicalID)
+					if canon != "" {
+						break
+					}
+				}
+			}
+		}
+		if canon == "" {
+			return kerrors.BadRequest("BAD_INPUT", "manufacturer_canonical_id required for accept")
+		}
+		return s.mfrCleaning.UpdateQuoteItemManufacturerReview(ctx, quoteItemID, biz.MfrReviewAccepted, &canon, nil)
 	}
 	var reasonPtr *string
 	if strings.TrimSpace(body.Reason) != "" {
@@ -256,8 +263,9 @@ func (s *BomService) ListQuoteItemMfrReviews(ctx context.Context, req *v1.ListQu
 // SubmitQuoteItemMfrReview 实现 api.bom.v1.BomService（proto HTTP）。
 func (s *BomService) SubmitQuoteItemMfrReview(ctx context.Context, req *v1.SubmitQuoteItemMfrReviewRequest) (*v1.SubmitQuoteItemMfrReviewReply, error) {
 	body := SubmitQuoteItemMfrReviewBody{
-		Decision: strings.TrimSpace(req.GetDecision()),
-		Reason:   req.GetReason(),
+		Decision:                strings.TrimSpace(req.GetDecision()),
+		Reason:                  req.GetReason(),
+		ManufacturerCanonicalID: req.GetManufacturerCanonicalId(),
 	}
 	if err := s.submitQuoteItemMfrReviewInternal(ctx, strings.TrimSpace(req.GetSessionId()), req.GetQuoteItemId(), body); err != nil {
 		return nil, err

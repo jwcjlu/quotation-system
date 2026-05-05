@@ -152,4 +152,25 @@ describe('two-phase BOM mfr REST', () => {
       })
     )
   })
+
+  it('POST quote-item-mfr-review includes manufacturer_canonical_id when provided', async () => {
+    fetchJsonMock.mockResolvedValueOnce({})
+    const { submitQuoteItemMfrReview } = await import('./bomMatchExtras')
+    await submitQuoteItemMfrReview('sid-5', {
+      quote_item_id: 7,
+      decision: 'accept',
+      manufacturer_canonical_id: 'MFR_SAMSUNG',
+    })
+    expect(fetchJsonMock).toHaveBeenCalledWith(
+      '/api/v1/bom-sessions/sid-5/quote-item-mfr-reviews',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          quote_item_id: 7,
+          decision: 'accept',
+          manufacturer_canonical_id: 'MFR_SAMSUNG',
+        }),
+      })
+    )
+  })
 })

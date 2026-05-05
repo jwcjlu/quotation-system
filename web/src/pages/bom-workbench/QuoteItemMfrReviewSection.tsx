@@ -31,9 +31,13 @@ export function QuoteItemMfrReviewSection({
     setBusyId(item.quote_item_id)
     try {
       const reason = decision === 'reject' ? (rejectReasonByItem[item.quote_item_id] ?? '').trim() : undefined
+      const canonicalId = item.line_manufacturer_canonical_id?.trim()
       await submitQuoteItemMfrReview(sessionId, {
         quote_item_id: item.quote_item_id,
         decision,
+        ...(decision === 'accept'
+          ? { manufacturer_canonical_id: canonicalId }
+          : {}),
         ...(reason ? { reason } : {}),
       })
       await onAfterSubmit()
@@ -75,6 +79,7 @@ export function QuoteItemMfrReviewSection({
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left">
+                <th className="px-3 py-2">{'Item ID'}</th>
                 <th className="px-3 py-2">{'行'}</th>
                 <th className="px-3 py-2">{'报价厂牌'}</th>
                 <th className="px-3 py-2">{'需求 canonical'}</th>
@@ -88,6 +93,7 @@ export function QuoteItemMfrReviewSection({
                   className="border-b border-slate-100"
                   data-testid={`quote-item-mfr-row-${row.quote_item_id}`}
                 >
+                  <td className="px-3 py-2 font-mono">{row.quote_item_id}</td>
                   <td className="px-3 py-2 font-mono">{row.line_no}</td>
                   <td className="px-3 py-2">{row.manufacturer}</td>
                   <td className="px-3 py-2 font-mono text-xs">{row.line_manufacturer_canonical_id}</td>

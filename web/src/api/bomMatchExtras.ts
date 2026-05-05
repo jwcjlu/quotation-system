@@ -240,7 +240,12 @@ export async function listQuoteItemMfrReviews(
 /** 阶段二：报价厂牌 accept / reject（reject 可带 reason）。 */
 export async function submitQuoteItemMfrReview(
   sessionId: string,
-  body: { quote_item_id: number; decision: 'accept' | 'reject'; reason?: string }
+  body: {
+    quote_item_id: number
+    decision: 'accept' | 'reject'
+    reason?: string
+    manufacturer_canonical_id?: string
+  }
 ): Promise<void> {
   const payload: Record<string, unknown> = {
     quote_item_id: body.quote_item_id,
@@ -248,6 +253,10 @@ export async function submitQuoteItemMfrReview(
   }
   if (body.reason != null && String(body.reason).trim() !== '') {
     payload.reason = body.reason
+  }
+  if (body.manufacturer_canonical_id != null && String(body.manufacturer_canonical_id).trim() !== '') {
+    const canonical = String(body.manufacturer_canonical_id).trim()
+    payload.manufacturer_canonical_id = canonical
   }
   await fetchJson(`/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/quote-item-mfr-reviews`, {
     method: 'POST',

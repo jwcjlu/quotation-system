@@ -168,18 +168,20 @@ func (pick pickUpMfrReview) pickUp() {
 		return pick.readRows[i].price < pick.readRows[j].price
 	})
 	paas := true
-	count := 0
+	acceptedCount := 0
 	pendingCount := 0
 	for _, row := range pick.readRows {
 		if row.readRow.ManufacturerReviewStatus == biz.MfrReviewAccepted {
+			acceptedCount++
 			continue
 		} else {
 			paas = false
 		}
-		count++
-		if paas && count >= 3 {
+
+		if (paas && acceptedCount >= 3) || pendingCount+acceptedCount >= 5 {
 			return
 		}
+
 		lineNo := int64(pick.task.line.LineNo)
 		if row.readRow.ManufacturerReviewStatus == biz.MfrReviewPending {
 			pick.appendPending(biz.MfrReviewQuoteItem{
@@ -191,9 +193,7 @@ func (pick pickUpMfrReview) pickUp() {
 			})
 			pendingCount++
 		}
-		if pendingCount >= 5 {
-			return
-		}
+
 	}
 }
 

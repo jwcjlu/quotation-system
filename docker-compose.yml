@@ -38,7 +38,14 @@ services:
       retries: 20
 
   server:
-    image: ${SERVER_IMAGE:-caichip-server:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+      args:
+        SERVER_BUILDER_IMAGE: ${SERVER_BUILDER_IMAGE:-golang:1.25.8-alpine}
+        SERVER_RUNTIME_IMAGE: ${SERVER_RUNTIME_IMAGE:-alpine:3.20}
+        GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
+        GOSUMDB: ${GOSUMDB:-sum.golang.google.cn}
     container_name: caichip-server
     restart: unless-stopped
     depends_on:
@@ -55,7 +62,9 @@ services:
       - ./logs:/app/logs
 
   web:
-    image: ${WEB_IMAGE:-caichip-web:latest}
+    build:
+      context: ./web
+      dockerfile: Dockerfile
     container_name: caichip-web
     restart: unless-stopped
     depends_on:

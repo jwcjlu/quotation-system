@@ -215,3 +215,9 @@
 - **代码核对（`*.go` / `*.ts` / `*.tsx`）：** 无 `manufacturer-alias-candidates`、`manufacturer-alias-approvals`、`ListManufacturerAliasCandidates`、`ApproveManufacturerAliasCleaning`、`BackfillSessionManufacturerCanonical`；阶段一回填仅 **`BackfillSessionLineManufacturerCanonical`**。  
 - **已删除文件：** `internal/service/bom_manufacturer_alias_candidates.go`、`bom_manufacturer_alias_candidates_test.go`（及手写旧 HTTP）；同类行为由 **`bom_mfr_two_phase.go`**、**`bom_manufacturer_alias_api.go`** 与 **`bom_manufacturer_alias_api_test.go`** / **`bom_mfr_two_phase_test.go`** 等覆盖。  
 - **归档文档：** `docs/superpowers/plans/2026-04-26-bom-manufacturer-cleaning-implementation.md` 等仍可出现旧名，作历史记录，**非运行代码**。
+
+---
+
+## 后续相关：报价评审队列与结案规则 B
+
+若继续实现「低价 TopN 默认队列、需求行规则 B、以及与 `data_ready` / 读模型的衔接（与 P4-2 `quote_mfr_review_pending_count` 并存）」，见 **`docs/superpowers/plans/2026-05-05-bom-quote-review-queue-and-line-completion-implementation.md`**，及同日期前缀的 `docs/superpowers/specs/2026-05-05-bom-quote-review-queue-and-line-completion-{design,requirements,software-requirements-spec}.md`。

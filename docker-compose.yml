@@ -57,9 +57,9 @@ services:
       - "18080:18080"
       - "19090:19090"
     volumes:
-      - ./configs:/app/configs:ro
-      - ./static/agent-scripts:/app/agent_data/script-store
-      - ./logs:/app/logs
+      - /app/configs:/app/configs:ro
+      - /app/static/agent-scripts:/app/agent_data/script-store
+      - /app/logs:/app/logs
 
   web:
     build:

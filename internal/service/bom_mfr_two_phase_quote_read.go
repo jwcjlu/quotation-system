@@ -106,7 +106,7 @@ func (s *BomService) listMfrReviewPendingQuoteItemsMerged(ctx context.Context, s
 				if err != nil {
 					return false, err
 				}
-				appendPendingMfrFromBOMQuoteReadRows(readRows, t.line.ID, appendPending)
+				newPickUpMfrReview(readRows, t, appendPending).pickUp()
 				return false, nil
 			})
 			if err != nil {

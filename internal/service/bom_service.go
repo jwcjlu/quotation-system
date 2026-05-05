@@ -653,6 +653,10 @@ func (s *BomService) GetReadiness(ctx context.Context, req *v1.GetReadinessReque
 		}
 		quoteMfrPending = int32(n)
 	}
+	lineQuoteReview, quoteRuleBNotOk, quoteReviewTopNEcho, err := s.buildQuoteReviewReadinessPayload(ctx, view, lines)
+	if err != nil {
+		return nil, err
+	}
 	phase := "searching"
 	can := false
 	block := ""
@@ -672,23 +676,30 @@ func (s *BomService) GetReadiness(ctx context.Context, req *v1.GetReadinessReque
 			block = "strict_mode_no_quote_per_line"
 		}
 	}
-	return &v1.GetReadinessReply{
-		SessionId:                      sid,
-		BizDate:                        view.BizDate.Format("2006-01-02"),
-		SelectionRevision:              int32(view.SelectionRevision),
-		Phase:                          phase,
-		CanEnterMatch:                  can,
-		BlockReason:                    block,
-		LineTotal:                      int32(availabilitySummary.LineTotal),
-		ReadyLineCount:                 int32(availabilitySummary.ReadyLineCount),
-		GapLineCount:                   int32(availabilitySummary.GapLineCount),
-		NoDataLineCount:                int32(availabilitySummary.NoDataLineCount),
-		CollectionUnavailableLineCount: int32(availabilitySummary.CollectionUnavailableLineCount),
-		NoMatchAfterFilterLineCount:    int32(availabilitySummary.NoMatchAfterFilterLineCount),
-		CollectingLineCount:            int32(availabilitySummary.CollectingLineCount),
-		HasStrictBlockingGap:           availabilitySummary.HasStrictBlockingGap(),
-		QuoteMfrReviewPendingCount:     quoteMfrPending,
-	}, nil
+	reply := &v1.GetReadinessReply{
+		SessionId:                              sid,
+		BizDate:                                view.BizDate.Format("2006-01-02"),
+		SelectionRevision:                      int32(view.SelectionRevision),
+		Phase:                                  phase,
+		CanEnterMatch:                          can,
+		BlockReason:                            block,
+		LineTotal:                              int32(availabilitySummary.LineTotal),
+		ReadyLineCount:                         int32(availabilitySummary.ReadyLineCount),
+		GapLineCount:                           int32(availabilitySummary.GapLineCount),
+		NoDataLineCount:                        int32(availabilitySummary.NoDataLineCount),
+		CollectionUnavailableLineCount:         int32(availabilitySummary.CollectionUnavailableLineCount),
+		NoMatchAfterFilterLineCount:            int32(availabilitySummary.NoMatchAfterFilterLineCount),
+		CollectingLineCount:                    int32(availabilitySummary.CollectingLineCount),
+		HasStrictBlockingGap:                   availabilitySummary.HasStrictBlockingGap(),
+		QuoteMfrReviewPendingCount:             quoteMfrPending,
+		SessionLinesQuoteReviewRuleBNotOkCount: quoteRuleBNotOk,
+		SessionQuoteReviewDefaultTopN:        quoteReviewTopNEcho,
+		LineQuoteReviewReadiness:               lineQuoteReview,
+	}
+	if err := s.mergeQuoteItemMfrReviewsIntoReadiness(ctx, reply, sid, req.GetIncludeQuoteItemMfrReviews(), req.GetIncludeAllPendingQuoteMfr()); err != nil {
+		return nil, err
+	}
+	return reply, nil
 }
 
 func (s *BomService) GetBOMLines(ctx context.Context, req *v1.GetBOMLinesRequest) (*v1.GetBOMLinesReply, error) {

@@ -3,6 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+	"math"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -131,26 +135,115 @@ func mfrReviewQuoteItemFromBomQuoteReadRow(r biz.BomQuoteItemReadRow, lineID int
 	}
 }
 
-func appendPendingMfrFromBOMQuoteReadRows(readRows []biz.BomQuoteItemReadRow, lineID int64, appendPending func(biz.MfrReviewQuoteItem)) {
-	for _, r := range readRows {
-		st := strings.TrimSpace(r.ManufacturerReviewStatus)
-		if st != biz.MfrReviewPending && st != "" {
+type pickUpMfrReview struct {
+	readRows      []pickUpMfrReviewItem
+	task          mfrReadLineTask
+	appendPending func(biz.MfrReviewQuoteItem)
+}
+
+func newPickUpMfrReview(readRows []biz.BomQuoteItemReadRow, task mfrReadLineTask, appendPending func(biz.MfrReviewQuoteItem)) pickUpMfrReview {
+	var rows []pickUpMfrReviewItem
+	for _, row := range readRows {
+		s, err := strconv.Atoi(row.Stock)
+		if err != nil {
 			continue
 		}
-		if r.ItemID == 0 {
+		if float64(s) < *task.line.Qty {
 			continue
 		}
-		var canon *string
-		if c := strings.TrimSpace(r.ManufacturerCanonicalID); c != "" {
-			canon = &c
+		if row.ManufacturerReviewStatus == biz.MfrReviewRejected {
+			continue
 		}
-		lid := lineID
-		appendPending(biz.MfrReviewQuoteItem{
-			ID:                       r.ItemID,
-			LineID:                   &lid,
-			Manufacturer:             strings.TrimSpace(r.Manufacturer),
-			ManufacturerCanonicalID:  canon,
-			ManufacturerReviewStatus: biz.MfrReviewPending,
+		rows = append(rows, pickUpMfrReviewItem{
+			readRow: row,
+			price:   ParsePriceTier(row.PriceTiers).lowestPrice(int(*task.line.Qty)),
+		})
+
+	}
+	return pickUpMfrReview{readRows: rows, task: task, appendPending: appendPending}
+}
+
+func (pick pickUpMfrReview) pickUp() {
+	sort.Slice(pick.readRows, func(i, j int) bool {
+		return pick.readRows[i].price < pick.readRows[j].price
+	})
+	paas := true
+	count := 0
+	pendingCount := 0
+	for _, row := range pick.readRows {
+		if row.readRow.ManufacturerReviewStatus == biz.MfrReviewAccepted {
+			continue
+		} else {
+			paas = false
+		}
+		count++
+		if paas && count >= 3 {
+			return
+		}
+		lineNo := int64(pick.task.line.LineNo)
+		if row.readRow.ManufacturerReviewStatus == biz.MfrReviewPending {
+			pick.appendPending(biz.MfrReviewQuoteItem{
+				ID:                       row.readRow.ItemID,
+				LineID:                   &lineNo,
+				Manufacturer:             strings.TrimSpace(row.readRow.Manufacturer),
+				ManufacturerCanonicalID:  pick.task.line.ManufacturerCanonicalID,
+				ManufacturerReviewStatus: biz.MfrReviewPending,
+			})
+			pendingCount++
+		}
+		if pendingCount >= 5 {
+			return
+		}
+	}
+}
+
+type pickUpMfrReviewItem struct {
+	readRow biz.BomQuoteItemReadRow
+	price   float64
+}
+
+type priceTiers []priceTier
+
+func (tiers priceTiers) lowestPrice(count int) float64 {
+	if len(tiers) == 0 {
+		return math.MaxInt16
+	}
+	for _, tier := range tiers {
+		if tier.MinimumQuantity > count {
+			return tier.Price
+		}
+	}
+	return math.MaxInt16
+}
+
+type priceTier struct {
+	MinimumQuantity int
+	Price           float64
+	Currency        string
+}
+
+var priceTierRe = regexp.MustCompile(`(\d+)\+\s*([￥¥$])?\s*([\d.]+)`)
+
+func ParsePriceTier(tiers string) priceTiers {
+	matches := priceTierRe.FindAllStringSubmatch(tiers, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+	parsed := make([]priceTier, 0, len(matches))
+	for _, match := range matches {
+		if len(match) < 4 {
+			continue
+		}
+		minimumQuantity, _ := strconv.Atoi(match[1])
+		price, _ := strconv.ParseFloat(match[3], 64)
+		parsed = append(parsed, priceTier{
+			MinimumQuantity: minimumQuantity,
+			Price:           price,
+			Currency:        strings.TrimSpace(match[2]),
 		})
 	}
+	if len(parsed) == 0 {
+		return nil
+	}
+	return parsed
 }

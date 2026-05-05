@@ -26,15 +26,16 @@ type SessionLineMfrCandidate struct {
 
 // QuoteItemMfrReviewsReply 阶段二列表（含闸门）；见 SRS REQ-API-003。
 type QuoteItemMfrReviewsReply struct {
-	GateOpen bool                     `json:"gate_open"`
-	Items    []QuoteItemMfrReviewItem `json:"items"`
+	GateOpen                bool                     `json:"gate_open"`
+	Items                   []QuoteItemMfrReviewItem `json:"items"`
+	AllPendingQuoteMfrCount int32                    `json:"all_pending_quote_mfr_count"`
 }
 
 type QuoteItemMfrReviewItem struct {
-	QuoteItemID                  uint64 `json:"quote_item_id"`
-	LineNo                       int    `json:"line_no"`
-	LineManufacturerCanonicalID  string `json:"line_manufacturer_canonical_id"`
-	Manufacturer                 string `json:"manufacturer"`
+	QuoteItemID                 uint64 `json:"quote_item_id"`
+	LineNo                      int    `json:"line_no"`
+	LineManufacturerCanonicalID string `json:"line_manufacturer_canonical_id"`
+	Manufacturer                string `json:"manufacturer"`
 }
 
 // SubmitQuoteItemMfrReviewBody 阶段二提交。
@@ -83,8 +84,30 @@ func (s *BomService) listSessionLineMfrCandidatesInternal(ctx context.Context, s
 	return &SessionLineMfrCandidatesReply{Items: out}, nil
 }
 
+func filterQuoteItemMfrReviewsByPriorityLineSets(
+	items []QuoteItemMfrReviewItem,
+	byLine map[int]map[uint64]struct{},
+) []QuoteItemMfrReviewItem {
+	if len(byLine) == 0 {
+		return items
+	}
+	out := make([]QuoteItemMfrReviewItem, 0, len(items))
+	for _, it := range items {
+		set, ok := byLine[it.LineNo]
+		if !ok {
+			out = append(out, it)
+			continue
+		}
+		if _, hit := set[it.QuoteItemID]; hit {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
 // listQuoteItemMfrReviewsInternal 阶段二待评审列表 + 闸门。
-func (s *BomService) listQuoteItemMfrReviewsInternal(ctx context.Context, sessionID string) (*QuoteItemMfrReviewsReply, error) {
+// 待评审列表仅基于 quote-item-mfr-reviews 自身读链路计算，不依赖 readiness 的 TopK/TopN 子集。
+func (s *BomService) listQuoteItemMfrReviewsInternal(ctx context.Context, sessionID string, includeAll bool) (*QuoteItemMfrReviewsReply, error) {
 	if !s.dbOK() || s.mfrCleaning == nil || !s.mfrCleaning.DBOk() || s.alias == nil || !s.alias.DBOk() {
 		return nil, kerrors.ServiceUnavailable("DB_DISABLED", "database not configured")
 	}
@@ -99,8 +122,8 @@ func (s *BomService) listQuoteItemMfrReviewsInternal(ctx context.Context, sessio
 	gateSnapshots := make([]biz.LineMfrGateSnapshot, 0, len(lines))
 	for _, line := range lines {
 		gateSnapshots = append(gateSnapshots, biz.LineMfrGateSnapshot{
-			LineNo:                   line.LineNo,
-			Mfr:                      line.Mfr,
+			LineNo:                  line.LineNo,
+			Mfr:                     line.Mfr,
 			ManufacturerCanonicalID: line.ManufacturerCanonicalID,
 		})
 	}
@@ -110,60 +133,22 @@ func (s *BomService) listQuoteItemMfrReviewsInternal(ctx context.Context, sessio
 		reply.Items = []QuoteItemMfrReviewItem{}
 		return reply, nil
 	}
-	pending, err := s.listMfrReviewPendingQuoteItemsMerged(ctx, sessionID, view, lines, plats)
-	if err != nil {
-		return nil, err
-	}
-	lineByID := make(map[int64]data.BomSessionLine)
-	for _, line := range lines {
-		lineByID[line.ID] = line
-	}
-	var aliasNormKeys []string
-	seenNorm := make(map[string]struct{})
-	for _, it := range pending {
-		_, _, nk, preludeOK := phase2QuoteItemMfrReviewPrelude(it, lineByID)
-		if !preludeOK {
-			continue
-		}
-		if _, dup := seenNorm[nk]; dup {
-			continue
-		}
-		seenNorm[nk] = struct{}{}
-		aliasNormKeys = append(aliasNormKeys, nk)
-	}
-	aliasHits, err := s.alias.CanonicalIDsByNormKeys(ctx, aliasNormKeys)
+	pendings, err := s.listMfrReviewPendingQuoteItemsMerged(ctx, sessionID, view, lines, plats)
 	if err != nil {
 		return nil, err
 	}
 	items := make([]QuoteItemMfrReviewItem, 0)
-	for _, it := range pending {
-		line, quoteMfr, nk, preludeOK := phase2QuoteItemMfrReviewPrelude(it, lineByID)
-		if !preludeOK {
-			continue
-		}
-		quoteCanon := ""
-		quoteHit := false
-		if id, ok := aliasHits[nk]; ok && strings.TrimSpace(id) != "" {
-			quoteCanon = strings.TrimSpace(id)
-			quoteHit = true
-		}
-		if !biz.QuoteItemEligibleForPhase2ReviewList(
-			strings.TrimSpace(*line.ManufacturerCanonicalID),
-			quoteMfr,
-			it.ManufacturerCanonicalID,
-			quoteCanon,
-			quoteHit,
-		) {
-			continue
-		}
+	for _, pending := range pendings {
 		items = append(items, QuoteItemMfrReviewItem{
-			QuoteItemID:                 it.ID,
-			LineNo:                      line.LineNo,
-			LineManufacturerCanonicalID: strings.TrimSpace(*line.ManufacturerCanonicalID),
-			Manufacturer:                quoteMfr,
+			QuoteItemID:                 pending.ID,
+			LineNo:                      int(*pending.LineID),
+			LineManufacturerCanonicalID: strings.TrimSpace(*pending.ManufacturerCanonicalID),
+			Manufacturer:                *pending.ManufacturerCanonicalID,
 		})
 	}
+	allPending := int32(len(items))
 	reply.Items = items
+	reply.AllPendingQuoteMfrCount = allPending
 	return reply, nil
 }
 
@@ -247,11 +232,15 @@ func (s *BomService) ListSessionLineMfrCandidates(ctx context.Context, req *v1.L
 
 // ListQuoteItemMfrReviews 实现 api.bom.v1.BomService（proto HTTP）。
 func (s *BomService) ListQuoteItemMfrReviews(ctx context.Context, req *v1.ListQuoteItemMfrReviewsRequest) (*v1.ListQuoteItemMfrReviewsReply, error) {
-	core, err := s.listQuoteItemMfrReviewsInternal(ctx, strings.TrimSpace(req.GetSessionId()))
+	core, err := s.listQuoteItemMfrReviewsInternal(ctx, strings.TrimSpace(req.GetSessionId()), req.GetIncludeAllPendingQuoteMfr())
 	if err != nil {
 		return nil, err
 	}
-	out := &v1.ListQuoteItemMfrReviewsReply{GateOpen: core.GateOpen, Items: make([]*v1.QuoteItemMfrReviewRow, 0, len(core.Items))}
+	out := &v1.ListQuoteItemMfrReviewsReply{
+		GateOpen:                core.GateOpen,
+		Items:                   make([]*v1.QuoteItemMfrReviewRow, 0, len(core.Items)),
+		AllPendingQuoteMfrCount: core.AllPendingQuoteMfrCount,
+	}
 	for _, it := range core.Items {
 		out.Items = append(out.Items, &v1.QuoteItemMfrReviewRow{
 			QuoteItemId:                 it.QuoteItemID,

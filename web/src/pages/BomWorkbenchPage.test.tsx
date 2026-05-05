@@ -13,6 +13,7 @@ const {
   listManufacturerCanonicals,
   getSession,
   getBOMLines,
+  getReadiness,
   getSessionSearchTaskCoverage,
   listLineGaps,
   listMatchRuns,
@@ -26,6 +27,7 @@ const {
   listManufacturerCanonicals: vi.fn(),
   getSession: vi.fn(),
   getBOMLines: vi.fn(),
+  getReadiness: vi.fn(),
   getSessionSearchTaskCoverage: vi.fn(),
   listLineGaps: vi.fn(),
   listMatchRuns: vi.fn(),
@@ -44,6 +46,7 @@ vi.mock('../api', async () => {
     listManufacturerCanonicals,
     getSession,
     getBOMLines,
+    getReadiness,
     getSessionSearchTaskCoverage,
     listLineGaps,
     listMatchRuns,
@@ -65,6 +68,35 @@ vi.mock('./SourcingSessionPage', () => ({
 async function flushAsyncWork() {
   await Promise.resolve()
   await Promise.resolve()
+}
+
+const defaultGetReadinessReply = {
+  session_id: 'session-1',
+  biz_date: '2026-04-21',
+  selection_revision: 1,
+  phase: 'searching',
+  can_enter_match: false,
+  block_reason: '',
+  line_total: 2,
+  ready_line_count: 0,
+  gap_line_count: 0,
+  no_data_line_count: 0,
+  collection_unavailable_line_count: 0,
+  no_match_after_filter_line_count: 0,
+  collecting_line_count: 0,
+  has_strict_blocking_gap: false,
+  quote_mfr_review_gate_open: false,
+  quote_item_mfr_review_items: [] as { quote_item_id: number; line_no: number; line_manufacturer_canonical_id: string; manufacturer: string; platform_id: string }[],
+  all_pending_quote_mfr_count: 0,
+  line_quote_review_readiness: [
+    {
+      line_id: 'line-2',
+      line_quote_review_rule_b_ok: false,
+      line_quote_review_candidate_pool_m: 2,
+      line_quote_review_top_k_item_ids: ['1'],
+      line_quote_review_top_n_item_ids: ['1', '3'],
+    },
+  ],
 }
 
 describe('BomWorkbenchPage', () => {
@@ -104,7 +136,11 @@ describe('BomWorkbenchPage', () => {
     retrySearchTasks.mockResolvedValue({ accepted: 0 })
     autoMatch.mockResolvedValue({ items: [], total_amount: 0 })
     listSessionLineMfrCandidates.mockResolvedValue({ items: [] })
-    listQuoteItemMfrReviews.mockResolvedValue({ gate_open: false, items: [] })
+    listQuoteItemMfrReviews.mockResolvedValue({
+      gate_open: false,
+      items: [],
+      all_pending_quote_mfr_count: 0,
+    })
     listManufacturerCanonicals.mockResolvedValue([])
     getBOMLines.mockResolvedValue({
       lines: [
@@ -122,8 +158,23 @@ describe('BomWorkbenchPage', () => {
           raw_quote_platform_count: 2,
           usable_quote_platform_count: 1,
         },
+        {
+          line_id: 'line-2',
+          line_no: 2,
+          mpn: 'TEST2',
+          mfr: 'TI',
+          package: 'SOT23',
+          qty: 10,
+          match_status: 'ready',
+          platform_gaps: [],
+          availability_status: 'ready',
+          has_usable_quote: true,
+          raw_quote_platform_count: 1,
+          usable_quote_platform_count: 1,
+        },
       ],
     })
+    getReadiness.mockResolvedValue({ ...defaultGetReadinessReply })
     getSessionSearchTaskCoverage.mockResolvedValue({
       consistent: true,
       orphan_task_count: 0,
@@ -254,7 +305,12 @@ describe('BomWorkbenchPage', () => {
     expect(await screen.findByTestId('session-data-clean-panel')).toBeInTheDocument()
     expect(screen.getByTestId('manufacturer-alias-review-panel')).toBeInTheDocument()
     expect(listSessionLineMfrCandidates).toHaveBeenCalledWith('session-1')
-    expect(listQuoteItemMfrReviews).toHaveBeenCalledWith('session-1')
+    expect(listQuoteItemMfrReviews).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({
+        includeAllPendingQuoteMfr: false,
+      }),
+    )
     expect(autoMatch).not.toHaveBeenCalled()
   })
 
@@ -356,7 +412,11 @@ describe('BomWorkbenchPage', () => {
   })
 
   it('marks quote-item mfr phase aria-disabled when gate_open is false', async () => {
-    listQuoteItemMfrReviews.mockResolvedValue({ gate_open: false, items: [] })
+    listQuoteItemMfrReviews.mockResolvedValue({
+      gate_open: false,
+      items: [],
+      all_pending_quote_mfr_count: 0,
+    })
 
     render(<BomWorkbenchPage />)
 
@@ -374,7 +434,15 @@ describe('BomWorkbenchPage', () => {
   it('shows enabled quote mfr pass/reject when gate_open is true with pending items', async () => {
     listQuoteItemMfrReviews.mockResolvedValue({
       gate_open: true,
+      all_pending_quote_mfr_count: 2,
       items: [
+        {
+          quote_item_id: 3,
+          line_no: 2,
+          line_manufacturer_canonical_id: 'MFR_ST',
+          manufacturer: 'ST',
+          platform_id: 'find_chips',
+        },
         {
           quote_item_id: 1,
           line_no: 2,
@@ -394,8 +462,81 @@ describe('BomWorkbenchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
     fireEvent.click(await screen.findByRole('tab', { name: '\u6570\u636e\u6e05\u6d17' }))
 
-    const passBtn = await screen.findByRole('button', { name: '\u901a\u8fc7' })
-    expect(passBtn).not.toBeDisabled()
-    expect(screen.getByRole('button', { name: '\u4e0d\u901a\u8fc7' })).not.toBeDisabled()
+    const table = await screen.findByTestId('quote-item-mfr-review-table-wrap')
+    const passBtns = await screen.findAllByRole('button', { name: '\u901a\u8fc7' })
+    const passInTable = passBtns.filter((b) => table.contains(b))
+    expect(passInTable.length).toBeGreaterThanOrEqual(1)
+    expect(passInTable[0]).not.toBeDisabled()
+    const rejectInTable = screen
+      .getAllByRole('button', { name: '\u4e0d\u901a\u8fc7' })
+      .filter((b) => table.contains(b))
+    expect(rejectInTable.length).toBeGreaterThanOrEqual(1)
+    const row1 = screen.getByTestId('quote-item-mfr-row-1')
+    const row3 = screen.getByTestId('quote-item-mfr-row-3')
+    expect(row3.compareDocumentPosition(row1) & Node.DOCUMENT_POSITION_PRECEDING).not.toBe(0)
+  })
+
+  it('toggles include-all flag for quote mfr reviews request', async () => {
+    listQuoteItemMfrReviews.mockImplementation(async (_sid, opts) => {
+      const base = {
+        gate_open: true,
+        all_pending_quote_mfr_count: 2,
+      }
+      if (opts?.includeAllPendingQuoteMfr) {
+        return {
+          ...base,
+          items: [
+            {
+              quote_item_id: 99,
+              line_no: 2,
+              line_manufacturer_canonical_id: 'MFR_OTHER',
+              manufacturer: 'OTHER',
+              platform_id: 'icgoo',
+            },
+            {
+              quote_item_id: 1,
+              line_no: 2,
+              line_manufacturer_canonical_id: 'MFR_TI',
+              manufacturer: 'TI',
+              platform_id: 'find_chips',
+            },
+          ],
+        }
+      }
+      return {
+        ...base,
+        items: [
+          {
+            quote_item_id: 1,
+            line_no: 2,
+            line_manufacturer_canonical_id: 'MFR_TI',
+            manufacturer: 'TI',
+            platform_id: 'find_chips',
+          },
+        ],
+      }
+    })
+
+    render(<BomWorkbenchPage />)
+
+    await act(async () => {
+      await flushAsyncWork()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Alpha BOM/ }))
+    fireEvent.click(await screen.findByRole('tab', { name: '\u6570\u636e\u6e05\u6d17' }))
+
+    await screen.findByTestId('quote-item-mfr-review-table-wrap')
+    expect(screen.queryByTestId('quote-item-mfr-row-99')).not.toBeInTheDocument()
+    expect(screen.getByTestId('quote-item-mfr-row-1')).toBeInTheDocument()
+    expect(screen.getByText(/\u5f53\u524d\u5c55\u793a 1\s*\/\s*2/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('quote-mfr-show-all-pending'))
+
+    expect(await screen.findByTestId('quote-item-mfr-row-99')).toBeInTheDocument()
+    expect(listQuoteItemMfrReviews).toHaveBeenCalledWith(
+      'session-1',
+      expect.objectContaining({ includeAllPendingQuoteMfr: true }),
+    )
   })
 })

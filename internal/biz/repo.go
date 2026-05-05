@@ -436,6 +436,17 @@ type HsModelRecommendationRecord struct {
 	CreatedAt               time.Time
 }
 
+type HsPendingReviewRecord struct {
+	RunID        string
+	Model        string
+	Manufacturer string
+	TaskStatus   string
+	ResultStatus string
+	BestCodeTS   string
+	BestScore    float64
+	UpdatedAt    time.Time
+}
+
 // HsModelMappingRepo 持久化最终映射（仅仓储职责，不承载业务判定）。
 type HsModelMappingRepo interface {
 	DBOk() bool
@@ -492,4 +503,5 @@ type HsModelRecommendationRepo interface {
 	DBOk() bool
 	SaveTopN(ctx context.Context, rows []HsModelRecommendationRecord) error
 	ListByRunID(ctx context.Context, runID string) ([]HsModelRecommendationRecord, error)
+	ListPendingReviews(ctx context.Context, page, pageSize int, model, manufacturer string) ([]HsPendingReviewRecord, int, error)
 }

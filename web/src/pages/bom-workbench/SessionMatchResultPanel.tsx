@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { autoMatch, type MatchItem } from '../../api'
+import { autoMatch, hsBatchResolveByModels, matchItemNeedsHsResolve, type MatchItem } from '../../api'
 import { SessionLineDemandQuoteItemsModal } from './SessionLineDemandQuoteItemsModal'
 import {
   DEFAULT_PAGE_SIZE,
@@ -20,6 +20,14 @@ function displayValue(value: number | string | null | undefined): string {
   return String(value)
 }
 
+function needsHsResolveAction(item: MatchItem): boolean {
+  const codeTS = (item.code_ts || '').trim()
+  if (codeTS) return false
+  const hsStatus = (item.hs_code_status || '').trim()
+  if (hsStatus === 'hs_found') return false
+  return true
+}
+
 export function SessionMatchResultPanel({
   bomId,
   onNavigateToHsResolve,
@@ -31,20 +39,21 @@ export function SessionMatchResultPanel({
   const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE)
   const [lineDetailOpen, setLineDetailOpen] = useState(false)
   const [lineDetailLineNo, setLineDetailLineNo] = useState<number | null>(null)
+  const [batchBusy, setBatchBusy] = useState(false)
+  const [batchMessage, setBatchMessage] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const loadMatchResult = async () => {
+    try {
+      const reply = await autoMatch(bomId)
+      setItems(reply.items)
+    } catch {
+      setItems([])
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const reply = await autoMatch(bomId)
-        if (!cancelled) setItems(reply.items)
-      } catch {
-        if (!cancelled) setItems([])
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
+    void loadMatchResult()
   }, [bomId])
 
   const filtered = useMemo(
@@ -66,15 +75,53 @@ export function SessionMatchResultPanel({
     [items, keyword, status]
   )
   const paged = paginateRows(filtered, page, pageSize)
-  const matchedCount = items.filter((item) =>
-    ['matched', 'exact', 'manual_quote', 'substitute'].includes(item.match_status)
-  ).length
-  const unresolvedCount = Math.max(0, items.length - matchedCount)
+  const matchedCount = items.filter((item) => item.match_status === 'exact').length
+  const noMatchCount = items.filter((item) => item.match_status === 'no_match').length
   const totalAmount = items.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0)
 
   useEffect(() => {
     setPage(1)
   }, [keyword, status, pageSize])
+
+  const handleBatchResolveHs = async () => {
+    const lines = items
+      .filter((item) => item.match_status === 'exact' && matchItemNeedsHsResolve(item))
+      .map((item) => ({
+        line_no: item.index,
+        model: (item.model || '').trim(),
+        manufacturer: (item.demand_manufacturer || '').trim(),
+        match_status: item.match_status || '',
+        hs_code_status: item.hs_code_status || '',
+      }))
+      .filter((item) => item.model)
+    if (lines.length === 0) {
+      setBatchMessage('当前没有“已匹配且缺少HS”的行可触发。')
+      return
+    }
+    setBatchBusy(true)
+    setBatchMessage(null)
+    try {
+      const reply = await hsBatchResolveByModels({
+        session_id: bomId,
+        request_id: `batch-${Date.now()}`,
+        lines,
+      })
+      setBatchMessage(
+        `已提交：成功 ${reply.accepted_count}，跳过 ${reply.skipped_count}，失败 ${reply.failed_count}`
+      )
+    } catch (error) {
+      setBatchMessage(error instanceof Error ? error.message : '批量触发 HS 解析失败')
+    } finally {
+      setBatchBusy(false)
+    }
+  }
+
+  const refreshAndFilter = async (nextStatus: string) => {
+    setRefreshing(true)
+    await loadMatchResult()
+    setStatus(nextStatus)
+    setRefreshing(false)
+  }
 
   return (
     <section className="space-y-4" data-testid="session-match-result-panel">
@@ -82,17 +129,27 @@ export function SessionMatchResultPanel({
         <div className="rounded-lg border border-[#d7e0ed] bg-white p-4">
           <div className="text-sm font-bold text-slate-950">匹配状态</div>
           <div className="mt-4 text-3xl font-bold text-[#12805c]">
-            {unresolvedCount === 0 ? 'ready' : 'review'}
+            {noMatchCount === 0 ? 'ready' : 'review'}
           </div>
         </div>
-        <div className="rounded-lg border border-[#d7e0ed] bg-white p-4">
+        <button
+          type="button"
+          onClick={() => void refreshAndFilter('exact')}
+          disabled={refreshing}
+          className="rounded-lg border border-[#d7e0ed] bg-white p-4 text-left hover:border-[#8aa7d8] disabled:opacity-60"
+        >
           <div className="text-sm font-bold text-slate-950">已匹配行</div>
           <div className="mt-4 text-3xl font-bold text-[#2457c5]">{matchedCount}</div>
-        </div>
-        <div className="rounded-lg border border-[#d7e0ed] bg-white p-4">
-          <div className="text-sm font-bold text-slate-950">未解决</div>
-          <div className="mt-4 text-3xl font-bold text-[#a76505]">{unresolvedCount}</div>
-        </div>
+        </button>
+        <button
+          type="button"
+          onClick={() => void refreshAndFilter('no_match')}
+          disabled={refreshing}
+          className="rounded-lg border border-[#d7e0ed] bg-white p-4 text-left hover:border-[#d7a063] disabled:opacity-60"
+        >
+          <div className="text-sm font-bold text-slate-950">无匹配</div>
+          <div className="mt-4 text-3xl font-bold text-[#a76505]">{noMatchCount}</div>
+        </button>
         <div className="rounded-lg border border-[#d7e0ed] bg-white p-4">
           <div className="text-sm font-bold text-slate-950">总金额</div>
           <div className="mt-4 text-2xl font-bold text-slate-950">
@@ -108,6 +165,17 @@ export function SessionMatchResultPanel({
             <p className="mt-1 text-sm text-slate-500">双击行可查看该行原始需求与 t_bom_quote_item 明细</p>
           </div>
           <div className="text-sm text-slate-500">{pageSummary(paged.page, paged.totalPages, paged.total)}</div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleBatchResolveHs()}
+            disabled={batchBusy}
+            className="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 hover:bg-blue-100 disabled:opacity-50"
+          >
+            {batchBusy ? '批量提交中...' : '一键解析HS（已匹配未填HS）'}
+          </button>
+          {batchMessage ? <span className="text-sm text-slate-600">{batchMessage}</span> : null}
         </div>
         <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_10rem_8rem]">
           <input
@@ -185,16 +253,18 @@ export function SessionMatchResultPanel({
                   <td className="px-3 py-2">{displayValue(item.import_tax_imp_discount_rate)}</td>
                   <td className="px-3 py-2">{item.match_status || '-'}</td>
                   <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onNavigateToHsResolve?.(item.model, item.manufacturer)
-                      }}
-                      className="text-sm font-medium text-blue-600 hover:underline"
-                    >
-                      HS
-                    </button>
+                    {needsHsResolveAction(item) ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onNavigateToHsResolve?.(item.model, item.manufacturer)
+                        }}
+                        className="text-sm font-medium text-blue-600 hover:underline"
+                      >
+                        解析HS
+                      </button>
+                    ) : null}
                   </td>
                 </tr>
               ))

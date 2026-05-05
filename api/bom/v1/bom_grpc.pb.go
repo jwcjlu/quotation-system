@@ -1537,6 +1537,8 @@ const (
 	HsResolveService_GetResolveTask_FullMethodName          = "/api.bom.v1.HsResolveService/GetResolveTask"
 	HsResolveService_ConfirmResolve_FullMethodName          = "/api.bom.v1.HsResolveService/ConfirmResolve"
 	HsResolveService_GetResolveHistory_FullMethodName       = "/api.bom.v1.HsResolveService/GetResolveHistory"
+	HsResolveService_BatchResolveByModels_FullMethodName    = "/api.bom.v1.HsResolveService/BatchResolveByModels"
+	HsResolveService_ListPendingReviews_FullMethodName      = "/api.bom.v1.HsResolveService/ListPendingReviews"
 	HsResolveService_UploadHsManualDatasheet_FullMethodName = "/api.bom.v1.HsResolveService/UploadHsManualDatasheet"
 )
 
@@ -1554,6 +1556,10 @@ type HsResolveServiceClient interface {
 	ConfirmResolve(ctx context.Context, in *HsResolveConfirmRequest, opts ...grpc.CallOption) (*HsResolveConfirmReply, error)
 	// 查询历史结果与候选
 	GetResolveHistory(ctx context.Context, in *HsResolveHistoryRequest, opts ...grpc.CallOption) (*HsResolveHistoryReply, error)
+	// 批量触发解析（仅处理“已匹配且无 HS”行）
+	BatchResolveByModels(ctx context.Context, in *HsBatchResolveByModelsRequest, opts ...grpc.CallOption) (*HsBatchResolveByModelsReply, error)
+	// 分页查询待人工确认项
+	ListPendingReviews(ctx context.Context, in *HsPendingReviewsRequest, opts ...grpc.CallOption) (*HsPendingReviewsReply, error)
 	// 上传手册 PDF（二进制走 file；HTTP 亦可 multipart，由服务端自定义路由绑定）
 	UploadHsManualDatasheet(ctx context.Context, in *UploadHsManualDatasheetRequest, opts ...grpc.CallOption) (*UploadHsManualDatasheetReply, error)
 }
@@ -1606,6 +1612,26 @@ func (c *hsResolveServiceClient) GetResolveHistory(ctx context.Context, in *HsRe
 	return out, nil
 }
 
+func (c *hsResolveServiceClient) BatchResolveByModels(ctx context.Context, in *HsBatchResolveByModelsRequest, opts ...grpc.CallOption) (*HsBatchResolveByModelsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsBatchResolveByModelsReply)
+	err := c.cc.Invoke(ctx, HsResolveService_BatchResolveByModels_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hsResolveServiceClient) ListPendingReviews(ctx context.Context, in *HsPendingReviewsRequest, opts ...grpc.CallOption) (*HsPendingReviewsReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HsPendingReviewsReply)
+	err := c.cc.Invoke(ctx, HsResolveService_ListPendingReviews_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *hsResolveServiceClient) UploadHsManualDatasheet(ctx context.Context, in *UploadHsManualDatasheetRequest, opts ...grpc.CallOption) (*UploadHsManualDatasheetReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UploadHsManualDatasheetReply)
@@ -1630,6 +1656,10 @@ type HsResolveServiceServer interface {
 	ConfirmResolve(context.Context, *HsResolveConfirmRequest) (*HsResolveConfirmReply, error)
 	// 查询历史结果与候选
 	GetResolveHistory(context.Context, *HsResolveHistoryRequest) (*HsResolveHistoryReply, error)
+	// 批量触发解析（仅处理“已匹配且无 HS”行）
+	BatchResolveByModels(context.Context, *HsBatchResolveByModelsRequest) (*HsBatchResolveByModelsReply, error)
+	// 分页查询待人工确认项
+	ListPendingReviews(context.Context, *HsPendingReviewsRequest) (*HsPendingReviewsReply, error)
 	// 上传手册 PDF（二进制走 file；HTTP 亦可 multipart，由服务端自定义路由绑定）
 	UploadHsManualDatasheet(context.Context, *UploadHsManualDatasheetRequest) (*UploadHsManualDatasheetReply, error)
 	mustEmbedUnimplementedHsResolveServiceServer()
@@ -1653,6 +1683,12 @@ func (UnimplementedHsResolveServiceServer) ConfirmResolve(context.Context, *HsRe
 }
 func (UnimplementedHsResolveServiceServer) GetResolveHistory(context.Context, *HsResolveHistoryRequest) (*HsResolveHistoryReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetResolveHistory not implemented")
+}
+func (UnimplementedHsResolveServiceServer) BatchResolveByModels(context.Context, *HsBatchResolveByModelsRequest) (*HsBatchResolveByModelsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method BatchResolveByModels not implemented")
+}
+func (UnimplementedHsResolveServiceServer) ListPendingReviews(context.Context, *HsPendingReviewsRequest) (*HsPendingReviewsReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListPendingReviews not implemented")
 }
 func (UnimplementedHsResolveServiceServer) UploadHsManualDatasheet(context.Context, *UploadHsManualDatasheetRequest) (*UploadHsManualDatasheetReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method UploadHsManualDatasheet not implemented")
@@ -1750,6 +1786,42 @@ func _HsResolveService_GetResolveHistory_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HsResolveService_BatchResolveByModels_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsBatchResolveByModelsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsResolveServiceServer).BatchResolveByModels(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsResolveService_BatchResolveByModels_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsResolveServiceServer).BatchResolveByModels(ctx, req.(*HsBatchResolveByModelsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HsResolveService_ListPendingReviews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HsPendingReviewsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HsResolveServiceServer).ListPendingReviews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HsResolveService_ListPendingReviews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HsResolveServiceServer).ListPendingReviews(ctx, req.(*HsPendingReviewsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _HsResolveService_UploadHsManualDatasheet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UploadHsManualDatasheetRequest)
 	if err := dec(in); err != nil {
@@ -1790,6 +1862,14 @@ var HsResolveService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetResolveHistory",
 			Handler:    _HsResolveService_GetResolveHistory_Handler,
+		},
+		{
+			MethodName: "BatchResolveByModels",
+			Handler:    _HsResolveService_BatchResolveByModels_Handler,
+		},
+		{
+			MethodName: "ListPendingReviews",
+			Handler:    _HsResolveService_ListPendingReviews_Handler,
 		},
 		{
 			MethodName: "UploadHsManualDatasheet",

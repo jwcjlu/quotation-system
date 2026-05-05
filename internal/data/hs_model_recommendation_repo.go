@@ -36,11 +36,11 @@ func (r *HsModelRecommendationRepo) SaveTopN(ctx context.Context, rows []biz.HsM
 	models := make([]HsModelRecommendation, 0, len(rows))
 	for _, item := range rows {
 		model := strings.TrimSpace(item.Model)
-		manufacturer := strings.TrimSpace(item.Manufacturer)
 		runID := strings.TrimSpace(item.RunID)
 		codeTS := strings.TrimSpace(item.CodeTS)
-		if model == "" || manufacturer == "" || runID == "" || item.CandidateRank == 0 || codeTS == "" {
-			return fmt.Errorf("hs_model_recommendation: model/manufacturer/run_id/rank/code_ts required")
+		manufacturer := strings.TrimSpace(item.Manufacturer)
+		if model == "" || runID == "" || item.CandidateRank == 0 || codeTS == "" {
+			return fmt.Errorf("hs_model_recommendation: model/run_id/rank/code_ts required")
 		}
 		models = append(models, HsModelRecommendation{
 			Model:                   model,
@@ -148,6 +148,56 @@ func (r *HsModelRecommendationRepo) ListByRunID(ctx context.Context, runID strin
 		})
 	}
 	return out, nil
+}
+
+func (r *HsModelRecommendationRepo) ListPendingReviews(ctx context.Context, page, pageSize int, model, manufacturer string) ([]biz.HsPendingReviewRecord, int, error) {
+	if !r.DBOk() {
+		return nil, 0, nil
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+	model = strings.TrimSpace(model)
+	manufacturer = strings.TrimSpace(manufacturer)
+
+	db := r.d.DB.WithContext(ctx).Model(&HsModelTask{}).Where("result_status = ?", biz.HsResultStatusPendingReview)
+	if model != "" {
+		db = db.Where("model = ?", model)
+	}
+	if manufacturer != "" {
+		db = db.Where("manufacturer = ?", manufacturer)
+	}
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if total == 0 {
+		return nil, 0, nil
+	}
+	var tasks []HsModelTask
+	if err := db.Order("updated_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&tasks).Error; err != nil {
+		return nil, 0, err
+	}
+	out := make([]biz.HsPendingReviewRecord, 0, len(tasks))
+	for i := range tasks {
+		out = append(out, biz.HsPendingReviewRecord{
+			RunID:        tasks[i].RunID,
+			Model:        tasks[i].Model,
+			Manufacturer: tasks[i].Manufacturer,
+			TaskStatus:   tasks[i].TaskStatus,
+			ResultStatus: tasks[i].ResultStatus,
+			BestCodeTS:   tasks[i].BestCodeTS,
+			BestScore:    tasks[i].BestScore,
+			UpdatedAt:    tasks[i].UpdatedAt,
+		})
+	}
+	return out, int(total), nil
 }
 
 var _ biz.HsModelRecommendationRepo = (*HsModelRecommendationRepo)(nil)

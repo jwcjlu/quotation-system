@@ -1568,18 +1568,24 @@ func (c *BomServiceHTTPClientImpl) UploadBOM(ctx context.Context, in *UploadBOMR
 	return &out, nil
 }
 
+const OperationHsResolveServiceBatchResolveByModels = "/api.bom.v1.HsResolveService/BatchResolveByModels"
 const OperationHsResolveServiceConfirmResolve = "/api.bom.v1.HsResolveService/ConfirmResolve"
 const OperationHsResolveServiceGetResolveHistory = "/api.bom.v1.HsResolveService/GetResolveHistory"
 const OperationHsResolveServiceGetResolveTask = "/api.bom.v1.HsResolveService/GetResolveTask"
+const OperationHsResolveServiceListPendingReviews = "/api.bom.v1.HsResolveService/ListPendingReviews"
 const OperationHsResolveServiceResolveByModel = "/api.bom.v1.HsResolveService/ResolveByModel"
 
 type HsResolveServiceHTTPServer interface {
+	// BatchResolveByModels 批量触发解析（仅处理“已匹配且无 HS”行）
+	BatchResolveByModels(context.Context, *HsBatchResolveByModelsRequest) (*HsBatchResolveByModelsReply, error)
 	// ConfirmResolve 人工确认候选
 	ConfirmResolve(context.Context, *HsResolveConfirmRequest) (*HsResolveConfirmReply, error)
 	// GetResolveHistory 查询历史结果与候选
 	GetResolveHistory(context.Context, *HsResolveHistoryRequest) (*HsResolveHistoryReply, error)
 	// GetResolveTask 查询单个任务状态与结果
 	GetResolveTask(context.Context, *HsResolveTaskRequest) (*HsResolveTaskReply, error)
+	// ListPendingReviews 分页查询待人工确认项
+	ListPendingReviews(context.Context, *HsPendingReviewsRequest) (*HsPendingReviewsReply, error)
 	// ResolveByModel 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
 	ResolveByModel(context.Context, *HsResolveByModelRequest) (*HsResolveByModelReply, error)
 }
@@ -1590,6 +1596,8 @@ func RegisterHsResolveServiceHTTPServer(s *http.Server, srv HsResolveServiceHTTP
 	r.GET("/api/hs/resolve/task", _HsResolveService_GetResolveTask0_HTTP_Handler(srv))
 	r.POST("/api/hs/resolve/confirm", _HsResolveService_ConfirmResolve0_HTTP_Handler(srv))
 	r.GET("/api/hs/resolve/history", _HsResolveService_GetResolveHistory0_HTTP_Handler(srv))
+	r.POST("/api/hs/resolve/by-models:batch", _HsResolveService_BatchResolveByModels0_HTTP_Handler(srv))
+	r.GET("/api/hs/resolve/pending-reviews", _HsResolveService_ListPendingReviews0_HTTP_Handler(srv))
 }
 
 func _HsResolveService_ResolveByModel0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
@@ -1674,13 +1682,58 @@ func _HsResolveService_GetResolveHistory0_HTTP_Handler(srv HsResolveServiceHTTPS
 	}
 }
 
+func _HsResolveService_BatchResolveByModels0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsBatchResolveByModelsRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsResolveServiceBatchResolveByModels)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.BatchResolveByModels(ctx, req.(*HsBatchResolveByModelsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsBatchResolveByModelsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _HsResolveService_ListPendingReviews0_HTTP_Handler(srv HsResolveServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in HsPendingReviewsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationHsResolveServiceListPendingReviews)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListPendingReviews(ctx, req.(*HsPendingReviewsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*HsPendingReviewsReply)
+		return ctx.Result(200, reply)
+	}
+}
+
 type HsResolveServiceHTTPClient interface {
+	// BatchResolveByModels 批量触发解析（仅处理“已匹配且无 HS”行）
+	BatchResolveByModels(ctx context.Context, req *HsBatchResolveByModelsRequest, opts ...http.CallOption) (rsp *HsBatchResolveByModelsReply, err error)
 	// ConfirmResolve 人工确认候选
 	ConfirmResolve(ctx context.Context, req *HsResolveConfirmRequest, opts ...http.CallOption) (rsp *HsResolveConfirmReply, err error)
 	// GetResolveHistory 查询历史结果与候选
 	GetResolveHistory(ctx context.Context, req *HsResolveHistoryRequest, opts ...http.CallOption) (rsp *HsResolveHistoryReply, err error)
 	// GetResolveTask 查询单个任务状态与结果
 	GetResolveTask(ctx context.Context, req *HsResolveTaskRequest, opts ...http.CallOption) (rsp *HsResolveTaskReply, err error)
+	// ListPendingReviews 分页查询待人工确认项
+	ListPendingReviews(ctx context.Context, req *HsPendingReviewsRequest, opts ...http.CallOption) (rsp *HsPendingReviewsReply, err error)
 	// ResolveByModel 按型号触发解析；在同步超时内完成则直接返回，否则返回 task_id 供轮询
 	ResolveByModel(ctx context.Context, req *HsResolveByModelRequest, opts ...http.CallOption) (rsp *HsResolveByModelReply, err error)
 }
@@ -1691,6 +1744,20 @@ type HsResolveServiceHTTPClientImpl struct {
 
 func NewHsResolveServiceHTTPClient(client *http.Client) HsResolveServiceHTTPClient {
 	return &HsResolveServiceHTTPClientImpl{client}
+}
+
+// BatchResolveByModels 批量触发解析（仅处理“已匹配且无 HS”行）
+func (c *HsResolveServiceHTTPClientImpl) BatchResolveByModels(ctx context.Context, in *HsBatchResolveByModelsRequest, opts ...http.CallOption) (*HsBatchResolveByModelsReply, error) {
+	var out HsBatchResolveByModelsReply
+	pattern := "/api/hs/resolve/by-models:batch"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationHsResolveServiceBatchResolveByModels))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // ConfirmResolve 人工确认候选
@@ -1727,6 +1794,20 @@ func (c *HsResolveServiceHTTPClientImpl) GetResolveTask(ctx context.Context, in 
 	pattern := "/api/hs/resolve/task"
 	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationHsResolveServiceGetResolveTask))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListPendingReviews 分页查询待人工确认项
+func (c *HsResolveServiceHTTPClientImpl) ListPendingReviews(ctx context.Context, in *HsPendingReviewsRequest, opts ...http.CallOption) (*HsPendingReviewsReply, error) {
+	var out HsPendingReviewsReply
+	pattern := "/api/hs/resolve/pending-reviews"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationHsResolveServiceListPendingReviews))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {

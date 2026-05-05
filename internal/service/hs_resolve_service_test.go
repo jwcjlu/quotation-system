@@ -59,6 +59,10 @@ func (s *stubRecoRepo) ListByRunID(_ context.Context, _ string) ([]biz.HsModelRe
 	}, nil
 }
 
+func (s *stubRecoRepo) ListPendingReviews(_ context.Context, _ int, _ int, _ string, _ string) ([]biz.HsPendingReviewRecord, int, error) {
+	return nil, 0, nil
+}
+
 type stubConfirmer struct {
 	res *biz.HsModelConfirmResult
 	err error
@@ -303,6 +307,40 @@ func TestHsResolveService_ConfirmResolve(t *testing.T) {
 		t.Fatalf("ConfirmResolve error: %v", err)
 	}
 	if resp.GetRunId() != "run-1" || resp.GetResultStatus() != biz.HsResultStatusConfirmed {
+		t.Fatalf("unexpected confirm response: %#v", resp)
+	}
+}
+
+func TestHsResolveService_ConfirmResolveAllowsEmptyManufacturer(t *testing.T) {
+	svc := NewHsResolveService(
+		&stubResolveRunner{},
+		&stubTaskQuery{task: &biz.HsModelTaskRecord{
+			RunID:        "run-empty-mfr",
+			Model:        "PART-X",
+			Manufacturer: "",
+		}},
+		&stubRecoRepo{},
+		nil,
+		&stubConfirmer{res: &biz.HsModelConfirmResult{
+			RunID:            "run-empty-mfr",
+			CandidateRank:    1,
+			CodeTS:           "1234567890",
+			ConfirmRequestID: "confirm-empty-mfr",
+		}},
+		time.Second,
+	)
+	resp, err := svc.ConfirmResolve(context.Background(), &v1.HsResolveConfirmRequest{
+		Model:            "PART-X",
+		Manufacturer:     "",
+		RunId:            "run-empty-mfr",
+		CandidateRank:    1,
+		ExpectedCodeTs:   "1234567890",
+		ConfirmRequestId: "confirm-empty-mfr",
+	})
+	if err != nil {
+		t.Fatalf("ConfirmResolve error: %v", err)
+	}
+	if resp.GetRunId() != "run-empty-mfr" || resp.GetResultStatus() != biz.HsResultStatusConfirmed {
 		t.Fatalf("unexpected confirm response: %#v", resp)
 	}
 }

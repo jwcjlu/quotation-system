@@ -301,6 +301,21 @@ service HsResolveService {
     };
   }
 
+  // 批量触发解析（仅处理“已匹配且无 HS”行）
+  rpc BatchResolveByModels(HsBatchResolveByModelsRequest) returns (HsBatchResolveByModelsReply) {
+    option (google.api.http) = {
+      post: "/api/hs/resolve/by-models:batch"
+      body: "*"
+    };
+  }
+
+  // 分页查询待人工确认项
+  rpc ListPendingReviews(HsPendingReviewsRequest) returns (HsPendingReviewsReply) {
+    option (google.api.http) = {
+      get: "/api/hs/resolve/pending-reviews"
+    };
+  }
+
   // 上传手册 PDF（二进制走 file；HTTP 亦可 multipart，由服务端自定义路由绑定）
   rpc UploadHsManualDatasheet(UploadHsManualDatasheetRequest) returns (UploadHsManualDatasheetReply) {}
 }
@@ -619,6 +634,7 @@ message SubmitQuoteItemMfrReviewRequest {
   uint64 quote_item_id = 2;
   string decision = 3;
   string reason = 4;
+  string manufacturer_canonical_id = 5;
 }
 
 message SubmitQuoteItemMfrReviewReply {}
@@ -1186,6 +1202,65 @@ message HsResolveHistoryItem {
 
 message HsResolveHistoryReply {
   repeated HsResolveHistoryItem items = 1;
+}
+
+message HsBatchResolveLine {
+  int32 line_no = 1;
+  string model = 2;
+  string manufacturer = 3;
+  string match_status = 4;
+  string hs_code_status = 5;
+}
+
+message HsBatchResolveByModelsRequest {
+  string session_id = 1;
+  string request_id = 2;
+  repeated HsBatchResolveLine lines = 3;
+}
+
+message HsBatchResolveResult {
+  int32 line_no = 1;
+  string model = 2;
+  string manufacturer = 3;
+  string task_id = 4;
+  string run_id = 5;
+  string task_status = 6;
+  string result_status = 7;
+  string best_code_ts = 8;
+  double best_score = 9;
+  string error_code = 10;
+  string error_message = 11;
+}
+
+message HsBatchResolveByModelsReply {
+  int32 accepted_count = 1;
+  int32 skipped_count = 2;
+  int32 failed_count = 3;
+  repeated HsBatchResolveResult results = 4;
+}
+
+message HsPendingReviewsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string model = 3;
+  string manufacturer = 4;
+}
+
+message HsPendingReviewItem {
+  string run_id = 1;
+  string model = 2;
+  string manufacturer = 3;
+  string task_status = 4;
+  string result_status = 5;
+  string best_code_ts = 6;
+  double best_score = 7;
+  string updated_at = 8;
+  repeated HsResolveCandidate candidates = 9;
+}
+
+message HsPendingReviewsReply {
+  repeated HsPendingReviewItem items = 1;
+  int32 total = 2;
 }
 
 // ---------- HS 元数据（管理页 /api/hs/meta/*）----------

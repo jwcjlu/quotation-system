@@ -11,6 +11,7 @@ import {
   normalizeMPNForBomSearchClient,
   normalizeMfrStringClient,
   matchItemNeedsHsResolve,
+  hsBatchResolveByModels,
   type ManufacturerCanonicalRow,
   type MatchItem,
   type PlatformQuote,
@@ -1068,6 +1069,8 @@ export function MatchResultPage({ bomId, onNavigateToHsResolve }: MatchResultPag
   const [mfrReviewExpanded, setMfrReviewExpanded] = useState(false)
   const [sourcesOpen, setSourcesOpen] = useState(false)
   const [mfrAliasNotice, setMfrAliasNotice] = useState<string | null>(null)
+  const [batchHsBusy, setBatchHsBusy] = useState(false)
+  const [batchHsMessage, setBatchHsMessage] = useState<string | null>(null)
   const [visibleColumns, setVisibleColumns] = useState<Record<OptionalColumnKey, boolean>>(DEFAULT_VISIBLE_OPTIONAL_COLUMNS)
 
   useEffect(() => {
@@ -1190,6 +1193,44 @@ export function MatchResultPage({ bomId, onNavigateToHsResolve }: MatchResultPag
     onNavigateToHsResolve((item.model || '').trim(), (item.demand_manufacturer || '').trim())
   }
 
+  const handleBatchHsResolve = async () => {
+    if (!sessionReady) {
+      setError('会话未处于 data_ready，无法批量触发 HS 解析')
+      return
+    }
+    const lines = items
+      .filter((item) => item.match_status === 'exact' && matchItemNeedsHsResolve(item))
+      .map((item) => ({
+        line_no: item.index,
+        model: (item.model || '').trim(),
+        manufacturer: (item.demand_manufacturer || '').trim(),
+        match_status: item.match_status || '',
+        hs_code_status: item.hs_code_status || '',
+      }))
+      .filter((item) => item.model)
+    if (lines.length === 0) {
+      setBatchHsMessage('当前没有“已匹配且缺少HS”的行可触发。')
+      return
+    }
+    setBatchHsBusy(true)
+    setError(null)
+    setBatchHsMessage(null)
+    try {
+      const res = await hsBatchResolveByModels({
+        session_id: bomId,
+        request_id: `batch-${Date.now()}`,
+        lines,
+      })
+      setBatchHsMessage(
+        `已提交：成功 ${res.accepted_count}，跳过 ${res.skipped_count}，失败 ${res.failed_count}`
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '批量触发 HS 解析失败')
+    } finally {
+      setBatchHsBusy(false)
+    }
+  }
+
   const runMatchOnly = async () => {
     setRunning(true)
     setError(null)
@@ -1241,6 +1282,14 @@ export function MatchResultPage({ bomId, onNavigateToHsResolve }: MatchResultPag
             className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
           >
             配单数据源
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleBatchHsResolve()}
+            disabled={batchHsBusy || !sessionReady}
+            className="px-4 py-2 border border-blue-300 bg-blue-50 rounded-lg text-blue-800 text-sm font-medium hover:bg-blue-100 disabled:opacity-50"
+          >
+            {batchHsBusy ? '批量提交中...' : '批量解析HS（已匹配未填HS）'}
           </button>
           <button
             onClick={() => void runMatchOnly()}
@@ -1311,6 +1360,11 @@ export function MatchResultPage({ bomId, onNavigateToHsResolve }: MatchResultPag
           <button type="button" className="text-sky-800 underline shrink-0" onClick={() => setMfrAliasNotice(null)}>
             关闭
           </button>
+        </div>
+      )}
+      {batchHsMessage && (
+        <div className="p-3 bg-emerald-50 text-emerald-900 rounded-lg text-sm border border-emerald-200">
+          {batchHsMessage}
         </div>
       )}
 

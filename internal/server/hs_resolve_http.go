@@ -30,9 +30,11 @@ type hsManualDatasheetUploader interface {
 func RegisterHsResolveServiceHTTPServer(s *khttp.Server, srv v1.HsResolveServiceHTTPServer) {
 	r := s.Route("/")
 	r.POST("/api/hs/resolve/by-model", hsResolveByModelHTTPHandler(srv))
+	r.POST("/api/hs/resolve/by-models:batch", hsResolveBatchByModelsHTTPHandler(srv))
 	r.GET("/api/hs/resolve/task", hsResolveGetTaskHTTPHandler(srv))
 	r.POST("/api/hs/resolve/confirm", hsResolveConfirmHTTPHandler(srv))
 	r.GET("/api/hs/resolve/history", hsResolveHistoryHTTPHandler(srv))
+	r.GET("/api/hs/resolve/pending-reviews", hsResolvePendingReviewsHTTPHandler(srv))
 	if u, ok := srv.(hsManualDatasheetUploader); ok {
 		r.POST("/api/hs/resolve/manual-datasheet/upload", hsManualUploadHTTPHandler(u))
 	}
@@ -115,6 +117,28 @@ func hsResolveGetTaskHTTPHandler(srv v1.HsResolveServiceHTTPServer) func(ctx kht
 	}
 }
 
+func hsResolveBatchByModelsHTTPHandler(srv v1.HsResolveServiceHTTPServer) func(ctx khttp.Context) error {
+	return func(ctx khttp.Context) error {
+		var in v1.HsBatchResolveByModelsRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		khttp.SetOperation(ctx, v1.HsResolveService_BatchResolveByModels_FullMethodName)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.BatchResolveByModels(ctx, req.(*v1.HsBatchResolveByModelsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*v1.HsBatchResolveByModelsReply)
+		return ctx.Result(stdhttp.StatusOK, reply)
+	}
+}
+
 func hsResolveConfirmHTTPHandler(srv v1.HsResolveServiceHTTPServer) func(ctx khttp.Context) error {
 	return func(ctx khttp.Context) error {
 		var in v1.HsResolveConfirmRequest
@@ -152,6 +176,25 @@ func hsResolveHistoryHTTPHandler(srv v1.HsResolveServiceHTTPServer) func(ctx kht
 			return err
 		}
 		reply := out.(*v1.HsResolveHistoryReply)
+		return ctx.Result(stdhttp.StatusOK, reply)
+	}
+}
+
+func hsResolvePendingReviewsHTTPHandler(srv v1.HsResolveServiceHTTPServer) func(ctx khttp.Context) error {
+	return func(ctx khttp.Context) error {
+		var in v1.HsPendingReviewsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		khttp.SetOperation(ctx, v1.HsResolveService_ListPendingReviews_FullMethodName)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListPendingReviews(ctx, req.(*v1.HsPendingReviewsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*v1.HsPendingReviewsReply)
 		return ctx.Result(stdhttp.StatusOK, reply)
 	}
 }

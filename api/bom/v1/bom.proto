@@ -67,7 +67,7 @@ service BomService {
     };
   }
 
-  // 厂牌两阶段清洗 — 阶段二：报价明细评审列表 + 提交
+  // 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
   rpc ListQuoteItemMfrReviews(ListQuoteItemMfrReviewsRequest) returns (ListQuoteItemMfrReviewsReply) {
     option (google.api.http) = {
       get: "/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews"
@@ -595,11 +595,15 @@ message ApproveSessionLineMfrCleaningReply {
 
 message ListQuoteItemMfrReviewsRequest {
   string session_id = 1;
+  // 为 true 时返回全部仍待阶段二人工确认的报价子行；为 false（默认）时仅返回各行 TopK∪TopN 优先队列内、且仍须确认的报价（依赖 match 就绪；未就绪时与 true 行为一致返回全量）。
+  bool include_all_pending_quote_mfr = 2;
 }
 
 message ListQuoteItemMfrReviewsReply {
   bool gate_open = 1;
   repeated QuoteItemMfrReviewRow items = 2;
+  // 未按优先子集过滤前的待审报价子行总数（默认过滤时用于前端「展示 x / y」；include_all_pending_quote_mfr=true 时与 items 长度一致）。
+  int32 all_pending_quote_mfr_count = 3;
 }
 
 message QuoteItemMfrReviewRow {
@@ -720,6 +724,10 @@ message PutPlatformsReply {
 
 message GetReadinessRequest {
   string session_id = 1;
+  // 为 true 时在响应中一并返回阶段二报价厂牌待审列表（原 GET quote-item-mfr-reviews；与 ListQuoteItemMfrReviews 同源）。
+  bool include_quote_item_mfr_reviews = 2;
+  // 仅当 include_quote_item_mfr_reviews 时有效：为 true 返回全量待审子行，为 false（默认）仅返回各行 TopK∪TopN 内待审。
+  bool include_all_pending_quote_mfr = 3;
 }
 
 message GetReadinessReply {
@@ -739,6 +747,27 @@ message GetReadinessReply {
   bool has_strict_blocking_gap = 14;
   // 父行有需求厂牌时，报价子表处于 manufacturer_review_status=pending 的行数（跨平台合计）。
   int32 quote_mfr_review_pending_count = 15;
+  // 规则 B：会话内需行中「未满足底价带厂牌全通过」的行数（与 SRS REQ-READY-004 一致；无法计算时 repeated 为空且本字段为 0）。
+  int32 session_lines_quote_review_rule_b_not_ok_count = 16;
+  // 当前默认 TopN（REQ-QUEUE-001 配置回声）。
+  int32 session_quote_review_default_top_n = 17;
+  // 每需求行规则 B 与候选池快照（REQ-READY-001）。
+  repeated LineQuoteReviewReadiness line_quote_review_readiness = 18;
+  // 以下字段仅当请求 include_quote_item_mfr_reviews 时填充（与 ListQuoteItemMfrReviewsReply 对齐）。
+  bool quote_mfr_review_gate_open = 19;
+  repeated QuoteItemMfrReviewRow quote_item_mfr_review_items = 20;
+  int32 all_pending_quote_mfr_count = 21;
+}
+
+// 单条 t_bom_session_line（需求行）维度：TopK/TopN/规则 B 均在「该行 × 会话勾选平台」合并后的报价子行池上计算，不按平台分别取 Top。
+message LineQuoteReviewReadiness {
+  string line_id = 1;
+  bool line_quote_review_rule_b_ok = 2;
+  int32 line_quote_review_candidate_pool_m = 3;
+  // 该行合并池内规则 B 底价带 TopK（t_bom_quote_item.id，跨平台）。
+  repeated uint64 line_quote_review_top_k_item_ids = 4;
+  // 该行合并池内默认优先审核 TopN（同上，跨平台可比价排序后截断）。
+  repeated uint64 line_quote_review_top_n_item_ids = 5;
 }
 
 message GetBOMLinesRequest {

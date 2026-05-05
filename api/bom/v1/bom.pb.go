@@ -2671,10 +2671,12 @@ func (x *ApproveSessionLineMfrCleaningReply) GetQuoteItemUpdated() int32 {
 }
 
 type ListQuoteItemMfrReviewsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// 为 true 时返回全部仍待阶段二人工确认的报价子行；为 false（默认）时仅返回各行 TopK∪TopN 优先队列内、且仍须确认的报价（依赖 match 就绪；未就绪时与 true 行为一致返回全量）。
+	IncludeAllPendingQuoteMfr bool `protobuf:"varint,2,opt,name=include_all_pending_quote_mfr,json=includeAllPendingQuoteMfr,proto3" json:"include_all_pending_quote_mfr,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *ListQuoteItemMfrReviewsRequest) Reset() {
@@ -2714,12 +2716,21 @@ func (x *ListQuoteItemMfrReviewsRequest) GetSessionId() string {
 	return ""
 }
 
+func (x *ListQuoteItemMfrReviewsRequest) GetIncludeAllPendingQuoteMfr() bool {
+	if x != nil {
+		return x.IncludeAllPendingQuoteMfr
+	}
+	return false
+}
+
 type ListQuoteItemMfrReviewsReply struct {
-	state         protoimpl.MessageState   `protogen:"open.v1"`
-	GateOpen      bool                     `protobuf:"varint,1,opt,name=gate_open,json=gateOpen,proto3" json:"gate_open,omitempty"`
-	Items         []*QuoteItemMfrReviewRow `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState   `protogen:"open.v1"`
+	GateOpen bool                     `protobuf:"varint,1,opt,name=gate_open,json=gateOpen,proto3" json:"gate_open,omitempty"`
+	Items    []*QuoteItemMfrReviewRow `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
+	// 未按优先子集过滤前的待审报价子行总数（默认过滤时用于前端「展示 x / y」；include_all_pending_quote_mfr=true 时与 items 长度一致）。
+	AllPendingQuoteMfrCount int32 `protobuf:"varint,3,opt,name=all_pending_quote_mfr_count,json=allPendingQuoteMfrCount,proto3" json:"all_pending_quote_mfr_count,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ListQuoteItemMfrReviewsReply) Reset() {
@@ -2764,6 +2775,13 @@ func (x *ListQuoteItemMfrReviewsReply) GetItems() []*QuoteItemMfrReviewRow {
 		return x.Items
 	}
 	return nil
+}
+
+func (x *ListQuoteItemMfrReviewsReply) GetAllPendingQuoteMfrCount() int32 {
+	if x != nil {
+		return x.AllPendingQuoteMfrCount
+	}
+	return 0
 }
 
 type QuoteItemMfrReviewRow struct {
@@ -3901,10 +3919,14 @@ func (x *PutPlatformsReply) GetSelectionRevision() int32 {
 }
 
 type GetReadinessRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// 为 true 时在响应中一并返回阶段二报价厂牌待审列表（原 GET quote-item-mfr-reviews；与 ListQuoteItemMfrReviews 同源）。
+	IncludeQuoteItemMfrReviews bool `protobuf:"varint,2,opt,name=include_quote_item_mfr_reviews,json=includeQuoteItemMfrReviews,proto3" json:"include_quote_item_mfr_reviews,omitempty"`
+	// 仅当 include_quote_item_mfr_reviews 时有效：为 true 返回全量待审子行，为 false（默认）仅返回各行 TopK∪TopN 内待审。
+	IncludeAllPendingQuoteMfr bool `protobuf:"varint,3,opt,name=include_all_pending_quote_mfr,json=includeAllPendingQuoteMfr,proto3" json:"include_all_pending_quote_mfr,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *GetReadinessRequest) Reset() {
@@ -3944,6 +3966,20 @@ func (x *GetReadinessRequest) GetSessionId() string {
 	return ""
 }
 
+func (x *GetReadinessRequest) GetIncludeQuoteItemMfrReviews() bool {
+	if x != nil {
+		return x.IncludeQuoteItemMfrReviews
+	}
+	return false
+}
+
+func (x *GetReadinessRequest) GetIncludeAllPendingQuoteMfr() bool {
+	if x != nil {
+		return x.IncludeAllPendingQuoteMfr
+	}
+	return false
+}
+
 type GetReadinessReply struct {
 	state                          protoimpl.MessageState `protogen:"open.v1"`
 	SessionId                      string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -3962,8 +3998,18 @@ type GetReadinessReply struct {
 	HasStrictBlockingGap           bool                   `protobuf:"varint,14,opt,name=has_strict_blocking_gap,json=hasStrictBlockingGap,proto3" json:"has_strict_blocking_gap,omitempty"`
 	// 父行有需求厂牌时，报价子表处于 manufacturer_review_status=pending 的行数（跨平台合计）。
 	QuoteMfrReviewPendingCount int32 `protobuf:"varint,15,opt,name=quote_mfr_review_pending_count,json=quoteMfrReviewPendingCount,proto3" json:"quote_mfr_review_pending_count,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// 规则 B：会话内需行中「未满足底价带厂牌全通过」的行数（与 SRS REQ-READY-004 一致；无法计算时 repeated 为空且本字段为 0）。
+	SessionLinesQuoteReviewRuleBNotOkCount int32 `protobuf:"varint,16,opt,name=session_lines_quote_review_rule_b_not_ok_count,json=sessionLinesQuoteReviewRuleBNotOkCount,proto3" json:"session_lines_quote_review_rule_b_not_ok_count,omitempty"`
+	// 当前默认 TopN（REQ-QUEUE-001 配置回声）。
+	SessionQuoteReviewDefaultTopN int32 `protobuf:"varint,17,opt,name=session_quote_review_default_top_n,json=sessionQuoteReviewDefaultTopN,proto3" json:"session_quote_review_default_top_n,omitempty"`
+	// 每需求行规则 B 与候选池快照（REQ-READY-001）。
+	LineQuoteReviewReadiness []*LineQuoteReviewReadiness `protobuf:"bytes,18,rep,name=line_quote_review_readiness,json=lineQuoteReviewReadiness,proto3" json:"line_quote_review_readiness,omitempty"`
+	// 以下字段仅当请求 include_quote_item_mfr_reviews 时填充（与 ListQuoteItemMfrReviewsReply 对齐）。
+	QuoteMfrReviewGateOpen  bool                     `protobuf:"varint,19,opt,name=quote_mfr_review_gate_open,json=quoteMfrReviewGateOpen,proto3" json:"quote_mfr_review_gate_open,omitempty"`
+	QuoteItemMfrReviewItems []*QuoteItemMfrReviewRow `protobuf:"bytes,20,rep,name=quote_item_mfr_review_items,json=quoteItemMfrReviewItems,proto3" json:"quote_item_mfr_review_items,omitempty"`
+	AllPendingQuoteMfrCount int32                    `protobuf:"varint,21,opt,name=all_pending_quote_mfr_count,json=allPendingQuoteMfrCount,proto3" json:"all_pending_quote_mfr_count,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *GetReadinessReply) Reset() {
@@ -4101,6 +4147,127 @@ func (x *GetReadinessReply) GetQuoteMfrReviewPendingCount() int32 {
 	return 0
 }
 
+func (x *GetReadinessReply) GetSessionLinesQuoteReviewRuleBNotOkCount() int32 {
+	if x != nil {
+		return x.SessionLinesQuoteReviewRuleBNotOkCount
+	}
+	return 0
+}
+
+func (x *GetReadinessReply) GetSessionQuoteReviewDefaultTopN() int32 {
+	if x != nil {
+		return x.SessionQuoteReviewDefaultTopN
+	}
+	return 0
+}
+
+func (x *GetReadinessReply) GetLineQuoteReviewReadiness() []*LineQuoteReviewReadiness {
+	if x != nil {
+		return x.LineQuoteReviewReadiness
+	}
+	return nil
+}
+
+func (x *GetReadinessReply) GetQuoteMfrReviewGateOpen() bool {
+	if x != nil {
+		return x.QuoteMfrReviewGateOpen
+	}
+	return false
+}
+
+func (x *GetReadinessReply) GetQuoteItemMfrReviewItems() []*QuoteItemMfrReviewRow {
+	if x != nil {
+		return x.QuoteItemMfrReviewItems
+	}
+	return nil
+}
+
+func (x *GetReadinessReply) GetAllPendingQuoteMfrCount() int32 {
+	if x != nil {
+		return x.AllPendingQuoteMfrCount
+	}
+	return 0
+}
+
+// 单条 t_bom_session_line（需求行）维度：TopK/TopN/规则 B 均在「该行 × 会话勾选平台」合并后的报价子行池上计算，不按平台分别取 Top。
+type LineQuoteReviewReadiness struct {
+	state                         protoimpl.MessageState `protogen:"open.v1"`
+	LineId                        string                 `protobuf:"bytes,1,opt,name=line_id,json=lineId,proto3" json:"line_id,omitempty"`
+	LineQuoteReviewRuleBOk        bool                   `protobuf:"varint,2,opt,name=line_quote_review_rule_b_ok,json=lineQuoteReviewRuleBOk,proto3" json:"line_quote_review_rule_b_ok,omitempty"`
+	LineQuoteReviewCandidatePoolM int32                  `protobuf:"varint,3,opt,name=line_quote_review_candidate_pool_m,json=lineQuoteReviewCandidatePoolM,proto3" json:"line_quote_review_candidate_pool_m,omitempty"`
+	// 该行合并池内规则 B 底价带 TopK（t_bom_quote_item.id，跨平台）。
+	LineQuoteReviewTopKItemIds []uint64 `protobuf:"varint,4,rep,packed,name=line_quote_review_top_k_item_ids,json=lineQuoteReviewTopKItemIds,proto3" json:"line_quote_review_top_k_item_ids,omitempty"`
+	// 该行合并池内默认优先审核 TopN（同上，跨平台可比价排序后截断）。
+	LineQuoteReviewTopNItemIds []uint64 `protobuf:"varint,5,rep,packed,name=line_quote_review_top_n_item_ids,json=lineQuoteReviewTopNItemIds,proto3" json:"line_quote_review_top_n_item_ids,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
+}
+
+func (x *LineQuoteReviewReadiness) Reset() {
+	*x = LineQuoteReviewReadiness{}
+	mi := &file_bom_v1_bom_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LineQuoteReviewReadiness) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LineQuoteReviewReadiness) ProtoMessage() {}
+
+func (x *LineQuoteReviewReadiness) ProtoReflect() protoreflect.Message {
+	mi := &file_bom_v1_bom_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LineQuoteReviewReadiness.ProtoReflect.Descriptor instead.
+func (*LineQuoteReviewReadiness) Descriptor() ([]byte, []int) {
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *LineQuoteReviewReadiness) GetLineId() string {
+	if x != nil {
+		return x.LineId
+	}
+	return ""
+}
+
+func (x *LineQuoteReviewReadiness) GetLineQuoteReviewRuleBOk() bool {
+	if x != nil {
+		return x.LineQuoteReviewRuleBOk
+	}
+	return false
+}
+
+func (x *LineQuoteReviewReadiness) GetLineQuoteReviewCandidatePoolM() int32 {
+	if x != nil {
+		return x.LineQuoteReviewCandidatePoolM
+	}
+	return 0
+}
+
+func (x *LineQuoteReviewReadiness) GetLineQuoteReviewTopKItemIds() []uint64 {
+	if x != nil {
+		return x.LineQuoteReviewTopKItemIds
+	}
+	return nil
+}
+
+func (x *LineQuoteReviewReadiness) GetLineQuoteReviewTopNItemIds() []uint64 {
+	if x != nil {
+		return x.LineQuoteReviewTopNItemIds
+	}
+	return nil
+}
+
 type GetBOMLinesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -4110,7 +4277,7 @@ type GetBOMLinesRequest struct {
 
 func (x *GetBOMLinesRequest) Reset() {
 	*x = GetBOMLinesRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[56]
+	mi := &file_bom_v1_bom_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4122,7 +4289,7 @@ func (x *GetBOMLinesRequest) String() string {
 func (*GetBOMLinesRequest) ProtoMessage() {}
 
 func (x *GetBOMLinesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[56]
+	mi := &file_bom_v1_bom_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4135,7 +4302,7 @@ func (x *GetBOMLinesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBOMLinesRequest.ProtoReflect.Descriptor instead.
 func (*GetBOMLinesRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{56}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *GetBOMLinesRequest) GetSessionId() string {
@@ -4174,7 +4341,7 @@ type BOMLineRow struct {
 
 func (x *BOMLineRow) Reset() {
 	*x = BOMLineRow{}
-	mi := &file_bom_v1_bom_proto_msgTypes[57]
+	mi := &file_bom_v1_bom_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4186,7 +4353,7 @@ func (x *BOMLineRow) String() string {
 func (*BOMLineRow) ProtoMessage() {}
 
 func (x *BOMLineRow) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[57]
+	mi := &file_bom_v1_bom_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4199,7 +4366,7 @@ func (x *BOMLineRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BOMLineRow.ProtoReflect.Descriptor instead.
 func (*BOMLineRow) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{57}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *BOMLineRow) GetLineId() string {
@@ -4365,7 +4532,7 @@ type PlatformGap struct {
 
 func (x *PlatformGap) Reset() {
 	*x = PlatformGap{}
-	mi := &file_bom_v1_bom_proto_msgTypes[58]
+	mi := &file_bom_v1_bom_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4377,7 +4544,7 @@ func (x *PlatformGap) String() string {
 func (*PlatformGap) ProtoMessage() {}
 
 func (x *PlatformGap) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[58]
+	mi := &file_bom_v1_bom_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4390,7 +4557,7 @@ func (x *PlatformGap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlatformGap.ProtoReflect.Descriptor instead.
 func (*PlatformGap) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{58}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *PlatformGap) GetPlatformId() string {
@@ -4451,7 +4618,7 @@ type GetSessionSearchTaskCoverageRequest struct {
 
 func (x *GetSessionSearchTaskCoverageRequest) Reset() {
 	*x = GetSessionSearchTaskCoverageRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[59]
+	mi := &file_bom_v1_bom_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4463,7 +4630,7 @@ func (x *GetSessionSearchTaskCoverageRequest) String() string {
 func (*GetSessionSearchTaskCoverageRequest) ProtoMessage() {}
 
 func (x *GetSessionSearchTaskCoverageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[59]
+	mi := &file_bom_v1_bom_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4476,7 +4643,7 @@ func (x *GetSessionSearchTaskCoverageRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use GetSessionSearchTaskCoverageRequest.ProtoReflect.Descriptor instead.
 func (*GetSessionSearchTaskCoverageRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{59}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *GetSessionSearchTaskCoverageRequest) GetSessionId() string {
@@ -4499,7 +4666,7 @@ type SearchTaskMissingItem struct {
 
 func (x *SearchTaskMissingItem) Reset() {
 	*x = SearchTaskMissingItem{}
-	mi := &file_bom_v1_bom_proto_msgTypes[60]
+	mi := &file_bom_v1_bom_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4511,7 +4678,7 @@ func (x *SearchTaskMissingItem) String() string {
 func (*SearchTaskMissingItem) ProtoMessage() {}
 
 func (x *SearchTaskMissingItem) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[60]
+	mi := &file_bom_v1_bom_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4524,7 +4691,7 @@ func (x *SearchTaskMissingItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchTaskMissingItem.ProtoReflect.Descriptor instead.
 func (*SearchTaskMissingItem) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{60}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *SearchTaskMissingItem) GetLineId() string {
@@ -4575,7 +4742,7 @@ type GetSessionSearchTaskCoverageReply struct {
 
 func (x *GetSessionSearchTaskCoverageReply) Reset() {
 	*x = GetSessionSearchTaskCoverageReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[61]
+	mi := &file_bom_v1_bom_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4587,7 +4754,7 @@ func (x *GetSessionSearchTaskCoverageReply) String() string {
 func (*GetSessionSearchTaskCoverageReply) ProtoMessage() {}
 
 func (x *GetSessionSearchTaskCoverageReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[61]
+	mi := &file_bom_v1_bom_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4600,7 +4767,7 @@ func (x *GetSessionSearchTaskCoverageReply) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetSessionSearchTaskCoverageReply.ProtoReflect.Descriptor instead.
 func (*GetSessionSearchTaskCoverageReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{61}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *GetSessionSearchTaskCoverageReply) GetConsistent() bool {
@@ -4647,7 +4814,7 @@ type ListSessionSearchTasksRequest struct {
 
 func (x *ListSessionSearchTasksRequest) Reset() {
 	*x = ListSessionSearchTasksRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[62]
+	mi := &file_bom_v1_bom_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4659,7 +4826,7 @@ func (x *ListSessionSearchTasksRequest) String() string {
 func (*ListSessionSearchTasksRequest) ProtoMessage() {}
 
 func (x *ListSessionSearchTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[62]
+	mi := &file_bom_v1_bom_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4672,7 +4839,7 @@ func (x *ListSessionSearchTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSessionSearchTasksRequest.ProtoReflect.Descriptor instead.
 func (*ListSessionSearchTasksRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{62}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ListSessionSearchTasksRequest) GetSessionId() string {
@@ -4700,7 +4867,7 @@ type SearchTaskStatusSummary struct {
 
 func (x *SearchTaskStatusSummary) Reset() {
 	*x = SearchTaskStatusSummary{}
-	mi := &file_bom_v1_bom_proto_msgTypes[63]
+	mi := &file_bom_v1_bom_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4712,7 +4879,7 @@ func (x *SearchTaskStatusSummary) String() string {
 func (*SearchTaskStatusSummary) ProtoMessage() {}
 
 func (x *SearchTaskStatusSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[63]
+	mi := &file_bom_v1_bom_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4725,7 +4892,7 @@ func (x *SearchTaskStatusSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SearchTaskStatusSummary.ProtoReflect.Descriptor instead.
 func (*SearchTaskStatusSummary) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{63}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *SearchTaskStatusSummary) GetTotal() int32 {
@@ -4826,7 +4993,7 @@ type SessionSearchTaskRow struct {
 
 func (x *SessionSearchTaskRow) Reset() {
 	*x = SessionSearchTaskRow{}
-	mi := &file_bom_v1_bom_proto_msgTypes[64]
+	mi := &file_bom_v1_bom_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4838,7 +5005,7 @@ func (x *SessionSearchTaskRow) String() string {
 func (*SessionSearchTaskRow) ProtoMessage() {}
 
 func (x *SessionSearchTaskRow) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[64]
+	mi := &file_bom_v1_bom_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4851,7 +5018,7 @@ func (x *SessionSearchTaskRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionSearchTaskRow.ProtoReflect.Descriptor instead.
 func (*SessionSearchTaskRow) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{64}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *SessionSearchTaskRow) GetLineId() string {
@@ -5005,7 +5172,7 @@ type ListSessionSearchTasksReply struct {
 
 func (x *ListSessionSearchTasksReply) Reset() {
 	*x = ListSessionSearchTasksReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[65]
+	mi := &file_bom_v1_bom_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5017,7 +5184,7 @@ func (x *ListSessionSearchTasksReply) String() string {
 func (*ListSessionSearchTasksReply) ProtoMessage() {}
 
 func (x *ListSessionSearchTasksReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[65]
+	mi := &file_bom_v1_bom_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5030,7 +5197,7 @@ func (x *ListSessionSearchTasksReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSessionSearchTasksReply.ProtoReflect.Descriptor instead.
 func (*ListSessionSearchTasksReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{65}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *ListSessionSearchTasksReply) GetSessionId() string {
@@ -5063,7 +5230,7 @@ type GetBOMLinesReply struct {
 
 func (x *GetBOMLinesReply) Reset() {
 	*x = GetBOMLinesReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[66]
+	mi := &file_bom_v1_bom_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5075,7 +5242,7 @@ func (x *GetBOMLinesReply) String() string {
 func (*GetBOMLinesReply) ProtoMessage() {}
 
 func (x *GetBOMLinesReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[66]
+	mi := &file_bom_v1_bom_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5088,7 +5255,7 @@ func (x *GetBOMLinesReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBOMLinesReply.ProtoReflect.Descriptor instead.
 func (*GetBOMLinesReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{66}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *GetBOMLinesReply) GetLines() []*BOMLineRow {
@@ -5118,7 +5285,7 @@ type CreateSessionLineRequest struct {
 
 func (x *CreateSessionLineRequest) Reset() {
 	*x = CreateSessionLineRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[67]
+	mi := &file_bom_v1_bom_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5130,7 +5297,7 @@ func (x *CreateSessionLineRequest) String() string {
 func (*CreateSessionLineRequest) ProtoMessage() {}
 
 func (x *CreateSessionLineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[67]
+	mi := &file_bom_v1_bom_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5143,7 +5310,7 @@ func (x *CreateSessionLineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSessionLineRequest.ProtoReflect.Descriptor instead.
 func (*CreateSessionLineRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{67}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *CreateSessionLineRequest) GetSessionId() string {
@@ -5240,7 +5407,7 @@ type CreateSessionLineReply struct {
 
 func (x *CreateSessionLineReply) Reset() {
 	*x = CreateSessionLineReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[68]
+	mi := &file_bom_v1_bom_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5252,7 +5419,7 @@ func (x *CreateSessionLineReply) String() string {
 func (*CreateSessionLineReply) ProtoMessage() {}
 
 func (x *CreateSessionLineReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[68]
+	mi := &file_bom_v1_bom_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5265,7 +5432,7 @@ func (x *CreateSessionLineReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSessionLineReply.ProtoReflect.Descriptor instead.
 func (*CreateSessionLineReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{68}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *CreateSessionLineReply) GetLineId() string {
@@ -5303,7 +5470,7 @@ type PatchSessionLineRequest struct {
 
 func (x *PatchSessionLineRequest) Reset() {
 	*x = PatchSessionLineRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[69]
+	mi := &file_bom_v1_bom_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5315,7 +5482,7 @@ func (x *PatchSessionLineRequest) String() string {
 func (*PatchSessionLineRequest) ProtoMessage() {}
 
 func (x *PatchSessionLineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[69]
+	mi := &file_bom_v1_bom_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5328,7 +5495,7 @@ func (x *PatchSessionLineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PatchSessionLineRequest.ProtoReflect.Descriptor instead.
 func (*PatchSessionLineRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{69}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *PatchSessionLineRequest) GetSessionId() string {
@@ -5432,7 +5599,7 @@ type PatchSessionLineReply struct {
 
 func (x *PatchSessionLineReply) Reset() {
 	*x = PatchSessionLineReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[70]
+	mi := &file_bom_v1_bom_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5444,7 +5611,7 @@ func (x *PatchSessionLineReply) String() string {
 func (*PatchSessionLineReply) ProtoMessage() {}
 
 func (x *PatchSessionLineReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[70]
+	mi := &file_bom_v1_bom_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5457,7 +5624,7 @@ func (x *PatchSessionLineReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PatchSessionLineReply.ProtoReflect.Descriptor instead.
 func (*PatchSessionLineReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{70}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *PatchSessionLineReply) GetLineId() string {
@@ -5484,7 +5651,7 @@ type DeleteSessionLineRequest struct {
 
 func (x *DeleteSessionLineRequest) Reset() {
 	*x = DeleteSessionLineRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[71]
+	mi := &file_bom_v1_bom_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5496,7 +5663,7 @@ func (x *DeleteSessionLineRequest) String() string {
 func (*DeleteSessionLineRequest) ProtoMessage() {}
 
 func (x *DeleteSessionLineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[71]
+	mi := &file_bom_v1_bom_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5509,7 +5676,7 @@ func (x *DeleteSessionLineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSessionLineRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSessionLineRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{71}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *DeleteSessionLineRequest) GetSessionId() string {
@@ -5534,7 +5701,7 @@ type DeleteSessionLineReply struct {
 
 func (x *DeleteSessionLineReply) Reset() {
 	*x = DeleteSessionLineReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[72]
+	mi := &file_bom_v1_bom_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5546,7 +5713,7 @@ func (x *DeleteSessionLineReply) String() string {
 func (*DeleteSessionLineReply) ProtoMessage() {}
 
 func (x *DeleteSessionLineReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[72]
+	mi := &file_bom_v1_bom_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5559,7 +5726,7 @@ func (x *DeleteSessionLineReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSessionLineReply.ProtoReflect.Descriptor instead.
 func (*DeleteSessionLineReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{72}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{73}
 }
 
 type RetrySearchTasksRequest struct {
@@ -5572,7 +5739,7 @@ type RetrySearchTasksRequest struct {
 
 func (x *RetrySearchTasksRequest) Reset() {
 	*x = RetrySearchTasksRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[73]
+	mi := &file_bom_v1_bom_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5584,7 +5751,7 @@ func (x *RetrySearchTasksRequest) String() string {
 func (*RetrySearchTasksRequest) ProtoMessage() {}
 
 func (x *RetrySearchTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[73]
+	mi := &file_bom_v1_bom_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5597,7 +5764,7 @@ func (x *RetrySearchTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrySearchTasksRequest.ProtoReflect.Descriptor instead.
 func (*RetrySearchTasksRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{73}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *RetrySearchTasksRequest) GetSessionId() string {
@@ -5624,7 +5791,7 @@ type RetrySearchItem struct {
 
 func (x *RetrySearchItem) Reset() {
 	*x = RetrySearchItem{}
-	mi := &file_bom_v1_bom_proto_msgTypes[74]
+	mi := &file_bom_v1_bom_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5636,7 +5803,7 @@ func (x *RetrySearchItem) String() string {
 func (*RetrySearchItem) ProtoMessage() {}
 
 func (x *RetrySearchItem) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[74]
+	mi := &file_bom_v1_bom_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5649,7 +5816,7 @@ func (x *RetrySearchItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrySearchItem.ProtoReflect.Descriptor instead.
 func (*RetrySearchItem) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{74}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *RetrySearchItem) GetMpn() string {
@@ -5675,7 +5842,7 @@ type RetrySearchTasksReply struct {
 
 func (x *RetrySearchTasksReply) Reset() {
 	*x = RetrySearchTasksReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[75]
+	mi := &file_bom_v1_bom_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5687,7 +5854,7 @@ func (x *RetrySearchTasksReply) String() string {
 func (*RetrySearchTasksReply) ProtoMessage() {}
 
 func (x *RetrySearchTasksReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[75]
+	mi := &file_bom_v1_bom_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5700,7 +5867,7 @@ func (x *RetrySearchTasksReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RetrySearchTasksReply.ProtoReflect.Descriptor instead.
 func (*RetrySearchTasksReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{75}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *RetrySearchTasksReply) GetAccepted() int32 {
@@ -5727,7 +5894,7 @@ type SubmitBomSearchResultRequest struct {
 
 func (x *SubmitBomSearchResultRequest) Reset() {
 	*x = SubmitBomSearchResultRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[76]
+	mi := &file_bom_v1_bom_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5739,7 +5906,7 @@ func (x *SubmitBomSearchResultRequest) String() string {
 func (*SubmitBomSearchResultRequest) ProtoMessage() {}
 
 func (x *SubmitBomSearchResultRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[76]
+	mi := &file_bom_v1_bom_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5752,7 +5919,7 @@ func (x *SubmitBomSearchResultRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitBomSearchResultRequest.ProtoReflect.Descriptor instead.
 func (*SubmitBomSearchResultRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{76}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *SubmitBomSearchResultRequest) GetSessionId() string {
@@ -5821,7 +5988,7 @@ type SubmitBomSearchResultReply struct {
 
 func (x *SubmitBomSearchResultReply) Reset() {
 	*x = SubmitBomSearchResultReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[77]
+	mi := &file_bom_v1_bom_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5833,7 +6000,7 @@ func (x *SubmitBomSearchResultReply) String() string {
 func (*SubmitBomSearchResultReply) ProtoMessage() {}
 
 func (x *SubmitBomSearchResultReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[77]
+	mi := &file_bom_v1_bom_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5846,7 +6013,7 @@ func (x *SubmitBomSearchResultReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitBomSearchResultReply.ProtoReflect.Descriptor instead.
 func (*SubmitBomSearchResultReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{77}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *SubmitBomSearchResultReply) GetAccepted() bool {
@@ -5884,7 +6051,7 @@ type BOMLineGap struct {
 
 func (x *BOMLineGap) Reset() {
 	*x = BOMLineGap{}
-	mi := &file_bom_v1_bom_proto_msgTypes[78]
+	mi := &file_bom_v1_bom_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5896,7 +6063,7 @@ func (x *BOMLineGap) String() string {
 func (*BOMLineGap) ProtoMessage() {}
 
 func (x *BOMLineGap) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[78]
+	mi := &file_bom_v1_bom_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5909,7 +6076,7 @@ func (x *BOMLineGap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BOMLineGap.ProtoReflect.Descriptor instead.
 func (*BOMLineGap) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{78}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *BOMLineGap) GetGapId() string {
@@ -6006,7 +6173,7 @@ type ListLineGapsRequest struct {
 
 func (x *ListLineGapsRequest) Reset() {
 	*x = ListLineGapsRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[79]
+	mi := &file_bom_v1_bom_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6018,7 +6185,7 @@ func (x *ListLineGapsRequest) String() string {
 func (*ListLineGapsRequest) ProtoMessage() {}
 
 func (x *ListLineGapsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[79]
+	mi := &file_bom_v1_bom_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6031,7 +6198,7 @@ func (x *ListLineGapsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLineGapsRequest.ProtoReflect.Descriptor instead.
 func (*ListLineGapsRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{79}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *ListLineGapsRequest) GetSessionId() string {
@@ -6057,7 +6224,7 @@ type ListLineGapsReply struct {
 
 func (x *ListLineGapsReply) Reset() {
 	*x = ListLineGapsReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[80]
+	mi := &file_bom_v1_bom_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6069,7 +6236,7 @@ func (x *ListLineGapsReply) String() string {
 func (*ListLineGapsReply) ProtoMessage() {}
 
 func (x *ListLineGapsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[80]
+	mi := &file_bom_v1_bom_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6082,7 +6249,7 @@ func (x *ListLineGapsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListLineGapsReply.ProtoReflect.Descriptor instead.
 func (*ListLineGapsReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{80}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *ListLineGapsReply) GetGaps() []*BOMLineGap {
@@ -6110,7 +6277,7 @@ type ResolveLineGapManualQuoteRequest struct {
 
 func (x *ResolveLineGapManualQuoteRequest) Reset() {
 	*x = ResolveLineGapManualQuoteRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[81]
+	mi := &file_bom_v1_bom_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6122,7 +6289,7 @@ func (x *ResolveLineGapManualQuoteRequest) String() string {
 func (*ResolveLineGapManualQuoteRequest) ProtoMessage() {}
 
 func (x *ResolveLineGapManualQuoteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[81]
+	mi := &file_bom_v1_bom_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6135,7 +6302,7 @@ func (x *ResolveLineGapManualQuoteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveLineGapManualQuoteRequest.ProtoReflect.Descriptor instead.
 func (*ResolveLineGapManualQuoteRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{81}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *ResolveLineGapManualQuoteRequest) GetGapId() string {
@@ -6217,7 +6384,7 @@ type ResolveLineGapManualQuoteReply struct {
 
 func (x *ResolveLineGapManualQuoteReply) Reset() {
 	*x = ResolveLineGapManualQuoteReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[82]
+	mi := &file_bom_v1_bom_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6229,7 +6396,7 @@ func (x *ResolveLineGapManualQuoteReply) String() string {
 func (*ResolveLineGapManualQuoteReply) ProtoMessage() {}
 
 func (x *ResolveLineGapManualQuoteReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[82]
+	mi := &file_bom_v1_bom_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6242,7 +6409,7 @@ func (x *ResolveLineGapManualQuoteReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveLineGapManualQuoteReply.ProtoReflect.Descriptor instead.
 func (*ResolveLineGapManualQuoteReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{82}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *ResolveLineGapManualQuoteReply) GetAccepted() bool {
@@ -6263,7 +6430,7 @@ type SelectLineGapSubstituteRequest struct {
 
 func (x *SelectLineGapSubstituteRequest) Reset() {
 	*x = SelectLineGapSubstituteRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[83]
+	mi := &file_bom_v1_bom_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6275,7 +6442,7 @@ func (x *SelectLineGapSubstituteRequest) String() string {
 func (*SelectLineGapSubstituteRequest) ProtoMessage() {}
 
 func (x *SelectLineGapSubstituteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[83]
+	mi := &file_bom_v1_bom_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6288,7 +6455,7 @@ func (x *SelectLineGapSubstituteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectLineGapSubstituteRequest.ProtoReflect.Descriptor instead.
 func (*SelectLineGapSubstituteRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{83}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *SelectLineGapSubstituteRequest) GetGapId() string {
@@ -6321,7 +6488,7 @@ type SelectLineGapSubstituteReply struct {
 
 func (x *SelectLineGapSubstituteReply) Reset() {
 	*x = SelectLineGapSubstituteReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[84]
+	mi := &file_bom_v1_bom_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6333,7 +6500,7 @@ func (x *SelectLineGapSubstituteReply) String() string {
 func (*SelectLineGapSubstituteReply) ProtoMessage() {}
 
 func (x *SelectLineGapSubstituteReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[84]
+	mi := &file_bom_v1_bom_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6346,7 +6513,7 @@ func (x *SelectLineGapSubstituteReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelectLineGapSubstituteReply.ProtoReflect.Descriptor instead.
 func (*SelectLineGapSubstituteReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{84}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *SelectLineGapSubstituteReply) GetAccepted() bool {
@@ -6366,7 +6533,7 @@ type SaveMatchRunRequest struct {
 
 func (x *SaveMatchRunRequest) Reset() {
 	*x = SaveMatchRunRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[85]
+	mi := &file_bom_v1_bom_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6378,7 +6545,7 @@ func (x *SaveMatchRunRequest) String() string {
 func (*SaveMatchRunRequest) ProtoMessage() {}
 
 func (x *SaveMatchRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[85]
+	mi := &file_bom_v1_bom_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6391,7 +6558,7 @@ func (x *SaveMatchRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveMatchRunRequest.ProtoReflect.Descriptor instead.
 func (*SaveMatchRunRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{85}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *SaveMatchRunRequest) GetSessionId() string {
@@ -6418,7 +6585,7 @@ type SaveMatchRunReply struct {
 
 func (x *SaveMatchRunReply) Reset() {
 	*x = SaveMatchRunReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[86]
+	mi := &file_bom_v1_bom_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6430,7 +6597,7 @@ func (x *SaveMatchRunReply) String() string {
 func (*SaveMatchRunReply) ProtoMessage() {}
 
 func (x *SaveMatchRunReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[86]
+	mi := &file_bom_v1_bom_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6443,7 +6610,7 @@ func (x *SaveMatchRunReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveMatchRunReply.ProtoReflect.Descriptor instead.
 func (*SaveMatchRunReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{86}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *SaveMatchRunReply) GetRunId() string {
@@ -6479,7 +6646,7 @@ type MatchRunListItem struct {
 
 func (x *MatchRunListItem) Reset() {
 	*x = MatchRunListItem{}
-	mi := &file_bom_v1_bom_proto_msgTypes[87]
+	mi := &file_bom_v1_bom_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6491,7 +6658,7 @@ func (x *MatchRunListItem) String() string {
 func (*MatchRunListItem) ProtoMessage() {}
 
 func (x *MatchRunListItem) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[87]
+	mi := &file_bom_v1_bom_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6504,7 +6671,7 @@ func (x *MatchRunListItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchRunListItem.ProtoReflect.Descriptor instead.
 func (*MatchRunListItem) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{87}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *MatchRunListItem) GetRunId() string {
@@ -6593,7 +6760,7 @@ type ListMatchRunsRequest struct {
 
 func (x *ListMatchRunsRequest) Reset() {
 	*x = ListMatchRunsRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[88]
+	mi := &file_bom_v1_bom_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6605,7 +6772,7 @@ func (x *ListMatchRunsRequest) String() string {
 func (*ListMatchRunsRequest) ProtoMessage() {}
 
 func (x *ListMatchRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[88]
+	mi := &file_bom_v1_bom_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6618,7 +6785,7 @@ func (x *ListMatchRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMatchRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListMatchRunsRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{88}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *ListMatchRunsRequest) GetSessionId() string {
@@ -6637,7 +6804,7 @@ type ListMatchRunsReply struct {
 
 func (x *ListMatchRunsReply) Reset() {
 	*x = ListMatchRunsReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[89]
+	mi := &file_bom_v1_bom_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6649,7 +6816,7 @@ func (x *ListMatchRunsReply) String() string {
 func (*ListMatchRunsReply) ProtoMessage() {}
 
 func (x *ListMatchRunsReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[89]
+	mi := &file_bom_v1_bom_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6662,7 +6829,7 @@ func (x *ListMatchRunsReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMatchRunsReply.ProtoReflect.Descriptor instead.
 func (*ListMatchRunsReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{89}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *ListMatchRunsReply) GetRuns() []*MatchRunListItem {
@@ -6703,7 +6870,7 @@ type MatchRunResultItem struct {
 
 func (x *MatchRunResultItem) Reset() {
 	*x = MatchRunResultItem{}
-	mi := &file_bom_v1_bom_proto_msgTypes[90]
+	mi := &file_bom_v1_bom_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6715,7 +6882,7 @@ func (x *MatchRunResultItem) String() string {
 func (*MatchRunResultItem) ProtoMessage() {}
 
 func (x *MatchRunResultItem) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[90]
+	mi := &file_bom_v1_bom_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6728,7 +6895,7 @@ func (x *MatchRunResultItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MatchRunResultItem.ProtoReflect.Descriptor instead.
 func (*MatchRunResultItem) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{90}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *MatchRunResultItem) GetLineId() string {
@@ -6901,7 +7068,7 @@ type GetMatchRunRequest struct {
 
 func (x *GetMatchRunRequest) Reset() {
 	*x = GetMatchRunRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[91]
+	mi := &file_bom_v1_bom_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6913,7 +7080,7 @@ func (x *GetMatchRunRequest) String() string {
 func (*GetMatchRunRequest) ProtoMessage() {}
 
 func (x *GetMatchRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[91]
+	mi := &file_bom_v1_bom_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6926,7 +7093,7 @@ func (x *GetMatchRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMatchRunRequest.ProtoReflect.Descriptor instead.
 func (*GetMatchRunRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{91}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *GetMatchRunRequest) GetRunId() string {
@@ -6946,7 +7113,7 @@ type GetMatchRunReply struct {
 
 func (x *GetMatchRunReply) Reset() {
 	*x = GetMatchRunReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[92]
+	mi := &file_bom_v1_bom_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6958,7 +7125,7 @@ func (x *GetMatchRunReply) String() string {
 func (*GetMatchRunReply) ProtoMessage() {}
 
 func (x *GetMatchRunReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[92]
+	mi := &file_bom_v1_bom_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6971,7 +7138,7 @@ func (x *GetMatchRunReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMatchRunReply.ProtoReflect.Descriptor instead.
 func (*GetMatchRunReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{92}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *GetMatchRunReply) GetRun() *MatchRunListItem {
@@ -7000,7 +7167,7 @@ type ExportSessionRequest struct {
 
 func (x *ExportSessionRequest) Reset() {
 	*x = ExportSessionRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[93]
+	mi := &file_bom_v1_bom_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7012,7 +7179,7 @@ func (x *ExportSessionRequest) String() string {
 func (*ExportSessionRequest) ProtoMessage() {}
 
 func (x *ExportSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[93]
+	mi := &file_bom_v1_bom_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7025,7 +7192,7 @@ func (x *ExportSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportSessionRequest.ProtoReflect.Descriptor instead.
 func (*ExportSessionRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{93}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *ExportSessionRequest) GetSessionId() string {
@@ -7059,7 +7226,7 @@ type ExportSessionReply struct {
 
 func (x *ExportSessionReply) Reset() {
 	*x = ExportSessionReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[94]
+	mi := &file_bom_v1_bom_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7071,7 +7238,7 @@ func (x *ExportSessionReply) String() string {
 func (*ExportSessionReply) ProtoMessage() {}
 
 func (x *ExportSessionReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[94]
+	mi := &file_bom_v1_bom_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7084,7 +7251,7 @@ func (x *ExportSessionReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportSessionReply.ProtoReflect.Descriptor instead.
 func (*ExportSessionReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{94}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *ExportSessionReply) GetFile() []byte {
@@ -7117,7 +7284,7 @@ type HsResolveByModelRequest struct {
 
 func (x *HsResolveByModelRequest) Reset() {
 	*x = HsResolveByModelRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[95]
+	mi := &file_bom_v1_bom_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7129,7 +7296,7 @@ func (x *HsResolveByModelRequest) String() string {
 func (*HsResolveByModelRequest) ProtoMessage() {}
 
 func (x *HsResolveByModelRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[95]
+	mi := &file_bom_v1_bom_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7142,7 +7309,7 @@ func (x *HsResolveByModelRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveByModelRequest.ProtoReflect.Descriptor instead.
 func (*HsResolveByModelRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{95}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *HsResolveByModelRequest) GetModel() string {
@@ -7197,7 +7364,7 @@ type UploadHsManualDatasheetRequest struct {
 
 func (x *UploadHsManualDatasheetRequest) Reset() {
 	*x = UploadHsManualDatasheetRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[96]
+	mi := &file_bom_v1_bom_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7209,7 +7376,7 @@ func (x *UploadHsManualDatasheetRequest) String() string {
 func (*UploadHsManualDatasheetRequest) ProtoMessage() {}
 
 func (x *UploadHsManualDatasheetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[96]
+	mi := &file_bom_v1_bom_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7222,7 +7389,7 @@ func (x *UploadHsManualDatasheetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadHsManualDatasheetRequest.ProtoReflect.Descriptor instead.
 func (*UploadHsManualDatasheetRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{96}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *UploadHsManualDatasheetRequest) GetFile() []byte {
@@ -7250,7 +7417,7 @@ type UploadHsManualDatasheetReply struct {
 
 func (x *UploadHsManualDatasheetReply) Reset() {
 	*x = UploadHsManualDatasheetReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[97]
+	mi := &file_bom_v1_bom_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7262,7 +7429,7 @@ func (x *UploadHsManualDatasheetReply) String() string {
 func (*UploadHsManualDatasheetReply) ProtoMessage() {}
 
 func (x *UploadHsManualDatasheetReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[97]
+	mi := &file_bom_v1_bom_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7275,7 +7442,7 @@ func (x *UploadHsManualDatasheetReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadHsManualDatasheetReply.ProtoReflect.Descriptor instead.
 func (*UploadHsManualDatasheetReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{97}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *UploadHsManualDatasheetReply) GetUploadId() string {
@@ -7311,7 +7478,7 @@ type HsResolveCandidate struct {
 
 func (x *HsResolveCandidate) Reset() {
 	*x = HsResolveCandidate{}
-	mi := &file_bom_v1_bom_proto_msgTypes[98]
+	mi := &file_bom_v1_bom_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7323,7 +7490,7 @@ func (x *HsResolveCandidate) String() string {
 func (*HsResolveCandidate) ProtoMessage() {}
 
 func (x *HsResolveCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[98]
+	mi := &file_bom_v1_bom_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7336,7 +7503,7 @@ func (x *HsResolveCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveCandidate.ProtoReflect.Descriptor instead.
 func (*HsResolveCandidate) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{98}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *HsResolveCandidate) GetCandidateRank() uint32 {
@@ -7386,7 +7553,7 @@ type HsResolveByModelReply struct {
 
 func (x *HsResolveByModelReply) Reset() {
 	*x = HsResolveByModelReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[99]
+	mi := &file_bom_v1_bom_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7398,7 +7565,7 @@ func (x *HsResolveByModelReply) String() string {
 func (*HsResolveByModelReply) ProtoMessage() {}
 
 func (x *HsResolveByModelReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[99]
+	mi := &file_bom_v1_bom_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7411,7 +7578,7 @@ func (x *HsResolveByModelReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveByModelReply.ProtoReflect.Descriptor instead.
 func (*HsResolveByModelReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{99}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *HsResolveByModelReply) GetAccepted() bool {
@@ -7500,7 +7667,7 @@ type HsResolveTaskRequest struct {
 
 func (x *HsResolveTaskRequest) Reset() {
 	*x = HsResolveTaskRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[100]
+	mi := &file_bom_v1_bom_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7512,7 +7679,7 @@ func (x *HsResolveTaskRequest) String() string {
 func (*HsResolveTaskRequest) ProtoMessage() {}
 
 func (x *HsResolveTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[100]
+	mi := &file_bom_v1_bom_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7525,7 +7692,7 @@ func (x *HsResolveTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveTaskRequest.ProtoReflect.Descriptor instead.
 func (*HsResolveTaskRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{100}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *HsResolveTaskRequest) GetTaskId() string {
@@ -7553,7 +7720,7 @@ type HsResolveTaskReply struct {
 
 func (x *HsResolveTaskReply) Reset() {
 	*x = HsResolveTaskReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[101]
+	mi := &file_bom_v1_bom_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7565,7 +7732,7 @@ func (x *HsResolveTaskReply) String() string {
 func (*HsResolveTaskReply) ProtoMessage() {}
 
 func (x *HsResolveTaskReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[101]
+	mi := &file_bom_v1_bom_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7578,7 +7745,7 @@ func (x *HsResolveTaskReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveTaskReply.ProtoReflect.Descriptor instead.
 func (*HsResolveTaskReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{101}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *HsResolveTaskReply) GetTaskId() string {
@@ -7665,7 +7832,7 @@ type HsResolveConfirmRequest struct {
 
 func (x *HsResolveConfirmRequest) Reset() {
 	*x = HsResolveConfirmRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[102]
+	mi := &file_bom_v1_bom_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7677,7 +7844,7 @@ func (x *HsResolveConfirmRequest) String() string {
 func (*HsResolveConfirmRequest) ProtoMessage() {}
 
 func (x *HsResolveConfirmRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[102]
+	mi := &file_bom_v1_bom_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7690,7 +7857,7 @@ func (x *HsResolveConfirmRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveConfirmRequest.ProtoReflect.Descriptor instead.
 func (*HsResolveConfirmRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{102}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *HsResolveConfirmRequest) GetModel() string {
@@ -7750,7 +7917,7 @@ type HsResolveConfirmReply struct {
 
 func (x *HsResolveConfirmReply) Reset() {
 	*x = HsResolveConfirmReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[103]
+	mi := &file_bom_v1_bom_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7762,7 +7929,7 @@ func (x *HsResolveConfirmReply) String() string {
 func (*HsResolveConfirmReply) ProtoMessage() {}
 
 func (x *HsResolveConfirmReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[103]
+	mi := &file_bom_v1_bom_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7775,7 +7942,7 @@ func (x *HsResolveConfirmReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveConfirmReply.ProtoReflect.Descriptor instead.
 func (*HsResolveConfirmReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{103}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *HsResolveConfirmReply) GetRunId() string {
@@ -7838,7 +8005,7 @@ type HsResolveHistoryRequest struct {
 
 func (x *HsResolveHistoryRequest) Reset() {
 	*x = HsResolveHistoryRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[104]
+	mi := &file_bom_v1_bom_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7850,7 +8017,7 @@ func (x *HsResolveHistoryRequest) String() string {
 func (*HsResolveHistoryRequest) ProtoMessage() {}
 
 func (x *HsResolveHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[104]
+	mi := &file_bom_v1_bom_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7863,7 +8030,7 @@ func (x *HsResolveHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveHistoryRequest.ProtoReflect.Descriptor instead.
 func (*HsResolveHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{104}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *HsResolveHistoryRequest) GetModel() string {
@@ -7902,7 +8069,7 @@ type HsResolveHistoryItem struct {
 
 func (x *HsResolveHistoryItem) Reset() {
 	*x = HsResolveHistoryItem{}
-	mi := &file_bom_v1_bom_proto_msgTypes[105]
+	mi := &file_bom_v1_bom_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7914,7 +8081,7 @@ func (x *HsResolveHistoryItem) String() string {
 func (*HsResolveHistoryItem) ProtoMessage() {}
 
 func (x *HsResolveHistoryItem) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[105]
+	mi := &file_bom_v1_bom_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7927,7 +8094,7 @@ func (x *HsResolveHistoryItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveHistoryItem.ProtoReflect.Descriptor instead.
 func (*HsResolveHistoryItem) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{105}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *HsResolveHistoryItem) GetRunId() string {
@@ -7988,7 +8155,7 @@ type HsResolveHistoryReply struct {
 
 func (x *HsResolveHistoryReply) Reset() {
 	*x = HsResolveHistoryReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[106]
+	mi := &file_bom_v1_bom_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8000,7 +8167,7 @@ func (x *HsResolveHistoryReply) String() string {
 func (*HsResolveHistoryReply) ProtoMessage() {}
 
 func (x *HsResolveHistoryReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[106]
+	mi := &file_bom_v1_bom_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8013,7 +8180,7 @@ func (x *HsResolveHistoryReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsResolveHistoryReply.ProtoReflect.Descriptor instead.
 func (*HsResolveHistoryReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{106}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *HsResolveHistoryReply) GetItems() []*HsResolveHistoryItem {
@@ -8038,7 +8205,7 @@ type HsMetaListRequest struct {
 
 func (x *HsMetaListRequest) Reset() {
 	*x = HsMetaListRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[107]
+	mi := &file_bom_v1_bom_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8050,7 +8217,7 @@ func (x *HsMetaListRequest) String() string {
 func (*HsMetaListRequest) ProtoMessage() {}
 
 func (x *HsMetaListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[107]
+	mi := &file_bom_v1_bom_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8063,7 +8230,7 @@ func (x *HsMetaListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaListRequest.ProtoReflect.Descriptor instead.
 func (*HsMetaListRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{107}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *HsMetaListRequest) GetPage() int32 {
@@ -8124,7 +8291,7 @@ type HsMetaListRow struct {
 
 func (x *HsMetaListRow) Reset() {
 	*x = HsMetaListRow{}
-	mi := &file_bom_v1_bom_proto_msgTypes[108]
+	mi := &file_bom_v1_bom_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8136,7 +8303,7 @@ func (x *HsMetaListRow) String() string {
 func (*HsMetaListRow) ProtoMessage() {}
 
 func (x *HsMetaListRow) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[108]
+	mi := &file_bom_v1_bom_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8149,7 +8316,7 @@ func (x *HsMetaListRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaListRow.ProtoReflect.Descriptor instead.
 func (*HsMetaListRow) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{108}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *HsMetaListRow) GetId() int64 {
@@ -8218,7 +8385,7 @@ type HsMetaListReply struct {
 
 func (x *HsMetaListReply) Reset() {
 	*x = HsMetaListReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[109]
+	mi := &file_bom_v1_bom_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8230,7 +8397,7 @@ func (x *HsMetaListReply) String() string {
 func (*HsMetaListReply) ProtoMessage() {}
 
 func (x *HsMetaListReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[109]
+	mi := &file_bom_v1_bom_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8243,7 +8410,7 @@ func (x *HsMetaListReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaListReply.ProtoReflect.Descriptor instead.
 func (*HsMetaListReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{109}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *HsMetaListReply) GetItems() []*HsMetaListRow {
@@ -8274,7 +8441,7 @@ type HsMetaCreateRequest struct {
 
 func (x *HsMetaCreateRequest) Reset() {
 	*x = HsMetaCreateRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[110]
+	mi := &file_bom_v1_bom_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8286,7 +8453,7 @@ func (x *HsMetaCreateRequest) String() string {
 func (*HsMetaCreateRequest) ProtoMessage() {}
 
 func (x *HsMetaCreateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[110]
+	mi := &file_bom_v1_bom_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8299,7 +8466,7 @@ func (x *HsMetaCreateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaCreateRequest.ProtoReflect.Descriptor instead.
 func (*HsMetaCreateRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{110}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *HsMetaCreateRequest) GetCategory() string {
@@ -8359,7 +8526,7 @@ type HsMetaUpdateRequest struct {
 
 func (x *HsMetaUpdateRequest) Reset() {
 	*x = HsMetaUpdateRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[111]
+	mi := &file_bom_v1_bom_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8371,7 +8538,7 @@ func (x *HsMetaUpdateRequest) String() string {
 func (*HsMetaUpdateRequest) ProtoMessage() {}
 
 func (x *HsMetaUpdateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[111]
+	mi := &file_bom_v1_bom_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8384,7 +8551,7 @@ func (x *HsMetaUpdateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaUpdateRequest.ProtoReflect.Descriptor instead.
 func (*HsMetaUpdateRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{111}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *HsMetaUpdateRequest) GetId() int64 {
@@ -8445,7 +8612,7 @@ type HsMetaDeleteRequest struct {
 
 func (x *HsMetaDeleteRequest) Reset() {
 	*x = HsMetaDeleteRequest{}
-	mi := &file_bom_v1_bom_proto_msgTypes[112]
+	mi := &file_bom_v1_bom_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8457,7 +8624,7 @@ func (x *HsMetaDeleteRequest) String() string {
 func (*HsMetaDeleteRequest) ProtoMessage() {}
 
 func (x *HsMetaDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[112]
+	mi := &file_bom_v1_bom_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8470,7 +8637,7 @@ func (x *HsMetaDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaDeleteRequest.ProtoReflect.Descriptor instead.
 func (*HsMetaDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{112}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *HsMetaDeleteRequest) GetId() int64 {
@@ -8489,7 +8656,7 @@ type HsMetaMutationReply struct {
 
 func (x *HsMetaMutationReply) Reset() {
 	*x = HsMetaMutationReply{}
-	mi := &file_bom_v1_bom_proto_msgTypes[113]
+	mi := &file_bom_v1_bom_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8501,7 +8668,7 @@ func (x *HsMetaMutationReply) String() string {
 func (*HsMetaMutationReply) ProtoMessage() {}
 
 func (x *HsMetaMutationReply) ProtoReflect() protoreflect.Message {
-	mi := &file_bom_v1_bom_proto_msgTypes[113]
+	mi := &file_bom_v1_bom_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8514,7 +8681,7 @@ func (x *HsMetaMutationReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HsMetaMutationReply.ProtoReflect.Descriptor instead.
 func (*HsMetaMutationReply) Descriptor() ([]byte, []int) {
-	return file_bom_v1_bom_proto_rawDescGZIP(), []int{113}
+	return file_bom_v1_bom_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *HsMetaMutationReply) GetOk() string {
@@ -8768,13 +8935,15 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\"\x84\x01\n" +
 	"\"ApproveSessionLineMfrCleaningReply\x120\n" +
 	"\x14session_line_updated\x18\x01 \x01(\x05R\x12sessionLineUpdated\x12,\n" +
-	"\x12quote_item_updated\x18\x02 \x01(\x05R\x10quoteItemUpdated\"?\n" +
+	"\x12quote_item_updated\x18\x02 \x01(\x05R\x10quoteItemUpdated\"\x81\x01\n" +
 	"\x1eListQuoteItemMfrReviewsRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"t\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12@\n" +
+	"\x1dinclude_all_pending_quote_mfr\x18\x02 \x01(\bR\x19includeAllPendingQuoteMfr\"\xb2\x01\n" +
 	"\x1cListQuoteItemMfrReviewsReply\x12\x1b\n" +
 	"\tgate_open\x18\x01 \x01(\bR\bgateOpen\x127\n" +
-	"\x05items\x18\x02 \x03(\v2!.api.bom.v1.QuoteItemMfrReviewRowR\x05items\"\xde\x01\n" +
+	"\x05items\x18\x02 \x03(\v2!.api.bom.v1.QuoteItemMfrReviewRowR\x05items\x12<\n" +
+	"\x1ball_pending_quote_mfr_count\x18\x03 \x01(\x05R\x17allPendingQuoteMfrCount\"\xde\x01\n" +
 	"\x15QuoteItemMfrReviewRow\x12\"\n" +
 	"\rquote_item_id\x18\x01 \x01(\x04R\vquoteItemId\x12\x17\n" +
 	"\aline_no\x18\x02 \x01(\x05R\x06lineNo\x12C\n" +
@@ -8873,10 +9042,12 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	"\fplatform_ids\x18\x02 \x03(\tR\vplatformIds\x12+\n" +
 	"\x11expected_revision\x18\x03 \x01(\x05R\x10expectedRevision\"B\n" +
 	"\x11PutPlatformsReply\x12-\n" +
-	"\x12selection_revision\x18\x01 \x01(\x05R\x11selectionRevision\"4\n" +
+	"\x12selection_revision\x18\x01 \x01(\x05R\x11selectionRevision\"\xba\x01\n" +
 	"\x13GetReadinessRequest\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\"\xba\x05\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12B\n" +
+	"\x1einclude_quote_item_mfr_reviews\x18\x02 \x01(\bR\x1aincludeQuoteItemMfrReviews\x12@\n" +
+	"\x1dinclude_all_pending_quote_mfr\x18\x03 \x01(\bR\x19includeAllPendingQuoteMfr\"\xa5\t\n" +
 	"\x11GetReadinessReply\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n" +
@@ -8895,7 +9066,19 @@ const file_bom_v1_bom_proto_rawDesc = "" +
 	" no_match_after_filter_line_count\x18\f \x01(\x05R\x1bnoMatchAfterFilterLineCount\x122\n" +
 	"\x15collecting_line_count\x18\r \x01(\x05R\x13collectingLineCount\x125\n" +
 	"\x17has_strict_blocking_gap\x18\x0e \x01(\bR\x14hasStrictBlockingGap\x12B\n" +
-	"\x1equote_mfr_review_pending_count\x18\x0f \x01(\x05R\x1aquoteMfrReviewPendingCount\"3\n" +
+	"\x1equote_mfr_review_pending_count\x18\x0f \x01(\x05R\x1aquoteMfrReviewPendingCount\x12^\n" +
+	".session_lines_quote_review_rule_b_not_ok_count\x18\x10 \x01(\x05R&sessionLinesQuoteReviewRuleBNotOkCount\x12I\n" +
+	"\"session_quote_review_default_top_n\x18\x11 \x01(\x05R\x1dsessionQuoteReviewDefaultTopN\x12c\n" +
+	"\x1bline_quote_review_readiness\x18\x12 \x03(\v2$.api.bom.v1.LineQuoteReviewReadinessR\x18lineQuoteReviewReadiness\x12:\n" +
+	"\x1aquote_mfr_review_gate_open\x18\x13 \x01(\bR\x16quoteMfrReviewGateOpen\x12_\n" +
+	"\x1bquote_item_mfr_review_items\x18\x14 \x03(\v2!.api.bom.v1.QuoteItemMfrReviewRowR\x17quoteItemMfrReviewItems\x12<\n" +
+	"\x1ball_pending_quote_mfr_count\x18\x15 \x01(\x05R\x17allPendingQuoteMfrCount\"\xc7\x02\n" +
+	"\x18LineQuoteReviewReadiness\x12\x17\n" +
+	"\aline_id\x18\x01 \x01(\tR\x06lineId\x12;\n" +
+	"\x1bline_quote_review_rule_b_ok\x18\x02 \x01(\bR\x16lineQuoteReviewRuleBOk\x12I\n" +
+	"\"line_quote_review_candidate_pool_m\x18\x03 \x01(\x05R\x1dlineQuoteReviewCandidatePoolM\x12D\n" +
+	" line_quote_review_top_k_item_ids\x18\x04 \x03(\x04R\x1alineQuoteReviewTopKItemIds\x12D\n" +
+	" line_quote_review_top_n_item_ids\x18\x05 \x03(\x04R\x1alineQuoteReviewTopNItemIds\"3\n" +
 	"\x12GetBOMLinesRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"\xaa\x06\n" +
@@ -9401,7 +9584,7 @@ func file_bom_v1_bom_proto_rawDescGZIP() []byte {
 	return file_bom_v1_bom_proto_rawDescData
 }
 
-var file_bom_v1_bom_proto_msgTypes = make([]protoimpl.MessageInfo, 115)
+var file_bom_v1_bom_proto_msgTypes = make([]protoimpl.MessageInfo, 116)
 var file_bom_v1_bom_proto_goTypes = []any{
 	(*UploadBOMRequest)(nil),                              // 0: api.bom.v1.UploadBOMRequest
 	(*UploadBOMReply)(nil),                                // 1: api.bom.v1.UploadBOMReply
@@ -9459,68 +9642,69 @@ var file_bom_v1_bom_proto_goTypes = []any{
 	(*PutPlatformsReply)(nil),                             // 53: api.bom.v1.PutPlatformsReply
 	(*GetReadinessRequest)(nil),                           // 54: api.bom.v1.GetReadinessRequest
 	(*GetReadinessReply)(nil),                             // 55: api.bom.v1.GetReadinessReply
-	(*GetBOMLinesRequest)(nil),                            // 56: api.bom.v1.GetBOMLinesRequest
-	(*BOMLineRow)(nil),                                    // 57: api.bom.v1.BOMLineRow
-	(*PlatformGap)(nil),                                   // 58: api.bom.v1.PlatformGap
-	(*GetSessionSearchTaskCoverageRequest)(nil),           // 59: api.bom.v1.GetSessionSearchTaskCoverageRequest
-	(*SearchTaskMissingItem)(nil),                         // 60: api.bom.v1.SearchTaskMissingItem
-	(*GetSessionSearchTaskCoverageReply)(nil),             // 61: api.bom.v1.GetSessionSearchTaskCoverageReply
-	(*ListSessionSearchTasksRequest)(nil),                 // 62: api.bom.v1.ListSessionSearchTasksRequest
-	(*SearchTaskStatusSummary)(nil),                       // 63: api.bom.v1.SearchTaskStatusSummary
-	(*SessionSearchTaskRow)(nil),                          // 64: api.bom.v1.SessionSearchTaskRow
-	(*ListSessionSearchTasksReply)(nil),                   // 65: api.bom.v1.ListSessionSearchTasksReply
-	(*GetBOMLinesReply)(nil),                              // 66: api.bom.v1.GetBOMLinesReply
-	(*CreateSessionLineRequest)(nil),                      // 67: api.bom.v1.CreateSessionLineRequest
-	(*CreateSessionLineReply)(nil),                        // 68: api.bom.v1.CreateSessionLineReply
-	(*PatchSessionLineRequest)(nil),                       // 69: api.bom.v1.PatchSessionLineRequest
-	(*PatchSessionLineReply)(nil),                         // 70: api.bom.v1.PatchSessionLineReply
-	(*DeleteSessionLineRequest)(nil),                      // 71: api.bom.v1.DeleteSessionLineRequest
-	(*DeleteSessionLineReply)(nil),                        // 72: api.bom.v1.DeleteSessionLineReply
-	(*RetrySearchTasksRequest)(nil),                       // 73: api.bom.v1.RetrySearchTasksRequest
-	(*RetrySearchItem)(nil),                               // 74: api.bom.v1.RetrySearchItem
-	(*RetrySearchTasksReply)(nil),                         // 75: api.bom.v1.RetrySearchTasksReply
-	(*SubmitBomSearchResultRequest)(nil),                  // 76: api.bom.v1.SubmitBomSearchResultRequest
-	(*SubmitBomSearchResultReply)(nil),                    // 77: api.bom.v1.SubmitBomSearchResultReply
-	(*BOMLineGap)(nil),                                    // 78: api.bom.v1.BOMLineGap
-	(*ListLineGapsRequest)(nil),                           // 79: api.bom.v1.ListLineGapsRequest
-	(*ListLineGapsReply)(nil),                             // 80: api.bom.v1.ListLineGapsReply
-	(*ResolveLineGapManualQuoteRequest)(nil),              // 81: api.bom.v1.ResolveLineGapManualQuoteRequest
-	(*ResolveLineGapManualQuoteReply)(nil),                // 82: api.bom.v1.ResolveLineGapManualQuoteReply
-	(*SelectLineGapSubstituteRequest)(nil),                // 83: api.bom.v1.SelectLineGapSubstituteRequest
-	(*SelectLineGapSubstituteReply)(nil),                  // 84: api.bom.v1.SelectLineGapSubstituteReply
-	(*SaveMatchRunRequest)(nil),                           // 85: api.bom.v1.SaveMatchRunRequest
-	(*SaveMatchRunReply)(nil),                             // 86: api.bom.v1.SaveMatchRunReply
-	(*MatchRunListItem)(nil),                              // 87: api.bom.v1.MatchRunListItem
-	(*ListMatchRunsRequest)(nil),                          // 88: api.bom.v1.ListMatchRunsRequest
-	(*ListMatchRunsReply)(nil),                            // 89: api.bom.v1.ListMatchRunsReply
-	(*MatchRunResultItem)(nil),                            // 90: api.bom.v1.MatchRunResultItem
-	(*GetMatchRunRequest)(nil),                            // 91: api.bom.v1.GetMatchRunRequest
-	(*GetMatchRunReply)(nil),                              // 92: api.bom.v1.GetMatchRunReply
-	(*ExportSessionRequest)(nil),                          // 93: api.bom.v1.ExportSessionRequest
-	(*ExportSessionReply)(nil),                            // 94: api.bom.v1.ExportSessionReply
-	(*HsResolveByModelRequest)(nil),                       // 95: api.bom.v1.HsResolveByModelRequest
-	(*UploadHsManualDatasheetRequest)(nil),                // 96: api.bom.v1.UploadHsManualDatasheetRequest
-	(*UploadHsManualDatasheetReply)(nil),                  // 97: api.bom.v1.UploadHsManualDatasheetReply
-	(*HsResolveCandidate)(nil),                            // 98: api.bom.v1.HsResolveCandidate
-	(*HsResolveByModelReply)(nil),                         // 99: api.bom.v1.HsResolveByModelReply
-	(*HsResolveTaskRequest)(nil),                          // 100: api.bom.v1.HsResolveTaskRequest
-	(*HsResolveTaskReply)(nil),                            // 101: api.bom.v1.HsResolveTaskReply
-	(*HsResolveConfirmRequest)(nil),                       // 102: api.bom.v1.HsResolveConfirmRequest
-	(*HsResolveConfirmReply)(nil),                         // 103: api.bom.v1.HsResolveConfirmReply
-	(*HsResolveHistoryRequest)(nil),                       // 104: api.bom.v1.HsResolveHistoryRequest
-	(*HsResolveHistoryItem)(nil),                          // 105: api.bom.v1.HsResolveHistoryItem
-	(*HsResolveHistoryReply)(nil),                         // 106: api.bom.v1.HsResolveHistoryReply
-	(*HsMetaListRequest)(nil),                             // 107: api.bom.v1.HsMetaListRequest
-	(*HsMetaListRow)(nil),                                 // 108: api.bom.v1.HsMetaListRow
-	(*HsMetaListReply)(nil),                               // 109: api.bom.v1.HsMetaListReply
-	(*HsMetaCreateRequest)(nil),                           // 110: api.bom.v1.HsMetaCreateRequest
-	(*HsMetaUpdateRequest)(nil),                           // 111: api.bom.v1.HsMetaUpdateRequest
-	(*HsMetaDeleteRequest)(nil),                           // 112: api.bom.v1.HsMetaDeleteRequest
-	(*HsMetaMutationReply)(nil),                           // 113: api.bom.v1.HsMetaMutationReply
-	nil,                                                   // 114: api.bom.v1.UploadBOMRequest.ColumnMappingEntry
+	(*LineQuoteReviewReadiness)(nil),                      // 56: api.bom.v1.LineQuoteReviewReadiness
+	(*GetBOMLinesRequest)(nil),                            // 57: api.bom.v1.GetBOMLinesRequest
+	(*BOMLineRow)(nil),                                    // 58: api.bom.v1.BOMLineRow
+	(*PlatformGap)(nil),                                   // 59: api.bom.v1.PlatformGap
+	(*GetSessionSearchTaskCoverageRequest)(nil),           // 60: api.bom.v1.GetSessionSearchTaskCoverageRequest
+	(*SearchTaskMissingItem)(nil),                         // 61: api.bom.v1.SearchTaskMissingItem
+	(*GetSessionSearchTaskCoverageReply)(nil),             // 62: api.bom.v1.GetSessionSearchTaskCoverageReply
+	(*ListSessionSearchTasksRequest)(nil),                 // 63: api.bom.v1.ListSessionSearchTasksRequest
+	(*SearchTaskStatusSummary)(nil),                       // 64: api.bom.v1.SearchTaskStatusSummary
+	(*SessionSearchTaskRow)(nil),                          // 65: api.bom.v1.SessionSearchTaskRow
+	(*ListSessionSearchTasksReply)(nil),                   // 66: api.bom.v1.ListSessionSearchTasksReply
+	(*GetBOMLinesReply)(nil),                              // 67: api.bom.v1.GetBOMLinesReply
+	(*CreateSessionLineRequest)(nil),                      // 68: api.bom.v1.CreateSessionLineRequest
+	(*CreateSessionLineReply)(nil),                        // 69: api.bom.v1.CreateSessionLineReply
+	(*PatchSessionLineRequest)(nil),                       // 70: api.bom.v1.PatchSessionLineRequest
+	(*PatchSessionLineReply)(nil),                         // 71: api.bom.v1.PatchSessionLineReply
+	(*DeleteSessionLineRequest)(nil),                      // 72: api.bom.v1.DeleteSessionLineRequest
+	(*DeleteSessionLineReply)(nil),                        // 73: api.bom.v1.DeleteSessionLineReply
+	(*RetrySearchTasksRequest)(nil),                       // 74: api.bom.v1.RetrySearchTasksRequest
+	(*RetrySearchItem)(nil),                               // 75: api.bom.v1.RetrySearchItem
+	(*RetrySearchTasksReply)(nil),                         // 76: api.bom.v1.RetrySearchTasksReply
+	(*SubmitBomSearchResultRequest)(nil),                  // 77: api.bom.v1.SubmitBomSearchResultRequest
+	(*SubmitBomSearchResultReply)(nil),                    // 78: api.bom.v1.SubmitBomSearchResultReply
+	(*BOMLineGap)(nil),                                    // 79: api.bom.v1.BOMLineGap
+	(*ListLineGapsRequest)(nil),                           // 80: api.bom.v1.ListLineGapsRequest
+	(*ListLineGapsReply)(nil),                             // 81: api.bom.v1.ListLineGapsReply
+	(*ResolveLineGapManualQuoteRequest)(nil),              // 82: api.bom.v1.ResolveLineGapManualQuoteRequest
+	(*ResolveLineGapManualQuoteReply)(nil),                // 83: api.bom.v1.ResolveLineGapManualQuoteReply
+	(*SelectLineGapSubstituteRequest)(nil),                // 84: api.bom.v1.SelectLineGapSubstituteRequest
+	(*SelectLineGapSubstituteReply)(nil),                  // 85: api.bom.v1.SelectLineGapSubstituteReply
+	(*SaveMatchRunRequest)(nil),                           // 86: api.bom.v1.SaveMatchRunRequest
+	(*SaveMatchRunReply)(nil),                             // 87: api.bom.v1.SaveMatchRunReply
+	(*MatchRunListItem)(nil),                              // 88: api.bom.v1.MatchRunListItem
+	(*ListMatchRunsRequest)(nil),                          // 89: api.bom.v1.ListMatchRunsRequest
+	(*ListMatchRunsReply)(nil),                            // 90: api.bom.v1.ListMatchRunsReply
+	(*MatchRunResultItem)(nil),                            // 91: api.bom.v1.MatchRunResultItem
+	(*GetMatchRunRequest)(nil),                            // 92: api.bom.v1.GetMatchRunRequest
+	(*GetMatchRunReply)(nil),                              // 93: api.bom.v1.GetMatchRunReply
+	(*ExportSessionRequest)(nil),                          // 94: api.bom.v1.ExportSessionRequest
+	(*ExportSessionReply)(nil),                            // 95: api.bom.v1.ExportSessionReply
+	(*HsResolveByModelRequest)(nil),                       // 96: api.bom.v1.HsResolveByModelRequest
+	(*UploadHsManualDatasheetRequest)(nil),                // 97: api.bom.v1.UploadHsManualDatasheetRequest
+	(*UploadHsManualDatasheetReply)(nil),                  // 98: api.bom.v1.UploadHsManualDatasheetReply
+	(*HsResolveCandidate)(nil),                            // 99: api.bom.v1.HsResolveCandidate
+	(*HsResolveByModelReply)(nil),                         // 100: api.bom.v1.HsResolveByModelReply
+	(*HsResolveTaskRequest)(nil),                          // 101: api.bom.v1.HsResolveTaskRequest
+	(*HsResolveTaskReply)(nil),                            // 102: api.bom.v1.HsResolveTaskReply
+	(*HsResolveConfirmRequest)(nil),                       // 103: api.bom.v1.HsResolveConfirmRequest
+	(*HsResolveConfirmReply)(nil),                         // 104: api.bom.v1.HsResolveConfirmReply
+	(*HsResolveHistoryRequest)(nil),                       // 105: api.bom.v1.HsResolveHistoryRequest
+	(*HsResolveHistoryItem)(nil),                          // 106: api.bom.v1.HsResolveHistoryItem
+	(*HsResolveHistoryReply)(nil),                         // 107: api.bom.v1.HsResolveHistoryReply
+	(*HsMetaListRequest)(nil),                             // 108: api.bom.v1.HsMetaListRequest
+	(*HsMetaListRow)(nil),                                 // 109: api.bom.v1.HsMetaListRow
+	(*HsMetaListReply)(nil),                               // 110: api.bom.v1.HsMetaListReply
+	(*HsMetaCreateRequest)(nil),                           // 111: api.bom.v1.HsMetaCreateRequest
+	(*HsMetaUpdateRequest)(nil),                           // 112: api.bom.v1.HsMetaUpdateRequest
+	(*HsMetaDeleteRequest)(nil),                           // 113: api.bom.v1.HsMetaDeleteRequest
+	(*HsMetaMutationReply)(nil),                           // 114: api.bom.v1.HsMetaMutationReply
+	nil,                                                   // 115: api.bom.v1.UploadBOMRequest.ColumnMappingEntry
 }
 var file_bom_v1_bom_proto_depIdxs = []int32{
-	114, // 0: api.bom.v1.UploadBOMRequest.column_mapping:type_name -> api.bom.v1.UploadBOMRequest.ColumnMappingEntry
+	115, // 0: api.bom.v1.UploadBOMRequest.column_mapping:type_name -> api.bom.v1.UploadBOMRequest.ColumnMappingEntry
 	2,   // 1: api.bom.v1.UploadBOMReply.items:type_name -> api.bom.v1.ParsedItem
 	5,   // 2: api.bom.v1.SearchQuotesReply.item_quotes:type_name -> api.bom.v1.ItemQuotes
 	6,   // 3: api.bom.v1.ItemQuotes.quotes:type_name -> api.bom.v1.PlatformQuote
@@ -9537,118 +9721,120 @@ var file_bom_v1_bom_proto_depIdxs = []int32{
 	32,  // 14: api.bom.v1.ListSessionLineMfrCandidatesReply.items:type_name -> api.bom.v1.SessionLineMfrCandidateRow
 	37,  // 15: api.bom.v1.ListQuoteItemMfrReviewsReply.items:type_name -> api.bom.v1.QuoteItemMfrReviewRow
 	49,  // 16: api.bom.v1.ListSessionsReply.items:type_name -> api.bom.v1.SessionListItem
-	58,  // 17: api.bom.v1.BOMLineRow.platform_gaps:type_name -> api.bom.v1.PlatformGap
-	60,  // 18: api.bom.v1.GetSessionSearchTaskCoverageReply.missing_tasks:type_name -> api.bom.v1.SearchTaskMissingItem
-	63,  // 19: api.bom.v1.ListSessionSearchTasksReply.summary:type_name -> api.bom.v1.SearchTaskStatusSummary
-	64,  // 20: api.bom.v1.ListSessionSearchTasksReply.tasks:type_name -> api.bom.v1.SessionSearchTaskRow
-	57,  // 21: api.bom.v1.GetBOMLinesReply.lines:type_name -> api.bom.v1.BOMLineRow
-	74,  // 22: api.bom.v1.RetrySearchTasksRequest.items:type_name -> api.bom.v1.RetrySearchItem
-	78,  // 23: api.bom.v1.ListLineGapsReply.gaps:type_name -> api.bom.v1.BOMLineGap
-	87,  // 24: api.bom.v1.ListMatchRunsReply.runs:type_name -> api.bom.v1.MatchRunListItem
-	87,  // 25: api.bom.v1.GetMatchRunReply.run:type_name -> api.bom.v1.MatchRunListItem
-	90,  // 26: api.bom.v1.GetMatchRunReply.items:type_name -> api.bom.v1.MatchRunResultItem
-	98,  // 27: api.bom.v1.HsResolveByModelReply.candidates:type_name -> api.bom.v1.HsResolveCandidate
-	98,  // 28: api.bom.v1.HsResolveTaskReply.candidates:type_name -> api.bom.v1.HsResolveCandidate
-	98,  // 29: api.bom.v1.HsResolveHistoryItem.candidates:type_name -> api.bom.v1.HsResolveCandidate
-	105, // 30: api.bom.v1.HsResolveHistoryReply.items:type_name -> api.bom.v1.HsResolveHistoryItem
-	108, // 31: api.bom.v1.HsMetaListReply.items:type_name -> api.bom.v1.HsMetaListRow
-	0,   // 32: api.bom.v1.BomService.UploadBOM:input_type -> api.bom.v1.UploadBOMRequest
-	3,   // 33: api.bom.v1.BomService.SearchQuotes:input_type -> api.bom.v1.SearchQuotesRequest
-	7,   // 34: api.bom.v1.BomService.AutoMatch:input_type -> api.bom.v1.AutoMatchRequest
-	42,  // 35: api.bom.v1.BomService.DownloadTemplate:input_type -> api.bom.v1.DownloadTemplateRequest
-	25,  // 36: api.bom.v1.BomService.ListManufacturerCanonicals:input_type -> api.bom.v1.ListManufacturerCanonicalsRequest
-	28,  // 37: api.bom.v1.BomService.CreateManufacturerAlias:input_type -> api.bom.v1.CreateManufacturerAliasRequest
-	30,  // 38: api.bom.v1.BomService.ListSessionLineMfrCandidates:input_type -> api.bom.v1.ListSessionLineMfrCandidatesRequest
-	33,  // 39: api.bom.v1.BomService.ApproveSessionLineMfrCleaning:input_type -> api.bom.v1.ApproveSessionLineMfrCleaningRequest
-	35,  // 40: api.bom.v1.BomService.ListQuoteItemMfrReviews:input_type -> api.bom.v1.ListQuoteItemMfrReviewsRequest
-	38,  // 41: api.bom.v1.BomService.SubmitQuoteItemMfrReview:input_type -> api.bom.v1.SubmitQuoteItemMfrReviewRequest
-	40,  // 42: api.bom.v1.BomService.ApplyKnownManufacturerAliasesToSession:input_type -> api.bom.v1.ApplyKnownManufacturerAliasesToSessionRequest
-	10,  // 43: api.bom.v1.BomService.GetBOM:input_type -> api.bom.v1.GetBOMRequest
-	12,  // 44: api.bom.v1.BomService.GetMatchResult:input_type -> api.bom.v1.GetMatchResultRequest
-	14,  // 45: api.bom.v1.BomService.ListMatchSources:input_type -> api.bom.v1.ListMatchSourcesRequest
-	19,  // 46: api.bom.v1.BomService.GetMatchSourceDetail:input_type -> api.bom.v1.GetMatchSourceDetailRequest
-	21,  // 47: api.bom.v1.BomService.GetBomLineQuoteItems:input_type -> api.bom.v1.GetBomLineQuoteItemsRequest
-	44,  // 48: api.bom.v1.BomService.CreateSession:input_type -> api.bom.v1.CreateSessionRequest
-	46,  // 49: api.bom.v1.BomService.GetSession:input_type -> api.bom.v1.GetSessionRequest
-	48,  // 50: api.bom.v1.BomService.ListSessions:input_type -> api.bom.v1.ListSessionsRequest
-	51,  // 51: api.bom.v1.BomService.PatchSession:input_type -> api.bom.v1.PatchSessionRequest
-	52,  // 52: api.bom.v1.BomService.PutPlatforms:input_type -> api.bom.v1.PutPlatformsRequest
-	54,  // 53: api.bom.v1.BomService.GetReadiness:input_type -> api.bom.v1.GetReadinessRequest
-	56,  // 54: api.bom.v1.BomService.GetBOMLines:input_type -> api.bom.v1.GetBOMLinesRequest
-	59,  // 55: api.bom.v1.BomService.GetSessionSearchTaskCoverage:input_type -> api.bom.v1.GetSessionSearchTaskCoverageRequest
-	62,  // 56: api.bom.v1.BomService.ListSessionSearchTasks:input_type -> api.bom.v1.ListSessionSearchTasksRequest
-	67,  // 57: api.bom.v1.BomService.CreateSessionLine:input_type -> api.bom.v1.CreateSessionLineRequest
-	69,  // 58: api.bom.v1.BomService.PatchSessionLine:input_type -> api.bom.v1.PatchSessionLineRequest
-	71,  // 59: api.bom.v1.BomService.DeleteSessionLine:input_type -> api.bom.v1.DeleteSessionLineRequest
-	73,  // 60: api.bom.v1.BomService.RetrySearchTasks:input_type -> api.bom.v1.RetrySearchTasksRequest
-	76,  // 61: api.bom.v1.BomService.SubmitBomSearchResult:input_type -> api.bom.v1.SubmitBomSearchResultRequest
-	79,  // 62: api.bom.v1.BomService.ListLineGaps:input_type -> api.bom.v1.ListLineGapsRequest
-	81,  // 63: api.bom.v1.BomService.ResolveLineGapManualQuote:input_type -> api.bom.v1.ResolveLineGapManualQuoteRequest
-	83,  // 64: api.bom.v1.BomService.SelectLineGapSubstitute:input_type -> api.bom.v1.SelectLineGapSubstituteRequest
-	85,  // 65: api.bom.v1.BomService.SaveMatchRun:input_type -> api.bom.v1.SaveMatchRunRequest
-	88,  // 66: api.bom.v1.BomService.ListMatchRuns:input_type -> api.bom.v1.ListMatchRunsRequest
-	91,  // 67: api.bom.v1.BomService.GetMatchRun:input_type -> api.bom.v1.GetMatchRunRequest
-	93,  // 68: api.bom.v1.BomService.ExportSession:input_type -> api.bom.v1.ExportSessionRequest
-	95,  // 69: api.bom.v1.HsResolveService.ResolveByModel:input_type -> api.bom.v1.HsResolveByModelRequest
-	100, // 70: api.bom.v1.HsResolveService.GetResolveTask:input_type -> api.bom.v1.HsResolveTaskRequest
-	102, // 71: api.bom.v1.HsResolveService.ConfirmResolve:input_type -> api.bom.v1.HsResolveConfirmRequest
-	104, // 72: api.bom.v1.HsResolveService.GetResolveHistory:input_type -> api.bom.v1.HsResolveHistoryRequest
-	96,  // 73: api.bom.v1.HsResolveService.UploadHsManualDatasheet:input_type -> api.bom.v1.UploadHsManualDatasheetRequest
-	107, // 74: api.bom.v1.HsMetaService.ListHsMeta:input_type -> api.bom.v1.HsMetaListRequest
-	110, // 75: api.bom.v1.HsMetaService.CreateHsMeta:input_type -> api.bom.v1.HsMetaCreateRequest
-	111, // 76: api.bom.v1.HsMetaService.UpdateHsMeta:input_type -> api.bom.v1.HsMetaUpdateRequest
-	112, // 77: api.bom.v1.HsMetaService.DeleteHsMeta:input_type -> api.bom.v1.HsMetaDeleteRequest
-	1,   // 78: api.bom.v1.BomService.UploadBOM:output_type -> api.bom.v1.UploadBOMReply
-	4,   // 79: api.bom.v1.BomService.SearchQuotes:output_type -> api.bom.v1.SearchQuotesReply
-	8,   // 80: api.bom.v1.BomService.AutoMatch:output_type -> api.bom.v1.AutoMatchReply
-	43,  // 81: api.bom.v1.BomService.DownloadTemplate:output_type -> api.bom.v1.DownloadTemplateReply
-	27,  // 82: api.bom.v1.BomService.ListManufacturerCanonicals:output_type -> api.bom.v1.ListManufacturerCanonicalsReply
-	29,  // 83: api.bom.v1.BomService.CreateManufacturerAlias:output_type -> api.bom.v1.CreateManufacturerAliasReply
-	31,  // 84: api.bom.v1.BomService.ListSessionLineMfrCandidates:output_type -> api.bom.v1.ListSessionLineMfrCandidatesReply
-	34,  // 85: api.bom.v1.BomService.ApproveSessionLineMfrCleaning:output_type -> api.bom.v1.ApproveSessionLineMfrCleaningReply
-	36,  // 86: api.bom.v1.BomService.ListQuoteItemMfrReviews:output_type -> api.bom.v1.ListQuoteItemMfrReviewsReply
-	39,  // 87: api.bom.v1.BomService.SubmitQuoteItemMfrReview:output_type -> api.bom.v1.SubmitQuoteItemMfrReviewReply
-	41,  // 88: api.bom.v1.BomService.ApplyKnownManufacturerAliasesToSession:output_type -> api.bom.v1.ApplyKnownManufacturerAliasesToSessionReply
-	11,  // 89: api.bom.v1.BomService.GetBOM:output_type -> api.bom.v1.GetBOMReply
-	13,  // 90: api.bom.v1.BomService.GetMatchResult:output_type -> api.bom.v1.GetMatchResultReply
-	17,  // 91: api.bom.v1.BomService.ListMatchSources:output_type -> api.bom.v1.ListMatchSourcesReply
-	20,  // 92: api.bom.v1.BomService.GetMatchSourceDetail:output_type -> api.bom.v1.GetMatchSourceDetailReply
-	24,  // 93: api.bom.v1.BomService.GetBomLineQuoteItems:output_type -> api.bom.v1.GetBomLineQuoteItemsReply
-	45,  // 94: api.bom.v1.BomService.CreateSession:output_type -> api.bom.v1.CreateSessionReply
-	47,  // 95: api.bom.v1.BomService.GetSession:output_type -> api.bom.v1.GetSessionReply
-	50,  // 96: api.bom.v1.BomService.ListSessions:output_type -> api.bom.v1.ListSessionsReply
-	47,  // 97: api.bom.v1.BomService.PatchSession:output_type -> api.bom.v1.GetSessionReply
-	53,  // 98: api.bom.v1.BomService.PutPlatforms:output_type -> api.bom.v1.PutPlatformsReply
-	55,  // 99: api.bom.v1.BomService.GetReadiness:output_type -> api.bom.v1.GetReadinessReply
-	66,  // 100: api.bom.v1.BomService.GetBOMLines:output_type -> api.bom.v1.GetBOMLinesReply
-	61,  // 101: api.bom.v1.BomService.GetSessionSearchTaskCoverage:output_type -> api.bom.v1.GetSessionSearchTaskCoverageReply
-	65,  // 102: api.bom.v1.BomService.ListSessionSearchTasks:output_type -> api.bom.v1.ListSessionSearchTasksReply
-	68,  // 103: api.bom.v1.BomService.CreateSessionLine:output_type -> api.bom.v1.CreateSessionLineReply
-	70,  // 104: api.bom.v1.BomService.PatchSessionLine:output_type -> api.bom.v1.PatchSessionLineReply
-	72,  // 105: api.bom.v1.BomService.DeleteSessionLine:output_type -> api.bom.v1.DeleteSessionLineReply
-	75,  // 106: api.bom.v1.BomService.RetrySearchTasks:output_type -> api.bom.v1.RetrySearchTasksReply
-	77,  // 107: api.bom.v1.BomService.SubmitBomSearchResult:output_type -> api.bom.v1.SubmitBomSearchResultReply
-	80,  // 108: api.bom.v1.BomService.ListLineGaps:output_type -> api.bom.v1.ListLineGapsReply
-	82,  // 109: api.bom.v1.BomService.ResolveLineGapManualQuote:output_type -> api.bom.v1.ResolveLineGapManualQuoteReply
-	84,  // 110: api.bom.v1.BomService.SelectLineGapSubstitute:output_type -> api.bom.v1.SelectLineGapSubstituteReply
-	86,  // 111: api.bom.v1.BomService.SaveMatchRun:output_type -> api.bom.v1.SaveMatchRunReply
-	89,  // 112: api.bom.v1.BomService.ListMatchRuns:output_type -> api.bom.v1.ListMatchRunsReply
-	92,  // 113: api.bom.v1.BomService.GetMatchRun:output_type -> api.bom.v1.GetMatchRunReply
-	94,  // 114: api.bom.v1.BomService.ExportSession:output_type -> api.bom.v1.ExportSessionReply
-	99,  // 115: api.bom.v1.HsResolveService.ResolveByModel:output_type -> api.bom.v1.HsResolveByModelReply
-	101, // 116: api.bom.v1.HsResolveService.GetResolveTask:output_type -> api.bom.v1.HsResolveTaskReply
-	103, // 117: api.bom.v1.HsResolveService.ConfirmResolve:output_type -> api.bom.v1.HsResolveConfirmReply
-	106, // 118: api.bom.v1.HsResolveService.GetResolveHistory:output_type -> api.bom.v1.HsResolveHistoryReply
-	97,  // 119: api.bom.v1.HsResolveService.UploadHsManualDatasheet:output_type -> api.bom.v1.UploadHsManualDatasheetReply
-	109, // 120: api.bom.v1.HsMetaService.ListHsMeta:output_type -> api.bom.v1.HsMetaListReply
-	113, // 121: api.bom.v1.HsMetaService.CreateHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
-	113, // 122: api.bom.v1.HsMetaService.UpdateHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
-	113, // 123: api.bom.v1.HsMetaService.DeleteHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
-	78,  // [78:124] is the sub-list for method output_type
-	32,  // [32:78] is the sub-list for method input_type
-	32,  // [32:32] is the sub-list for extension type_name
-	32,  // [32:32] is the sub-list for extension extendee
-	0,   // [0:32] is the sub-list for field type_name
+	56,  // 17: api.bom.v1.GetReadinessReply.line_quote_review_readiness:type_name -> api.bom.v1.LineQuoteReviewReadiness
+	37,  // 18: api.bom.v1.GetReadinessReply.quote_item_mfr_review_items:type_name -> api.bom.v1.QuoteItemMfrReviewRow
+	59,  // 19: api.bom.v1.BOMLineRow.platform_gaps:type_name -> api.bom.v1.PlatformGap
+	61,  // 20: api.bom.v1.GetSessionSearchTaskCoverageReply.missing_tasks:type_name -> api.bom.v1.SearchTaskMissingItem
+	64,  // 21: api.bom.v1.ListSessionSearchTasksReply.summary:type_name -> api.bom.v1.SearchTaskStatusSummary
+	65,  // 22: api.bom.v1.ListSessionSearchTasksReply.tasks:type_name -> api.bom.v1.SessionSearchTaskRow
+	58,  // 23: api.bom.v1.GetBOMLinesReply.lines:type_name -> api.bom.v1.BOMLineRow
+	75,  // 24: api.bom.v1.RetrySearchTasksRequest.items:type_name -> api.bom.v1.RetrySearchItem
+	79,  // 25: api.bom.v1.ListLineGapsReply.gaps:type_name -> api.bom.v1.BOMLineGap
+	88,  // 26: api.bom.v1.ListMatchRunsReply.runs:type_name -> api.bom.v1.MatchRunListItem
+	88,  // 27: api.bom.v1.GetMatchRunReply.run:type_name -> api.bom.v1.MatchRunListItem
+	91,  // 28: api.bom.v1.GetMatchRunReply.items:type_name -> api.bom.v1.MatchRunResultItem
+	99,  // 29: api.bom.v1.HsResolveByModelReply.candidates:type_name -> api.bom.v1.HsResolveCandidate
+	99,  // 30: api.bom.v1.HsResolveTaskReply.candidates:type_name -> api.bom.v1.HsResolveCandidate
+	99,  // 31: api.bom.v1.HsResolveHistoryItem.candidates:type_name -> api.bom.v1.HsResolveCandidate
+	106, // 32: api.bom.v1.HsResolveHistoryReply.items:type_name -> api.bom.v1.HsResolveHistoryItem
+	109, // 33: api.bom.v1.HsMetaListReply.items:type_name -> api.bom.v1.HsMetaListRow
+	0,   // 34: api.bom.v1.BomService.UploadBOM:input_type -> api.bom.v1.UploadBOMRequest
+	3,   // 35: api.bom.v1.BomService.SearchQuotes:input_type -> api.bom.v1.SearchQuotesRequest
+	7,   // 36: api.bom.v1.BomService.AutoMatch:input_type -> api.bom.v1.AutoMatchRequest
+	42,  // 37: api.bom.v1.BomService.DownloadTemplate:input_type -> api.bom.v1.DownloadTemplateRequest
+	25,  // 38: api.bom.v1.BomService.ListManufacturerCanonicals:input_type -> api.bom.v1.ListManufacturerCanonicalsRequest
+	28,  // 39: api.bom.v1.BomService.CreateManufacturerAlias:input_type -> api.bom.v1.CreateManufacturerAliasRequest
+	30,  // 40: api.bom.v1.BomService.ListSessionLineMfrCandidates:input_type -> api.bom.v1.ListSessionLineMfrCandidatesRequest
+	33,  // 41: api.bom.v1.BomService.ApproveSessionLineMfrCleaning:input_type -> api.bom.v1.ApproveSessionLineMfrCleaningRequest
+	35,  // 42: api.bom.v1.BomService.ListQuoteItemMfrReviews:input_type -> api.bom.v1.ListQuoteItemMfrReviewsRequest
+	38,  // 43: api.bom.v1.BomService.SubmitQuoteItemMfrReview:input_type -> api.bom.v1.SubmitQuoteItemMfrReviewRequest
+	40,  // 44: api.bom.v1.BomService.ApplyKnownManufacturerAliasesToSession:input_type -> api.bom.v1.ApplyKnownManufacturerAliasesToSessionRequest
+	10,  // 45: api.bom.v1.BomService.GetBOM:input_type -> api.bom.v1.GetBOMRequest
+	12,  // 46: api.bom.v1.BomService.GetMatchResult:input_type -> api.bom.v1.GetMatchResultRequest
+	14,  // 47: api.bom.v1.BomService.ListMatchSources:input_type -> api.bom.v1.ListMatchSourcesRequest
+	19,  // 48: api.bom.v1.BomService.GetMatchSourceDetail:input_type -> api.bom.v1.GetMatchSourceDetailRequest
+	21,  // 49: api.bom.v1.BomService.GetBomLineQuoteItems:input_type -> api.bom.v1.GetBomLineQuoteItemsRequest
+	44,  // 50: api.bom.v1.BomService.CreateSession:input_type -> api.bom.v1.CreateSessionRequest
+	46,  // 51: api.bom.v1.BomService.GetSession:input_type -> api.bom.v1.GetSessionRequest
+	48,  // 52: api.bom.v1.BomService.ListSessions:input_type -> api.bom.v1.ListSessionsRequest
+	51,  // 53: api.bom.v1.BomService.PatchSession:input_type -> api.bom.v1.PatchSessionRequest
+	52,  // 54: api.bom.v1.BomService.PutPlatforms:input_type -> api.bom.v1.PutPlatformsRequest
+	54,  // 55: api.bom.v1.BomService.GetReadiness:input_type -> api.bom.v1.GetReadinessRequest
+	57,  // 56: api.bom.v1.BomService.GetBOMLines:input_type -> api.bom.v1.GetBOMLinesRequest
+	60,  // 57: api.bom.v1.BomService.GetSessionSearchTaskCoverage:input_type -> api.bom.v1.GetSessionSearchTaskCoverageRequest
+	63,  // 58: api.bom.v1.BomService.ListSessionSearchTasks:input_type -> api.bom.v1.ListSessionSearchTasksRequest
+	68,  // 59: api.bom.v1.BomService.CreateSessionLine:input_type -> api.bom.v1.CreateSessionLineRequest
+	70,  // 60: api.bom.v1.BomService.PatchSessionLine:input_type -> api.bom.v1.PatchSessionLineRequest
+	72,  // 61: api.bom.v1.BomService.DeleteSessionLine:input_type -> api.bom.v1.DeleteSessionLineRequest
+	74,  // 62: api.bom.v1.BomService.RetrySearchTasks:input_type -> api.bom.v1.RetrySearchTasksRequest
+	77,  // 63: api.bom.v1.BomService.SubmitBomSearchResult:input_type -> api.bom.v1.SubmitBomSearchResultRequest
+	80,  // 64: api.bom.v1.BomService.ListLineGaps:input_type -> api.bom.v1.ListLineGapsRequest
+	82,  // 65: api.bom.v1.BomService.ResolveLineGapManualQuote:input_type -> api.bom.v1.ResolveLineGapManualQuoteRequest
+	84,  // 66: api.bom.v1.BomService.SelectLineGapSubstitute:input_type -> api.bom.v1.SelectLineGapSubstituteRequest
+	86,  // 67: api.bom.v1.BomService.SaveMatchRun:input_type -> api.bom.v1.SaveMatchRunRequest
+	89,  // 68: api.bom.v1.BomService.ListMatchRuns:input_type -> api.bom.v1.ListMatchRunsRequest
+	92,  // 69: api.bom.v1.BomService.GetMatchRun:input_type -> api.bom.v1.GetMatchRunRequest
+	94,  // 70: api.bom.v1.BomService.ExportSession:input_type -> api.bom.v1.ExportSessionRequest
+	96,  // 71: api.bom.v1.HsResolveService.ResolveByModel:input_type -> api.bom.v1.HsResolveByModelRequest
+	101, // 72: api.bom.v1.HsResolveService.GetResolveTask:input_type -> api.bom.v1.HsResolveTaskRequest
+	103, // 73: api.bom.v1.HsResolveService.ConfirmResolve:input_type -> api.bom.v1.HsResolveConfirmRequest
+	105, // 74: api.bom.v1.HsResolveService.GetResolveHistory:input_type -> api.bom.v1.HsResolveHistoryRequest
+	97,  // 75: api.bom.v1.HsResolveService.UploadHsManualDatasheet:input_type -> api.bom.v1.UploadHsManualDatasheetRequest
+	108, // 76: api.bom.v1.HsMetaService.ListHsMeta:input_type -> api.bom.v1.HsMetaListRequest
+	111, // 77: api.bom.v1.HsMetaService.CreateHsMeta:input_type -> api.bom.v1.HsMetaCreateRequest
+	112, // 78: api.bom.v1.HsMetaService.UpdateHsMeta:input_type -> api.bom.v1.HsMetaUpdateRequest
+	113, // 79: api.bom.v1.HsMetaService.DeleteHsMeta:input_type -> api.bom.v1.HsMetaDeleteRequest
+	1,   // 80: api.bom.v1.BomService.UploadBOM:output_type -> api.bom.v1.UploadBOMReply
+	4,   // 81: api.bom.v1.BomService.SearchQuotes:output_type -> api.bom.v1.SearchQuotesReply
+	8,   // 82: api.bom.v1.BomService.AutoMatch:output_type -> api.bom.v1.AutoMatchReply
+	43,  // 83: api.bom.v1.BomService.DownloadTemplate:output_type -> api.bom.v1.DownloadTemplateReply
+	27,  // 84: api.bom.v1.BomService.ListManufacturerCanonicals:output_type -> api.bom.v1.ListManufacturerCanonicalsReply
+	29,  // 85: api.bom.v1.BomService.CreateManufacturerAlias:output_type -> api.bom.v1.CreateManufacturerAliasReply
+	31,  // 86: api.bom.v1.BomService.ListSessionLineMfrCandidates:output_type -> api.bom.v1.ListSessionLineMfrCandidatesReply
+	34,  // 87: api.bom.v1.BomService.ApproveSessionLineMfrCleaning:output_type -> api.bom.v1.ApproveSessionLineMfrCleaningReply
+	36,  // 88: api.bom.v1.BomService.ListQuoteItemMfrReviews:output_type -> api.bom.v1.ListQuoteItemMfrReviewsReply
+	39,  // 89: api.bom.v1.BomService.SubmitQuoteItemMfrReview:output_type -> api.bom.v1.SubmitQuoteItemMfrReviewReply
+	41,  // 90: api.bom.v1.BomService.ApplyKnownManufacturerAliasesToSession:output_type -> api.bom.v1.ApplyKnownManufacturerAliasesToSessionReply
+	11,  // 91: api.bom.v1.BomService.GetBOM:output_type -> api.bom.v1.GetBOMReply
+	13,  // 92: api.bom.v1.BomService.GetMatchResult:output_type -> api.bom.v1.GetMatchResultReply
+	17,  // 93: api.bom.v1.BomService.ListMatchSources:output_type -> api.bom.v1.ListMatchSourcesReply
+	20,  // 94: api.bom.v1.BomService.GetMatchSourceDetail:output_type -> api.bom.v1.GetMatchSourceDetailReply
+	24,  // 95: api.bom.v1.BomService.GetBomLineQuoteItems:output_type -> api.bom.v1.GetBomLineQuoteItemsReply
+	45,  // 96: api.bom.v1.BomService.CreateSession:output_type -> api.bom.v1.CreateSessionReply
+	47,  // 97: api.bom.v1.BomService.GetSession:output_type -> api.bom.v1.GetSessionReply
+	50,  // 98: api.bom.v1.BomService.ListSessions:output_type -> api.bom.v1.ListSessionsReply
+	47,  // 99: api.bom.v1.BomService.PatchSession:output_type -> api.bom.v1.GetSessionReply
+	53,  // 100: api.bom.v1.BomService.PutPlatforms:output_type -> api.bom.v1.PutPlatformsReply
+	55,  // 101: api.bom.v1.BomService.GetReadiness:output_type -> api.bom.v1.GetReadinessReply
+	67,  // 102: api.bom.v1.BomService.GetBOMLines:output_type -> api.bom.v1.GetBOMLinesReply
+	62,  // 103: api.bom.v1.BomService.GetSessionSearchTaskCoverage:output_type -> api.bom.v1.GetSessionSearchTaskCoverageReply
+	66,  // 104: api.bom.v1.BomService.ListSessionSearchTasks:output_type -> api.bom.v1.ListSessionSearchTasksReply
+	69,  // 105: api.bom.v1.BomService.CreateSessionLine:output_type -> api.bom.v1.CreateSessionLineReply
+	71,  // 106: api.bom.v1.BomService.PatchSessionLine:output_type -> api.bom.v1.PatchSessionLineReply
+	73,  // 107: api.bom.v1.BomService.DeleteSessionLine:output_type -> api.bom.v1.DeleteSessionLineReply
+	76,  // 108: api.bom.v1.BomService.RetrySearchTasks:output_type -> api.bom.v1.RetrySearchTasksReply
+	78,  // 109: api.bom.v1.BomService.SubmitBomSearchResult:output_type -> api.bom.v1.SubmitBomSearchResultReply
+	81,  // 110: api.bom.v1.BomService.ListLineGaps:output_type -> api.bom.v1.ListLineGapsReply
+	83,  // 111: api.bom.v1.BomService.ResolveLineGapManualQuote:output_type -> api.bom.v1.ResolveLineGapManualQuoteReply
+	85,  // 112: api.bom.v1.BomService.SelectLineGapSubstitute:output_type -> api.bom.v1.SelectLineGapSubstituteReply
+	87,  // 113: api.bom.v1.BomService.SaveMatchRun:output_type -> api.bom.v1.SaveMatchRunReply
+	90,  // 114: api.bom.v1.BomService.ListMatchRuns:output_type -> api.bom.v1.ListMatchRunsReply
+	93,  // 115: api.bom.v1.BomService.GetMatchRun:output_type -> api.bom.v1.GetMatchRunReply
+	95,  // 116: api.bom.v1.BomService.ExportSession:output_type -> api.bom.v1.ExportSessionReply
+	100, // 117: api.bom.v1.HsResolveService.ResolveByModel:output_type -> api.bom.v1.HsResolveByModelReply
+	102, // 118: api.bom.v1.HsResolveService.GetResolveTask:output_type -> api.bom.v1.HsResolveTaskReply
+	104, // 119: api.bom.v1.HsResolveService.ConfirmResolve:output_type -> api.bom.v1.HsResolveConfirmReply
+	107, // 120: api.bom.v1.HsResolveService.GetResolveHistory:output_type -> api.bom.v1.HsResolveHistoryReply
+	98,  // 121: api.bom.v1.HsResolveService.UploadHsManualDatasheet:output_type -> api.bom.v1.UploadHsManualDatasheetReply
+	110, // 122: api.bom.v1.HsMetaService.ListHsMeta:output_type -> api.bom.v1.HsMetaListReply
+	114, // 123: api.bom.v1.HsMetaService.CreateHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
+	114, // 124: api.bom.v1.HsMetaService.UpdateHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
+	114, // 125: api.bom.v1.HsMetaService.DeleteHsMeta:output_type -> api.bom.v1.HsMetaMutationReply
+	80,  // [80:126] is the sub-list for method output_type
+	34,  // [34:80] is the sub-list for method input_type
+	34,  // [34:34] is the sub-list for extension type_name
+	34,  // [34:34] is the sub-list for extension extendee
+	0,   // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_bom_v1_bom_proto_init() }
@@ -9657,14 +9843,14 @@ func file_bom_v1_bom_proto_init() {
 		return
 	}
 	file_bom_v1_bom_proto_msgTypes[51].OneofWrappers = []any{}
-	file_bom_v1_bom_proto_msgTypes[69].OneofWrappers = []any{}
+	file_bom_v1_bom_proto_msgTypes[70].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bom_v1_bom_proto_rawDesc), len(file_bom_v1_bom_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   115,
+			NumMessages:   116,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

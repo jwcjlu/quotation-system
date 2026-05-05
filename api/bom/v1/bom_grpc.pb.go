@@ -78,7 +78,7 @@ type BomServiceClient interface {
 	// 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
 	ListSessionLineMfrCandidates(ctx context.Context, in *ListSessionLineMfrCandidatesRequest, opts ...grpc.CallOption) (*ListSessionLineMfrCandidatesReply, error)
 	ApproveSessionLineMfrCleaning(ctx context.Context, in *ApproveSessionLineMfrCleaningRequest, opts ...grpc.CallOption) (*ApproveSessionLineMfrCleaningReply, error)
-	// 厂牌两阶段清洗 — 阶段二：报价明细评审列表 + 提交
+	// 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
 	ListQuoteItemMfrReviews(ctx context.Context, in *ListQuoteItemMfrReviewsRequest, opts ...grpc.CallOption) (*ListQuoteItemMfrReviewsReply, error)
 	SubmitQuoteItemMfrReview(ctx context.Context, in *SubmitQuoteItemMfrReviewRequest, opts ...grpc.CallOption) (*SubmitQuoteItemMfrReviewReply, error)
 	ApplyKnownManufacturerAliasesToSession(ctx context.Context, in *ApplyKnownManufacturerAliasesToSessionRequest, opts ...grpc.CallOption) (*ApplyKnownManufacturerAliasesToSessionReply, error)
@@ -521,7 +521,7 @@ type BomServiceServer interface {
 	// 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
 	ListSessionLineMfrCandidates(context.Context, *ListSessionLineMfrCandidatesRequest) (*ListSessionLineMfrCandidatesReply, error)
 	ApproveSessionLineMfrCleaning(context.Context, *ApproveSessionLineMfrCleaningRequest) (*ApproveSessionLineMfrCleaningReply, error)
-	// 厂牌两阶段清洗 — 阶段二：报价明细评审列表 + 提交
+	// 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
 	ListQuoteItemMfrReviews(context.Context, *ListQuoteItemMfrReviewsRequest) (*ListQuoteItemMfrReviewsReply, error)
 	SubmitQuoteItemMfrReview(context.Context, *SubmitQuoteItemMfrReviewRequest) (*SubmitQuoteItemMfrReviewReply, error)
 	ApplyKnownManufacturerAliasesToSession(context.Context, *ApplyKnownManufacturerAliasesToSessionRequest) (*ApplyKnownManufacturerAliasesToSessionReply, error)

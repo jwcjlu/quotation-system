@@ -92,7 +92,7 @@ type BomServiceHTTPServer interface {
 	ListMatchRuns(context.Context, *ListMatchRunsRequest) (*ListMatchRunsReply, error)
 	// ListMatchSources 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
 	ListMatchSources(context.Context, *ListMatchSourcesRequest) (*ListMatchSourcesReply, error)
-	// ListQuoteItemMfrReviews 厂牌两阶段清洗 — 阶段二：报价明细评审列表 + 提交
+	// ListQuoteItemMfrReviews 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
 	ListQuoteItemMfrReviews(context.Context, *ListQuoteItemMfrReviewsRequest) (*ListQuoteItemMfrReviewsReply, error)
 	// ListSessionLineMfrCandidates 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
 	ListSessionLineMfrCandidates(context.Context, *ListSessionLineMfrCandidatesRequest) (*ListSessionLineMfrCandidatesReply, error)
@@ -1034,7 +1034,7 @@ type BomServiceHTTPClient interface {
 	ListMatchRuns(ctx context.Context, req *ListMatchRunsRequest, opts ...http.CallOption) (rsp *ListMatchRunsReply, err error)
 	// ListMatchSources 配单诊断：各行 × 会话勾选平台的报价缓存命中与跳过原因（不要求 BOM_NOT_READY）
 	ListMatchSources(ctx context.Context, req *ListMatchSourcesRequest, opts ...http.CallOption) (rsp *ListMatchSourcesReply, err error)
-	// ListQuoteItemMfrReviews 厂牌两阶段清洗 — 阶段二：报价明细评审列表 + 提交
+	// ListQuoteItemMfrReviews 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
 	ListQuoteItemMfrReviews(ctx context.Context, req *ListQuoteItemMfrReviewsRequest, opts ...http.CallOption) (rsp *ListQuoteItemMfrReviewsReply, err error)
 	// ListSessionLineMfrCandidates 厂牌两阶段清洗 — 阶段一：需求行候选 + 审批（仅回填 session_line）
 	ListSessionLineMfrCandidates(ctx context.Context, req *ListSessionLineMfrCandidatesRequest, opts ...http.CallOption) (rsp *ListSessionLineMfrCandidatesReply, err error)
@@ -1365,7 +1365,7 @@ func (c *BomServiceHTTPClientImpl) ListMatchSources(ctx context.Context, in *Lis
 	return &out, nil
 }
 
-// ListQuoteItemMfrReviews 厂牌两阶段清洗 — 阶段二：报价明细评审列表 + 提交
+// ListQuoteItemMfrReviews 厂牌两阶段清洗 — 阶段二：报价明细评审列表（与 GetReadiness.include_quote_item_mfr_reviews 同源；保留独立 GET 供旧客户端）
 func (c *BomServiceHTTPClientImpl) ListQuoteItemMfrReviews(ctx context.Context, in *ListQuoteItemMfrReviewsRequest, opts ...http.CallOption) (*ListQuoteItemMfrReviewsReply, error) {
 	var out ListQuoteItemMfrReviewsReply
 	pattern := "/api/v1/bom-sessions/{session_id}/quote-item-mfr-reviews"

@@ -83,6 +83,36 @@ describe('getReadiness', () => {
     expect(result.no_match_after_filter_line_count).toBe(1)
     expect(result.has_strict_blocking_gap).toBe(true)
   })
+
+  it('getReadiness appends quote mfr merge query when options set', async () => {
+    fetchJsonMock.mockResolvedValueOnce({
+      sessionId: 'session-1',
+      bizDate: '2026-04-21',
+      selectionRevision: 1,
+      phase: 'searching',
+      canEnterMatch: false,
+      blockReason: '',
+      lineTotal: 0,
+      readyLineCount: 0,
+      gapLineCount: 0,
+      noDataLineCount: 0,
+      collectionUnavailableLineCount: 0,
+      noMatchAfterFilterLineCount: 0,
+      collectingLineCount: 0,
+      hasStrictBlockingGap: false,
+      quoteMfrReviewGateOpen: true,
+      quoteItemMfrReviewItems: [],
+      allPendingQuoteMfrCount: 0,
+    })
+    const { getReadiness } = await import('./bomSession')
+    await getReadiness('session-1', {
+      includeQuoteItemMfrReviews: true,
+      includeAllPendingQuoteMfr: true,
+    })
+    expect(fetchJsonMock).toHaveBeenCalledWith(
+      '/api/v1/bom-sessions/session-1/readiness?include_quote_item_mfr_reviews=true&include_all_pending_quote_mfr=true',
+    )
+  })
 })
 
 describe('getBOMLines', () => {

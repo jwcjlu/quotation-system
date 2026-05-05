@@ -10,9 +10,11 @@ import type {
   GetReadinessReply,
   GetSessionReply,
   GetSessionSearchTaskCoverageReply,
+  LineQuoteReviewReadiness,
   ListSessionSearchTasksReply,
   ListSessionsReply,
   MatchRunListItem,
+  QuoteItemMfrReviewItem,
 } from './types'
 
 const BASE = '/api/v1/bom-sessions'
@@ -171,9 +173,66 @@ export async function putPlatforms(
   }
 }
 
-export async function getReadiness(sessionId: string): Promise<GetReadinessReply> {
+function parseLineQuoteReviewReadiness(raw: unknown): LineQuoteReviewReadiness[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  return raw.map((x) => {
+    const row = x as Record<string, unknown>
+    const topK = row.line_quote_review_top_k_item_ids ?? row.lineQuoteReviewTopKItemIds
+    const topN = row.line_quote_review_top_n_item_ids ?? row.lineQuoteReviewTopNItemIds
+    return {
+      line_id: String(row.line_id ?? row.lineId ?? ''),
+      line_quote_review_rule_b_ok: bool(
+        row.line_quote_review_rule_b_ok ?? row.lineQuoteReviewRuleBOk
+      ),
+      line_quote_review_candidate_pool_m: num(
+        row.line_quote_review_candidate_pool_m ?? row.lineQuoteReviewCandidatePoolM,
+        0
+      ),
+      line_quote_review_top_k_item_ids: Array.isArray(topK)
+        ? topK.map((id) => String(id))
+        : [],
+      line_quote_review_top_n_item_ids: Array.isArray(topN)
+        ? topN.map((id) => String(id))
+        : [],
+    }
+  })
+}
+
+function parseQuoteItemMfrReviewItems(raw: unknown): QuoteItemMfrReviewItem[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  return raw.map((x) => {
+    const r = x as Record<string, unknown>
+    return {
+      quote_item_id: num(r.quote_item_id ?? r.quoteItemId),
+      line_no: num(r.line_no ?? r.lineNo),
+      line_manufacturer_canonical_id: str(r.line_manufacturer_canonical_id ?? r.lineManufacturerCanonicalId),
+      manufacturer: str(r.manufacturer),
+      platform_id: str(r.platform_id ?? r.platformId),
+    }
+  })
+}
+
+export async function getReadiness(
+  sessionId: string,
+  options?: { includeQuoteItemMfrReviews?: boolean; includeAllPendingQuoteMfr?: boolean },
+): Promise<GetReadinessReply> {
+  const qs: string[] = []
+  if (options?.includeQuoteItemMfrReviews) {
+    qs.push('include_quote_item_mfr_reviews=true')
+    if (options.includeAllPendingQuoteMfr) {
+      qs.push('include_all_pending_quote_mfr=true')
+    }
+  }
+  const q = qs.length ? `?${qs.join('&')}` : ''
   const json = await fetchJson<Record<string, unknown>>(
-    `${BASE}/${encodeURIComponent(sessionId)}/readiness`
+    `${BASE}/${encodeURIComponent(sessionId)}/readiness${q}`,
+  )
+  const allPending =
+    json.all_pending_quote_mfr_count != null || json.allPendingQuoteMfrCount != null
+      ? num(json.all_pending_quote_mfr_count ?? json.allPendingQuoteMfrCount, 0)
+      : undefined
+  const quoteMfrItems = parseQuoteItemMfrReviewItems(
+    json.quote_item_mfr_review_items ?? json.quoteItemMfrReviewItems,
   )
   return {
     session_id: (json.session_id ?? json.sessionId) as string,
@@ -198,6 +257,39 @@ export async function getReadiness(sessionId: string): Promise<GetReadinessReply
     has_strict_blocking_gap: bool(
       json.has_strict_blocking_gap ?? json.hasStrictBlockingGap
     ),
+    quote_mfr_review_pending_count:
+      json.quote_mfr_review_pending_count != null || json.quoteMfrReviewPendingCount != null
+        ? num(json.quote_mfr_review_pending_count ?? json.quoteMfrReviewPendingCount, 0)
+        : undefined,
+    session_lines_quote_review_rule_b_not_ok_count:
+      json.session_lines_quote_review_rule_b_not_ok_count != null ||
+      json.sessionLinesQuoteReviewRuleBNotOkCount != null
+        ? num(
+            json.session_lines_quote_review_rule_b_not_ok_count ??
+              json.sessionLinesQuoteReviewRuleBNotOkCount,
+            0
+          )
+        : undefined,
+    session_quote_review_default_top_n:
+      json.session_quote_review_default_top_n != null ||
+      json.sessionQuoteReviewDefaultTopN != null
+        ? num(
+            json.session_quote_review_default_top_n ?? json.sessionQuoteReviewDefaultTopN,
+            0
+          )
+        : undefined,
+    line_quote_review_readiness: parseLineQuoteReviewReadiness(
+      json.line_quote_review_readiness ?? json.lineQuoteReviewReadiness
+    ),
+    ...(json.quote_mfr_review_gate_open != null || json.quoteMfrReviewGateOpen != null
+      ? {
+          quote_mfr_review_gate_open: bool(
+            json.quote_mfr_review_gate_open ?? json.quoteMfrReviewGateOpen
+          ),
+        }
+      : {}),
+    ...(quoteMfrItems != null ? { quote_item_mfr_review_items: quoteMfrItems } : {}),
+    ...(allPending !== undefined ? { all_pending_quote_mfr_count: allPending } : {}),
   }
 }
 

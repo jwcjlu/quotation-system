@@ -1,4 +1,5 @@
 import { fetchJson } from './http'
+import type { QuoteItemMfrReviewItem } from './types'
 
 export interface ManufacturerCanonicalRow {
   canonical_id: string
@@ -18,17 +19,11 @@ export interface SessionLineMfrCandidatesReply {
   items: SessionLineMfrCandidate[]
 }
 
-export interface QuoteItemMfrReviewItem {
-  quote_item_id: number
-  line_no: number
-  line_manufacturer_canonical_id: string
-  manufacturer: string
-  platform_id: string
-}
-
 export interface QuoteItemMfrReviewsReply {
   gate_open: boolean
   items: QuoteItemMfrReviewItem[]
+  /** 未按优先子集过滤前的待审条数（与 gate_open 无关；默认 include_all=false 时 ≥ items.length） */
+  all_pending_quote_mfr_count?: number
 }
 
 export interface AgentQuoteRow {
@@ -211,10 +206,17 @@ export async function listSessionLineMfrCandidates(
   return { items }
 }
 
-/** 阶段二：报价厂牌待确认列表 + 闸门 gate_open。 */
-export async function listQuoteItemMfrReviews(sessionId: string): Promise<QuoteItemMfrReviewsReply> {
+/** 阶段二：独立 GET 列表（与 getReadiness(..., includeQuoteItemMfrReviews) 同源）。工作台已合并至 readiness；保留供旧客户端。 */
+export async function listQuoteItemMfrReviews(
+  sessionId: string,
+  options?: { includeAllPendingQuoteMfr?: boolean },
+): Promise<QuoteItemMfrReviewsReply> {
+  const q =
+    options?.includeAllPendingQuoteMfr === true
+      ? '?include_all_pending_quote_mfr=true'
+      : ''
   const json = await fetchJson<Record<string, unknown>>(
-    `/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/quote-item-mfr-reviews`
+    `/api/v1/bom-sessions/${encodeURIComponent(sessionId)}/quote-item-mfr-reviews${q}`
   )
   const rawItems = (json.items ?? []) as Record<string, unknown>[]
   const items: QuoteItemMfrReviewItem[] = rawItems.map((r) => ({
@@ -224,9 +226,14 @@ export async function listQuoteItemMfrReviews(sessionId: string): Promise<QuoteI
     manufacturer: str(r.manufacturer),
     platform_id: str(r.platform_id ?? r.platformId),
   }))
+  const allPending =
+    json.all_pending_quote_mfr_count != null || json.allPendingQuoteMfrCount != null
+      ? num(json.all_pending_quote_mfr_count ?? json.allPendingQuoteMfrCount, 0)
+      : undefined
   return {
     gate_open: bool(json.gate_open ?? json.gateOpen),
     items,
+    ...(allPending !== undefined ? { all_pending_quote_mfr_count: allPending } : {}),
   }
 }
 

@@ -103,7 +103,9 @@ describe('two-phase BOM mfr REST', () => {
     })
     const { listQuoteItemMfrReviews } = await import('./bomMatchExtras')
     const reply = await listQuoteItemMfrReviews('sid-2')
-    expect(fetchJsonMock).toHaveBeenCalledWith('/api/v1/bom-sessions/sid-2/quote-item-mfr-reviews')
+    expect(fetchJsonMock).toHaveBeenCalledWith(
+      '/api/v1/bom-sessions/sid-2/quote-item-mfr-reviews',
+    )
     expect(reply.gate_open).toBe(true)
     expect(reply.items).toEqual([
       {
@@ -114,6 +116,15 @@ describe('two-phase BOM mfr REST', () => {
         platform_id: 'ickey',
       },
     ])
+  })
+
+  it('GET quote-item-mfr-reviews appends include_all_pending_quote_mfr when requested', async () => {
+    fetchJsonMock.mockResolvedValueOnce({ gateOpen: true, items: [], allPendingQuoteMfrCount: 0 })
+    const { listQuoteItemMfrReviews } = await import('./bomMatchExtras')
+    await listQuoteItemMfrReviews('sid-x', { includeAllPendingQuoteMfr: true })
+    expect(fetchJsonMock).toHaveBeenCalledWith(
+      '/api/v1/bom-sessions/sid-x/quote-item-mfr-reviews?include_all_pending_quote_mfr=true',
+    )
   })
 
   it('POST quote-item-mfr-reviews sends snake_case body with optional reason', async () => {

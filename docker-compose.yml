@@ -58,7 +58,7 @@ services:
       - "19090:19090"
     volumes:
       - /app/configs:/app/configs:ro
-      - /app/static/agent-scripts:/app/agent_data/script-store
+      - /app/static/agent-scripts:/app/static/agent-scripts
       - /app/logs:/app/logs
 
   web:

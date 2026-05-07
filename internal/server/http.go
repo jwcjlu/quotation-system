@@ -65,7 +65,7 @@ func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.Agent
 		if !strings.HasPrefix(pref, "/") {
 			pref = "/" + pref
 		}
-		srv.HandlePrefix(pref, scriptStoreFileHandler(c.ScriptStore.Root, pref))
+		srv.HandlePrefix(pref, scriptStoreFileHandler(c.ScriptStore.Root, pref, logger))
 	}
 
 	return srv

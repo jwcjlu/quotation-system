@@ -10,6 +10,7 @@ import (
 	"caichip/internal/service"
 
 	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/logging"
 	"github.com/go-kratos/kratos/v2/transport/http"
 )
 
@@ -32,6 +33,7 @@ func NewHTTPServer(c *conf.Bootstrap, logger log.Logger, agentSvc *service.Agent
 	opts := []http.ServerOption{
 		http.Address(addr),
 		http.Timeout(timeout),
+		http.Middleware(logging.Server(logger)),
 	}
 	if agentSvc != nil && agentSvc.Enabled() {
 		opts = append(opts, http.Middleware(agentAPIKeyMiddleware(agentSvc)))
